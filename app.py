@@ -359,7 +359,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
             marker_color='#667eea'
         ))
         fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Agent Performance Comparison")
@@ -377,7 +377,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
             labels={'total_ad': 'Total Ads', 'agent_name': 'Agent', 'ctr_percent': 'CTR %'}
         )
         fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     # Agent summary table
     st.subheader("Agent Summary (All Sections)")
@@ -414,7 +414,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
     summary.columns = col_names
     summary = summary.fillna(0)
 
-    st.dataframe(summary, width='stretch', hide_index=True)
+    st.dataframe(summary, use_container_width=True, hide_index=True)
 
 
 def render_running_ads(running_ads_df, selected_agent):
@@ -477,7 +477,7 @@ def render_running_ads(running_ads_df, selected_agent):
             yaxis=dict(title='Impressions'),
             yaxis2=dict(title='Clicks', overlaying='y', side='right'),
         )
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Ad Status Distribution")
@@ -489,7 +489,7 @@ def render_running_ads(running_ads_df, selected_agent):
             color_discrete_sequence=['#2ecc71', '#e74c3c', '#95a5a6']
         )
         fig.update_layout(height=350)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     # Data table
     st.subheader("Detailed Data")
@@ -503,7 +503,7 @@ def render_running_ads(running_ads_df, selected_agent):
 
     display_df = running_ads_df[[col for col in base_cols if col in running_ads_df.columns]].copy()
     display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
-    st.dataframe(display_df, width='stretch', hide_index=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 def render_creative_work(creative_df, selected_agent):
@@ -543,7 +543,7 @@ def render_creative_work(creative_df, selected_agent):
             color_discrete_sequence=px.colors.qualitative.Set2
         )
         fig.update_layout(height=350)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Daily Creative Output")
@@ -556,14 +556,14 @@ def render_creative_work(creative_df, selected_agent):
             color_continuous_scale='Purples'
         )
         fig.update_layout(height=350)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     # Creative content table
     st.subheader("Creative Content Details")
     display_df = creative_df[['date', 'agent_name', 'creative_type', 'creative_content', 'caption']].copy()
     display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
     display_df['creative_content'] = display_df['creative_content'].str[:60] + '...'
-    st.dataframe(display_df, width='stretch', hide_index=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 def render_sms(sms_df, selected_agent):
@@ -607,7 +607,7 @@ def render_sms(sms_df, selected_agent):
             color_continuous_scale='Oranges'
         )
         fig.update_layout(height=400, yaxis={'categoryorder': 'total ascending'})
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Daily SMS Output")
@@ -621,7 +621,7 @@ def render_sms(sms_df, selected_agent):
         )
         fig.update_traces(line_color='#ff7f0e', line_width=3)
         fig.update_layout(height=400)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     # SMS detail table
     st.subheader("SMS Details by Agent")
@@ -632,7 +632,7 @@ def render_sms(sms_df, selected_agent):
         aggfunc='sum',
         fill_value=0
     ).reset_index()
-    st.dataframe(sms_pivot, width='stretch', hide_index=True)
+    st.dataframe(sms_pivot, use_container_width=True, hide_index=True)
 
 
 def render_content_analysis(content_df, selected_agent):
@@ -674,7 +674,7 @@ def render_content_analysis(content_df, selected_agent):
             color_discrete_sequence=['#667eea', '#764ba2']
         )
         fig.update_layout(height=300)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Daily Content Posts")
@@ -687,7 +687,7 @@ def render_content_analysis(content_df, selected_agent):
             color_continuous_scale='Blues'
         )
         fig.update_layout(height=300)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, use_container_width=True)
 
     # Similarity Analysis
     st.divider()
@@ -737,7 +737,7 @@ def render_content_analysis(content_df, selected_agent):
     display_df = content_df[['date', 'agent_name', 'content_type', 'primary_content', 'status']].copy()
     display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
     display_df['primary_content'] = display_df['primary_content'].str[:60] + '...'
-    st.dataframe(display_df, width='stretch', hide_index=True)
+    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 if __name__ == "__main__":
