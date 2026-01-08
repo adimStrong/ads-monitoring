@@ -345,7 +345,9 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
 
     with col1:
         st.subheader("Daily Performance Trend")
-        daily_perf = running_ads_df.groupby('date').agg({
+        daily_perf = running_ads_df.copy()
+        daily_perf['date_only'] = daily_perf['date'].dt.date
+        daily_agg = daily_perf.groupby('date_only').agg({
             'total_ad': 'sum',
             'impressions': 'sum',
             'clicks': 'sum'
@@ -353,12 +355,12 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
 
         fig = go.Figure()
         fig.add_trace(go.Bar(
-            x=daily_perf['date'],
-            y=daily_perf['total_ad'],
+            x=daily_agg['date_only'],
+            y=daily_agg['total_ad'],
             name='Total Ads',
             marker_color='#667eea'
         ))
-        fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
+        fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20), xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -449,7 +451,9 @@ def render_running_ads(running_ads_df, selected_agent):
 
     with col1:
         st.subheader("Performance Trend")
-        daily_trend = running_ads_df.groupby('date').agg({
+        daily_trend = running_ads_df.copy()
+        daily_trend['date_only'] = daily_trend['date'].dt.date
+        daily_agg = daily_trend.groupby('date_only').agg({
             'total_ad': 'sum',
             'impressions': 'sum',
             'clicks': 'sum',
@@ -458,15 +462,15 @@ def render_running_ads(running_ads_df, selected_agent):
 
         fig = go.Figure()
         fig.add_trace(go.Scatter(
-            x=daily_trend['date'],
-            y=daily_trend['impressions'],
+            x=daily_agg['date_only'],
+            y=daily_agg['impressions'],
             name='Impressions',
             fill='tozeroy',
             line=dict(color='#3498db', width=2)
         ))
         fig.add_trace(go.Scatter(
-            x=daily_trend['date'],
-            y=daily_trend['clicks'],
+            x=daily_agg['date_only'],
+            y=daily_agg['clicks'],
             name='Clicks',
             fill='tozeroy',
             yaxis='y2',
@@ -476,6 +480,7 @@ def render_running_ads(running_ads_df, selected_agent):
             height=350,
             yaxis=dict(title='Impressions'),
             yaxis2=dict(title='Clicks', overlaying='y', side='right'),
+            xaxis_tickformat='%Y-%m-%d'
         )
         st.plotly_chart(fig, use_container_width=True)
 
@@ -515,17 +520,20 @@ def render_creative_work(creative_df, selected_agent):
         return
 
     # Summary metrics
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         st.metric("Total Creatives", f"{len(creative_df):,}")
     with col2:
+        creative_total_sum = creative_df['creative_total'].sum() if 'creative_total' in creative_df.columns else 0
+        st.metric("Creative Total", f"{int(creative_total_sum):,}")
+    with col3:
         unique = creative_df['creative_content'].nunique()
         st.metric("Unique Content", f"{unique:,}")
-    with col3:
+    with col4:
         freshness = (unique / len(creative_df) * 100) if len(creative_df) > 0 else 0
         st.metric("Freshness", f"{freshness:.1f}%")
-    with col4:
+    with col5:
         types = creative_df['creative_type'].nunique()
         st.metric("Types Used", f"{types:,}")
 
@@ -547,20 +555,27 @@ def render_creative_work(creative_df, selected_agent):
 
     with col2:
         st.subheader("Daily Creative Output")
-        daily_creative = creative_df.groupby('date').size().reset_index(name='count')
+        daily_creative = creative_df.copy()
+        daily_creative['date_only'] = daily_creative['date'].dt.date
+        daily_agg = daily_creative.groupby('date_only').agg({
+            'creative_total': 'sum'
+        }).reset_index()
+        daily_agg.columns = ['date', 'total']
         fig = px.bar(
-            daily_creative,
+            daily_agg,
             x='date',
-            y='count',
-            color='count',
+            y='total',
+            color='total',
             color_continuous_scale='Purples'
         )
-        fig.update_layout(height=350)
+        fig.update_layout(height=350, xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     # Creative content table
     st.subheader("Creative Content Details")
-    display_df = creative_df[['date', 'agent_name', 'creative_type', 'creative_content', 'caption']].copy()
+    cols_to_show = ['date', 'agent_name', 'creative_type', 'creative_total', 'creative_content', 'caption']
+    cols_available = [c for c in cols_to_show if c in creative_df.columns]
+    display_df = creative_df[cols_available].copy()
     display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
     display_df['creative_content'] = display_df['creative_content'].str[:60] + '...'
     st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -611,16 +626,18 @@ def render_sms(sms_df, selected_agent):
 
     with col2:
         st.subheader("Daily SMS Output")
-        daily_sms = sms_df.groupby('date')['sms_total'].sum().reset_index()
+        daily_sms = sms_df.copy()
+        daily_sms['date_only'] = daily_sms['date'].dt.date
+        daily_agg = daily_sms.groupby('date_only')['sms_total'].sum().reset_index()
         fig = px.line(
-            daily_sms,
-            x='date',
+            daily_agg,
+            x='date_only',
             y='sms_total',
             markers=True,
             line_shape='spline'
         )
         fig.update_traces(line_color='#ff7f0e', line_width=3)
-        fig.update_layout(height=400)
+        fig.update_layout(height=400, xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     # SMS detail table
@@ -678,15 +695,17 @@ def render_content_analysis(content_df, selected_agent):
 
     with col2:
         st.subheader("Daily Content Posts")
-        daily_content = content_df.groupby('date').size().reset_index(name='posts')
+        daily_content = content_df.copy()
+        daily_content['date_only'] = daily_content['date'].dt.date
+        daily_agg = daily_content.groupby('date_only').size().reset_index(name='posts')
         fig = px.bar(
-            daily_content,
-            x='date',
+            daily_agg,
+            x='date_only',
             y='posts',
             color='posts',
             color_continuous_scale='Blues'
         )
-        fig.update_layout(height=300)
+        fig.update_layout(height=300, xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     # Similarity Analysis
