@@ -79,7 +79,7 @@ def load_agent_performance_data(agent_name, sheet_name):
         url = get_public_sheet_url(GOOGLE_SHEETS_ID, sheet_name)
 
         # Read all data from sheet
-        df = pd.read_csv(url, header=1)  # Header is row 2 (index 1)
+        df = pd.read_csv(url, header=0)  # Header is row 1 (index 0)
 
         if df.empty:
             return None, None, None
@@ -220,24 +220,47 @@ def load_agent_performance_data(agent_name, sheet_name):
 def load_agent_content_data(agent_name, sheet_name):
     """
     Load content data from agent's content sheet
+    Content sheet structure: DATE, TYPE, PRIMARY CONTENT, CONDITION, STATUS, blank, REMARK/S
+    Note: First row may be malformed header, and dates may be in m/d format without year
     """
     try:
         url = get_public_sheet_url(GOOGLE_SHEETS_ID, sheet_name)
 
-        # Read all data from sheet
-        df = pd.read_csv(url, header=0)  # Header is row 1
+        # Read all data without header - we'll parse manually due to malformed headers
+        df = pd.read_csv(url, header=None)
 
         if df.empty:
             return None
 
         content_data = []
+        last_valid_date = None
 
         for idx, row in df.iterrows():
+            # Skip first row if it looks like a malformed header
+            if idx == 0:
+                first_cell = str(row.iloc[0]) if len(row) > 0 else ''
+                # Check if first row contains header keywords
+                if 'TYPE' in str(row.iloc[1]) if len(row) > 1 else False:
+                    continue
+                if 'PRIMARY' in first_cell.upper() or 'DATE' in first_cell.upper():
+                    continue
+
             date = parse_date(row.iloc[0] if len(row) > 0 else None)
+
+            # Track last valid date for rows without dates (headlines under primary text)
+            if date:
+                last_valid_date = date
+            else:
+                date = last_valid_date
+
             if not date:
                 continue
 
             primary_content = str(row.iloc[2]) if len(row) > 2 and pd.notna(row.iloc[2]) else ''
+
+            # Skip if content looks like a header
+            if 'PRIMARY CONTENT' in primary_content.upper():
+                continue
 
             if primary_content and primary_content.strip() and primary_content != 'nan':
                 content_data.append({

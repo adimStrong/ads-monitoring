@@ -361,24 +361,45 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
             marker_color='#667eea'
         ))
         fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20), xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')  # Prevent duplicate dates
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
         st.subheader("Agent Performance Comparison")
+        # Combine ads and creative data for agent comparison
         agent_perf = running_ads_df.groupby('agent_name').agg({
             'total_ad': 'sum',
             'ctr_percent': 'mean',
         }).reset_index()
 
-        fig = px.bar(
-            agent_perf,
-            x='agent_name',
-            y='total_ad',
-            color='ctr_percent',
-            color_continuous_scale='Viridis',
-            labels={'total_ad': 'Total Ads', 'agent_name': 'Agent', 'ctr_percent': 'CTR %'}
+        # Add creative total per agent
+        if not creative_df.empty and 'creative_total' in creative_df.columns:
+            agent_creative = creative_df.groupby('agent_name')['creative_total'].sum().reset_index()
+            agent_creative.columns = ['agent_name', 'creative_total']
+            agent_perf = agent_perf.merge(agent_creative, on='agent_name', how='left')
+            agent_perf['creative_total'] = agent_perf['creative_total'].fillna(0)
+        else:
+            agent_perf['creative_total'] = 0
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=agent_perf['agent_name'],
+            y=agent_perf['total_ad'],
+            name='Total Ads',
+            marker_color='#667eea'
+        ))
+        fig.add_trace(go.Bar(
+            x=agent_perf['agent_name'],
+            y=agent_perf['creative_total'],
+            name='Creative Total',
+            marker_color='#764ba2'
+        ))
+        fig.update_layout(
+            height=350,
+            margin=dict(l=20, r=20, t=20, b=20),
+            barmode='group',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
         )
-        fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
         st.plotly_chart(fig, use_container_width=True)
 
     # Agent summary table
@@ -482,6 +503,7 @@ def render_running_ads(running_ads_df, selected_agent):
             yaxis2=dict(title='Clicks', overlaying='y', side='right'),
             xaxis_tickformat='%Y-%m-%d'
         )
+        fig.update_xaxes(type='category')  # Prevent duplicate dates
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -569,6 +591,7 @@ def render_creative_work(creative_df, selected_agent):
             color_continuous_scale='Purples'
         )
         fig.update_layout(height=350, xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')  # Prevent duplicate dates
         st.plotly_chart(fig, use_container_width=True)
 
     # Creative content table
@@ -638,6 +661,7 @@ def render_sms(sms_df, selected_agent):
         )
         fig.update_traces(line_color='#ff7f0e', line_width=3)
         fig.update_layout(height=400, xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')  # Prevent duplicate dates
         st.plotly_chart(fig, use_container_width=True)
 
     # SMS detail table
@@ -706,6 +730,7 @@ def render_content_analysis(content_df, selected_agent):
             color_continuous_scale='Blues'
         )
         fig.update_layout(height=300, xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')  # Prevent duplicate dates
         st.plotly_chart(fig, use_container_width=True)
 
     # Similarity Analysis
