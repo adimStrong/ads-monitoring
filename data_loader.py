@@ -119,11 +119,13 @@ def load_agent_performance_data(agent_name, sheet_name):
         # SECTION 2: WITHOUT (Creative Work) (Columns O-T, indices 14-19)
         # Column order: CREATIVE FOLDER, TYPE, TOTAL, CONTENT, CAPTION, REMARKS
         # Note: Creative content can span multiple rows - rows without DATE inherit last valid date
+        # Count creative work when EITHER creative_total > 0 OR creative_content exists
         # ============================================================
         creative_data = []
         last_valid_date = None
         last_creative_folder = ''
         last_creative_type = ''
+        default_date = datetime.now()  # Fallback for sheets with no dates (like KRISSA)
 
         for idx, row in df.iterrows():
             row_date = parse_date(row.iloc[0] if len(row) > 0 else None)
@@ -139,14 +141,19 @@ def load_agent_performance_data(agent_name, sheet_name):
                 if ctype and ctype.strip() and ctype != 'nan':
                     last_creative_type = ctype
 
-            # Use last valid date for rows without dates
+            # Use last valid date for rows without dates, or default date if no dates at all
             date_to_use = row_date if row_date else last_valid_date
             if not date_to_use:
-                continue
+                date_to_use = default_date  # Use today's date for sheets without any dates
 
             creative_content = str(row.iloc[17]) if len(row) > 17 and pd.notna(row.iloc[17]) else ''  # R - CONTENT
+            creative_total = int(parse_numeric(row.iloc[16] if len(row) > 16 else 0))  # Q - TOTAL
 
-            if creative_content and creative_content.strip() and creative_content != 'nan':
+            # Add record if EITHER creative_content exists OR creative_total > 0
+            has_content = creative_content and creative_content.strip() and creative_content != 'nan'
+            has_total = creative_total > 0
+
+            if has_content or has_total:
                 # Get folder/type from current row or use last valid
                 creative_folder_raw = str(row.iloc[14]) if len(row) > 14 and pd.notna(row.iloc[14]) else ''
                 if not creative_folder_raw or creative_folder_raw == 'nan':
@@ -154,7 +161,6 @@ def load_agent_performance_data(agent_name, sheet_name):
                 creative_type_raw = str(row.iloc[15]) if len(row) > 15 and pd.notna(row.iloc[15]) else ''
                 if not creative_type_raw or creative_type_raw == 'nan':
                     creative_type_raw = last_creative_type
-                creative_total = int(parse_numeric(row.iloc[16] if len(row) > 16 else 0))  # Q - TOTAL
 
                 # Normalize folder and type to title case
                 creative_folder = creative_folder_raw.strip().title() if creative_folder_raw else ''
@@ -165,8 +171,8 @@ def load_agent_performance_data(agent_name, sheet_name):
                     'agent_name': agent_name,
                     'creative_folder': creative_folder,
                     'creative_type': creative_type,
-                    'creative_total': creative_total,
-                    'creative_content': creative_content,
+                    'creative_total': creative_total if has_total else 1,  # Default to 1 if content exists but no total
+                    'creative_content': creative_content if has_content else f'Creative work #{len(creative_data)+1}',
                     'caption': str(row.iloc[18]) if len(row) > 18 and pd.notna(row.iloc[18]) else '',  # S - CAPTION
                     'creative_remarks': str(row.iloc[19]) if len(row) > 19 and pd.notna(row.iloc[19]) else '',  # T - REMARKS
                 })
