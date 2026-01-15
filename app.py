@@ -197,6 +197,20 @@ def main():
         st.cache_data.clear()
         st.rerun()
 
+    # Send Daily Report button
+    if st.sidebar.button("📤 Send Daily Report", type="secondary"):
+        try:
+            from daily_report import generate_daily_report
+            with st.spinner("Generating and sending report to Telegram..."):
+                report = generate_daily_report(send_to_telegram=True)
+                st.sidebar.success("✅ Report sent to Telegram!")
+                with st.sidebar.expander("Preview Report"):
+                    st.code(report, language=None)
+        except ValueError as e:
+            st.sidebar.error(f"⚠️ Telegram not configured: {e}")
+        except Exception as e:
+            st.sidebar.error(f"❌ Failed to send report: {e}")
+
     # Load data
     if use_real_data:
         st.sidebar.info("Loading from Google Sheets...")
