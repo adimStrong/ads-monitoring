@@ -19,17 +19,39 @@ def get_public_sheet_url(sheet_id, sheet_name):
     return f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet={encoded_name}"
 
 
+def normalize_agent_name(name):
+    """Normalize agent name to consistent format (uppercase)"""
+    if not name:
+        return ''
+    return str(name).strip().upper()
+
+
 def parse_date(date_str):
-    """Parse date from various formats"""
+    """Parse date from various formats including malformed dates"""
     if pd.isna(date_str) or str(date_str).strip() == '':
         return None
 
     date_str = str(date_str).strip()
 
+    # Skip if it looks like header text or concatenated merged cell data
+    if len(date_str) > 20:  # Date strings shouldn't be this long
+        return None
+    if any(keyword in date_str.upper() for keyword in ['TYPE', 'PRIMARY', 'CONTENT', 'DATE', 'CONDITION']):
+        return None
+
+    # Clean up malformed dates like "1//7" -> "1/7"
+    import re
+    date_str = re.sub(r'/+', '/', date_str)  # Replace multiple slashes with single
+    date_str = date_str.strip('/')  # Remove leading/trailing slashes
+
+    # Current year for dates without year
+    current_year = datetime.now().year
+
     # Handle various date formats
     formats = [
         '%m/%d/%Y',
-        '%m/%d',
+        '%m/%d/%y',    # 2-digit year like 01/05/26
+        '%m/%d',       # No year like 1/8 or 01/05
         '%Y-%m-%d',
         '%d/%m/%Y',
         '%m-%d-%Y',
@@ -40,9 +62,12 @@ def parse_date(date_str):
     for fmt in formats:
         try:
             dt = datetime.strptime(date_str, fmt)
-            # If no year, assume current year
+            # If no year (defaults to 1900), use current year
             if dt.year == 1900:
-                dt = dt.replace(year=datetime.now().year)
+                dt = dt.replace(year=current_year)
+            # Handle 2-digit year - if parsed year is far in future, adjust
+            elif dt.year > current_year + 10:
+                dt = dt.replace(year=dt.year - 100)
             return dt
         except:
             continue
@@ -50,7 +75,8 @@ def parse_date(date_str):
     # Try parsing as Excel serial date
     try:
         excel_date = float(date_str)
-        return datetime(1899, 12, 30) + timedelta(days=excel_date)
+        if 1 < excel_date < 100000:  # Reasonable Excel date range
+            return datetime(1899, 12, 30) + timedelta(days=excel_date)
     except:
         pass
 
@@ -69,6 +95,31 @@ def parse_numeric(value, default=0):
         return default
 
 
+def parse_creative_total(value, default=0):
+    """
+    Parse creative total from various formats:
+    - "9" -> 9
+    - "8 Banners" -> 8
+    - "7 Banners & 2 Videos" -> 9 (sum of all numbers)
+    - "10" -> 10
+    """
+    import re
+    if pd.isna(value) or value == '' or value is None:
+        return default
+
+    value_str = str(value).strip()
+    if not value_str or value_str == 'nan':
+        return default
+
+    # Find all numbers in the string
+    numbers = re.findall(r'\d+', value_str)
+    if numbers:
+        # Sum all numbers found (e.g., "7 Banners & 2 Videos" = 9)
+        return sum(int(n) for n in numbers)
+
+    return default
+
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_agent_performance_data(agent_name, sheet_name):
     """
@@ -84,22 +135,32 @@ def load_agent_performance_data(agent_name, sheet_name):
         if df.empty:
             return None, None, None
 
+        # Normalize agent name
+        normalized_agent = normalize_agent_name(agent_name)
+
         # ============================================================
         # SECTION 1: WITH RUNNING ADS (Columns A-N, indices 0-13)
         # Column order: DATE, AMOUNT SPENT, TOTAL AD, CAMPAIGN, IMPRESSION,
         #               CLICKS, CTR%, CPC, CPR, CONVERSION RATE,
         #               REJECTED, DELETED, ACTIVE, REMARKS
+        # Note: Only rows with valid dates get performance data (no merging)
         # ============================================================
         running_ads_data = []
+        last_perf_date = None
 
         for idx, row in df.iterrows():
             date = parse_date(row.iloc[0] if len(row) > 0 else None)
+
+            # For running ads, only process rows with actual dates
+            # (performance data is per-date, not merged)
             if not date:
                 continue
 
+            last_perf_date = date
+
             running_ads_data.append({
                 'date': date,
-                'agent_name': agent_name,
+                'agent_name': normalized_agent,
                 'amount_spent': parse_numeric(row.iloc[1] if len(row) > 1 else 0),  # B - AMOUNT SPENT
                 'total_ad': int(parse_numeric(row.iloc[2] if len(row) > 2 else 0)),  # C - TOTAL AD
                 'campaign': str(row.iloc[3]) if len(row) > 3 and pd.notna(row.iloc[3]) else '',  # D - CAMPAIGN
@@ -119,12 +180,13 @@ def load_agent_performance_data(agent_name, sheet_name):
         # SECTION 2: WITHOUT (Creative Work) (Columns O-T, indices 14-19)
         # Column order: CREATIVE FOLDER, TYPE, TOTAL, CONTENT, CAPTION, REMARKS
         # Note: Creative content can span multiple rows - rows without DATE inherit last valid date
-        # Count creative work when EITHER creative_total > 0 OR creative_content exists
+        # TOTAL column is also merged - inherit from last valid total
         # ============================================================
         creative_data = []
         last_valid_date = None
         last_creative_folder = ''
         last_creative_type = ''
+        last_creative_total = 0  # Track last valid total for merged cells
         default_date = datetime.now()  # Fallback for sheets with no dates (like KRISSA)
 
         for idx, row in df.iterrows():
@@ -133,13 +195,17 @@ def load_agent_performance_data(agent_name, sheet_name):
             # Update tracking values if this row has a date
             if row_date:
                 last_valid_date = row_date
-                # Also update folder/type if present on dated rows
+                # Also update folder/type/total if present on dated rows
                 folder = str(row.iloc[14]) if len(row) > 14 and pd.notna(row.iloc[14]) else ''
                 if folder and folder.strip() and folder != 'nan':
                     last_creative_folder = folder
                 ctype = str(row.iloc[15]) if len(row) > 15 and pd.notna(row.iloc[15]) else ''
                 if ctype and ctype.strip() and ctype != 'nan':
                     last_creative_type = ctype
+                # Update total if present on dated row
+                total_raw = row.iloc[16] if len(row) > 16 else None
+                if pd.notna(total_raw) and str(total_raw).strip() and str(total_raw).strip() != 'nan':
+                    last_creative_total = parse_creative_total(total_raw)
 
             # Use last valid date for rows without dates, or default date if no dates at all
             date_to_use = row_date if row_date else last_valid_date
@@ -147,7 +213,14 @@ def load_agent_performance_data(agent_name, sheet_name):
                 date_to_use = default_date  # Use today's date for sheets without any dates
 
             creative_content = str(row.iloc[17]) if len(row) > 17 and pd.notna(row.iloc[17]) else ''  # R - CONTENT
-            creative_total = int(parse_numeric(row.iloc[16] if len(row) > 16 else 0))  # Q - TOTAL
+
+            # Get total from current row or inherit from last valid total
+            total_raw = row.iloc[16] if len(row) > 16 else None
+            if pd.notna(total_raw) and str(total_raw).strip() and str(total_raw).strip() != 'nan':
+                creative_total = parse_creative_total(total_raw)
+                last_creative_total = creative_total  # Update last valid total
+            else:
+                creative_total = last_creative_total  # Inherit from merged cell
 
             # Only count creative work when actual content exists
             has_content = creative_content and creative_content.strip() and creative_content != 'nan'
@@ -167,10 +240,10 @@ def load_agent_performance_data(agent_name, sheet_name):
 
                 creative_data.append({
                     'date': date_to_use,
-                    'agent_name': agent_name,
+                    'agent_name': normalized_agent,
                     'creative_folder': creative_folder,
                     'creative_type': creative_type,
-                    'creative_total': creative_total,  # Use actual value (can be 0)
+                    'creative_total': creative_total,  # Inherited from merged cell if empty
                     'creative_content': creative_content,
                     'caption': str(row.iloc[18]) if len(row) > 18 and pd.notna(row.iloc[18]) else '',  # S - CAPTION
                     'creative_remarks': str(row.iloc[19]) if len(row) > 19 and pd.notna(row.iloc[19]) else '',  # T - REMARKS
@@ -180,9 +253,11 @@ def load_agent_performance_data(agent_name, sheet_name):
         # SECTION 3: SMS (Columns U-W, indices 20-22)
         # Column order: SMS TYPE, TOTAL, REMARKS
         # Note: SMS data can span multiple rows - rows without DATE inherit last valid date
+        # TOTAL column is also merged - inherit from last valid total
         # ============================================================
         sms_data = []
         last_sms_date = None
+        last_sms_total = 0  # Track last valid SMS total for merged cells
 
         for idx, row in df.iterrows():
             row_date = parse_date(row.iloc[0] if len(row) > 0 else None)
@@ -190,6 +265,10 @@ def load_agent_performance_data(agent_name, sheet_name):
             # Update last valid date if this row has a date
             if row_date:
                 last_sms_date = row_date
+                # Update SMS total if present on dated row
+                total_raw = row.iloc[21] if len(row) > 21 else None
+                if pd.notna(total_raw) and str(total_raw).strip() and str(total_raw).strip() != 'nan':
+                    last_sms_total = int(parse_numeric(total_raw))
 
             # Use last valid date for rows without dates
             date_to_use = row_date if row_date else last_sms_date
@@ -197,16 +276,23 @@ def load_agent_performance_data(agent_name, sheet_name):
                 continue
 
             sms_type_raw = str(row.iloc[20]) if len(row) > 20 and pd.notna(row.iloc[20]) else ''  # U - SMS TYPE
-            sms_total = parse_numeric(row.iloc[21] if len(row) > 21 else 0)  # V - TOTAL
+
+            # Get total from current row or inherit from last valid total
+            total_raw = row.iloc[21] if len(row) > 21 else None
+            if pd.notna(total_raw) and str(total_raw).strip() and str(total_raw).strip() != 'nan':
+                sms_total = int(parse_numeric(total_raw))
+                last_sms_total = sms_total  # Update last valid total
+            else:
+                sms_total = last_sms_total  # Inherit from merged cell
 
             if sms_type_raw and sms_type_raw.strip() and sms_type_raw != 'nan' and sms_total > 0:
                 # Normalize SMS type to title case to merge duplicates with different capitalization
                 sms_type = sms_type_raw.strip().title()
                 sms_data.append({
                     'date': date_to_use,
-                    'agent_name': agent_name,
+                    'agent_name': normalized_agent,
                     'sms_type': sms_type,
-                    'sms_total': int(sms_total),
+                    'sms_total': sms_total,  # Inherited from merged cell if empty
                     'sms_remarks': str(row.iloc[22]) if len(row) > 22 and pd.notna(row.iloc[22]) else '',  # W - REMARKS
                 })
 
@@ -221,12 +307,35 @@ def load_agent_performance_data(agent_name, sheet_name):
         return None, None, None
 
 
+def is_merged_header_row(row):
+    """
+    Check if a row is a malformed merged header row.
+    These rows have concatenated data from merged cells.
+    """
+    if len(row) < 2:
+        return False
+
+    # Check multiple columns for signs of merged/concatenated data
+    for i in range(min(4, len(row))):
+        cell = str(row.iloc[i]) if pd.notna(row.iloc[i]) else ''
+        # If cell contains multiple keywords that should be in separate cells
+        keywords = ['Primary Text', 'Headline', 'Approved', 'TYPE', 'PRIMARY CONTENT', 'CONDITION']
+        keyword_count = sum(1 for k in keywords if k in cell)
+        if keyword_count >= 2:
+            return True
+        # If cell is extremely long (concatenated data)
+        if len(cell) > 500:
+            return True
+    return False
+
+
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_agent_content_data(agent_name, sheet_name):
     """
     Load content data from agent's content sheet
     Content sheet structure: DATE, TYPE, PRIMARY CONTENT, CONDITION, STATUS, blank, REMARK/S
-    Note: First row may be malformed header, and dates may be in m/d format without year
+    Note: First row may be malformed header with merged/concatenated cells
+    Dates may be in m/d format without year and empty for continuation rows
     """
     try:
         url = get_public_sheet_url(GOOGLE_SHEETS_ID, sheet_name)
@@ -237,19 +346,24 @@ def load_agent_content_data(agent_name, sheet_name):
         if df.empty:
             return None
 
+        # Normalize agent name
+        normalized_agent = normalize_agent_name(agent_name)
+
         content_data = []
         last_valid_date = None
+        last_content_type = ''
 
         for idx, row in df.iterrows():
-            # Skip first row if it looks like a malformed header
-            if idx == 0:
-                first_cell = str(row.iloc[0]) if len(row) > 0 else ''
-                # Check if first row contains header keywords
-                if 'TYPE' in str(row.iloc[1]) if len(row) > 1 else False:
-                    continue
-                if 'PRIMARY' in first_cell.upper() or 'DATE' in first_cell.upper():
-                    continue
+            # Skip malformed merged header rows (first few rows might be affected)
+            if idx < 3 and is_merged_header_row(row):
+                continue
 
+            # Skip header row with keywords
+            first_cell = str(row.iloc[0]) if len(row) > 0 and pd.notna(row.iloc[0]) else ''
+            if 'DATE' in first_cell.upper() and idx < 2:
+                continue
+
+            # Parse date - will return None for empty cells or malformed data
             date = parse_date(row.iloc[0] if len(row) > 0 else None)
 
             # Track last valid date for rows without dates (headlines under primary text)
@@ -261,22 +375,38 @@ def load_agent_content_data(agent_name, sheet_name):
             if not date:
                 continue
 
+            # Get content type - inherit from last row if empty
+            content_type_raw = str(row.iloc[1]) if len(row) > 1 and pd.notna(row.iloc[1]) else ''
+            if content_type_raw and content_type_raw.strip() and content_type_raw != 'nan':
+                # Normalize content type (Primary Text, Headline)
+                content_type_raw = content_type_raw.strip()
+                if 'primary' in content_type_raw.lower():
+                    last_content_type = 'Primary Text'
+                elif 'headline' in content_type_raw.lower():
+                    last_content_type = 'Headline'
+                else:
+                    last_content_type = content_type_raw.title()
+
+            content_type = last_content_type
+
             primary_content = str(row.iloc[2]) if len(row) > 2 and pd.notna(row.iloc[2]) else ''
 
-            # Skip if content looks like a header
+            # Skip if content looks like a header or is too long (concatenated)
             if 'PRIMARY CONTENT' in primary_content.upper():
+                continue
+            if len(primary_content) > 1000:  # Likely concatenated merged cell data
                 continue
 
             if primary_content and primary_content.strip() and primary_content != 'nan':
                 content_data.append({
                     'date': date,
-                    'agent_name': agent_name,
-                    'content_type': str(row.iloc[1]) if len(row) > 1 and pd.notna(row.iloc[1]) else '',
-                    'primary_content': primary_content,
-                    'condition': str(row.iloc[3]) if len(row) > 3 and pd.notna(row.iloc[3]) else '',
-                    'status': str(row.iloc[4]) if len(row) > 4 and pd.notna(row.iloc[4]) else '',
-                    'primary_adjustment': str(row.iloc[5]) if len(row) > 5 and pd.notna(row.iloc[5]) else '',
-                    'remarks': str(row.iloc[6]) if len(row) > 6 and pd.notna(row.iloc[6]) else '',
+                    'agent_name': normalized_agent,
+                    'content_type': content_type,
+                    'primary_content': primary_content.strip(),
+                    'condition': str(row.iloc[3]).strip() if len(row) > 3 and pd.notna(row.iloc[3]) else '',
+                    'status': str(row.iloc[4]).strip() if len(row) > 4 and pd.notna(row.iloc[4]) else '',
+                    'primary_adjustment': str(row.iloc[5]).strip() if len(row) > 5 and pd.notna(row.iloc[5]) else '',
+                    'remarks': str(row.iloc[6]).strip() if len(row) > 6 and pd.notna(row.iloc[6]) else '',
                 })
 
         return pd.DataFrame(content_data) if content_data else pd.DataFrame()
