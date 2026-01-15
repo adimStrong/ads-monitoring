@@ -28,7 +28,7 @@ def send_report():
 
     print("Generating T+1 report...")
     report = generate_t1_report(all_ads, all_creative, all_sms, all_content)
-    report += '\n\n@Derr_Juan365 @Zzzzz103 @Adsbasty'
+    report += '\n\n@xxxadsron @Adsbasty'
 
     # Telegram config
     bot_token = '8126268680:AAEXeyB0DSmLIhx34BOlUVkFYkfvv-PW5C8'
