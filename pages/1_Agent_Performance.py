@@ -198,9 +198,16 @@ with tab1:
             <h4 style="margin: 0; opacity: 0.9;">SMS</h4>
         </div>
         """, unsafe_allow_html=True)
-        st.metric("Total SMS Sent", f"{sms_df['sms_total'].sum():,}" if not sms_df.empty and 'sms_total' in sms_df.columns else "0")
+        # Group by date first to avoid double-counting (sms_total is daily total)
+        if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+            sms_daily_totals = sms_df.groupby(sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date'])['sms_total'].first()
+            total_sms = int(sms_daily_totals.sum())
+            avg_sms_daily = sms_daily_totals.mean()
+        else:
+            total_sms = 0
+            avg_sms_daily = 0
+        st.metric("Total SMS Sent", f"{total_sms:,}")
         st.metric("SMS Types Used", f"{sms_df['sms_type'].nunique()}" if not sms_df.empty and 'sms_type' in sms_df.columns else "0")
-        avg_sms_daily = sms_df.groupby('date')['sms_total'].sum().mean() if not sms_df.empty and 'sms_total' in sms_df.columns else 0
         st.metric("Avg per Day", f"{avg_sms_daily:.0f}")
 
     st.divider()
@@ -211,7 +218,8 @@ with tab1:
     # Aggregate daily data
     daily_ads = running_ads_df.groupby('date')['total_ad'].sum().reset_index()
     daily_creative = creative_df.groupby('date').size().reset_index(name='creative_count') if not creative_df.empty else pd.DataFrame({'date': [], 'creative_count': []})
-    daily_sms = sms_df.groupby('date')['sms_total'].sum().reset_index() if not sms_df.empty and 'sms_total' in sms_df.columns else pd.DataFrame({'date': [], 'sms_total': []})
+    # Take first per date to avoid double-counting (sms_total is daily total)
+    daily_sms = sms_df.groupby('date')['sms_total'].first().reset_index() if not sms_df.empty and 'sms_total' in sms_df.columns else pd.DataFrame({'date': [], 'sms_total': []})
 
     fig = go.Figure()
 
@@ -420,18 +428,25 @@ with tab3:
 with tab4:
     st.subheader("📱 SMS Performance")
 
-    # Key metrics
+    # Key metrics - group by date first to avoid double-counting (sms_total is daily total)
+    if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+        sms_daily = sms_df.groupby(sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date'])['sms_total'].first()
+        total_sms_tab4 = int(sms_daily.sum())
+        avg_daily_tab4 = sms_daily.mean()
+    else:
+        total_sms_tab4 = 0
+        avg_daily_tab4 = 0
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("📨 Total SMS Sent", f"{sms_df['sms_total'].sum():,}" if not sms_df.empty and 'sms_total' in sms_df.columns else "0")
+        st.metric("📨 Total SMS Sent", f"{total_sms_tab4:,}")
     with col2:
         st.metric("📋 SMS Types", f"{sms_df['sms_type'].nunique()}" if not sms_df.empty and 'sms_type' in sms_df.columns else "0")
     with col3:
         st.metric("📅 Days Active", f"{sms_df['date'].nunique()}" if not sms_df.empty and 'date' in sms_df.columns else "0")
     with col4:
-        avg_daily = sms_df.groupby('date')['sms_total'].sum().mean() if not sms_df.empty and 'sms_total' in sms_df.columns else 0
-        st.metric("📊 Avg Daily", f"{avg_daily:.0f}")
+        st.metric("📊 Avg Daily", f"{avg_daily_tab4:.0f}")
 
     st.divider()
 
@@ -440,7 +455,12 @@ with tab4:
     with col1:
         st.subheader("📊 SMS by Type")
         if not sms_df.empty and 'sms_type' in sms_df.columns and 'sms_total' in sms_df.columns:
-            sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
+            # Group by type and date first, take first per date, then sum per type
+            if 'date' in sms_df.columns:
+                type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
+                sms_by_type = type_date_df.groupby('sms_type')['sms_total'].sum().reset_index()
+            else:
+                sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
             sms_by_type = sms_by_type.sort_values('sms_total', ascending=True)
 
             fig = px.bar(
@@ -459,7 +479,8 @@ with tab4:
     with col2:
         st.subheader("📈 Daily SMS Volume")
         if not sms_df.empty and 'sms_total' in sms_df.columns:
-            daily_sms = sms_df.groupby('date')['sms_total'].sum().reset_index()
+            # Take first per date to avoid double-counting (sms_total is daily total)
+            daily_sms = sms_df.groupby('date')['sms_total'].first().reset_index()
 
             fig = px.area(
                 daily_sms,
@@ -475,8 +496,13 @@ with tab4:
     # Top SMS types table
     st.subheader("🏆 Top SMS Types")
     if not sms_df.empty and 'sms_type' in sms_df.columns:
-        top_sms = sms_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
-        top_sms.columns = ['SMS Type', 'Total Sent', 'Times Used', 'Avg per Use']
+        # Group by type and date first, take first per date, then aggregate per type
+        if 'date' in sms_df.columns:
+            type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
+            top_sms = type_date_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
+        else:
+            top_sms = sms_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
+        top_sms.columns = ['SMS Type', 'Total Sent', 'Days Used', 'Avg per Day']
         top_sms = top_sms.sort_values('Total Sent', ascending=False)
         st.dataframe(top_sms, use_container_width=True, hide_index=True)
     else:

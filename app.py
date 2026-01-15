@@ -375,16 +375,27 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Total SMS Sent", f"{sms_df['sms_total'].sum():,}")
+        # Group by date first to avoid double-counting (sms_total is daily total)
+        if 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+            daily_sms_totals = sms_df.groupby(sms_df['date'].dt.date)['sms_total'].first()
+            sms_total_sum = daily_sms_totals.sum()
+        else:
+            sms_total_sum = 0
+        st.metric("Total SMS Sent", f"{int(sms_total_sum):,}")
     with col2:
         unique_sms = sms_df['sms_type'].nunique()
         st.metric("SMS Types Used", f"{unique_sms:,}")
     with col3:
-        avg_sms = sms_df['sms_total'].mean() if len(sms_df) > 0 else 0
-        st.metric("Avg per Type", f"{avg_sms:.1f}")
+        # Average per day
+        if 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+            daily_sms_totals = sms_df.groupby(sms_df['date'].dt.date)['sms_total'].first()
+            avg_sms = daily_sms_totals.mean() if len(daily_sms_totals) > 0 else 0
+        else:
+            avg_sms = 0
+        st.metric("Avg per Day", f"{avg_sms:.1f}")
     with col4:
-        top_sms = sms_df.groupby('sms_type')['sms_total'].sum().idxmax() if len(sms_df) > 0 else "N/A"
-        st.metric("Top SMS", top_sms[:20] + "..." if len(top_sms) > 20 else top_sms)
+        top_sms = sms_df['sms_type'].mode().iloc[0] if len(sms_df) > 0 and 'sms_type' in sms_df.columns else "N/A"
+        st.metric("Top SMS", top_sms[:20] + "..." if len(str(top_sms)) > 20 else str(top_sms))
 
     st.divider()
 
@@ -420,9 +431,12 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
             'ctr_percent': 'mean',
         }).reset_index()
 
-        # Add creative total per agent
-        if not creative_df.empty and 'creative_total' in creative_df.columns:
-            agent_creative = creative_df.groupby('agent_name')['creative_total'].sum().reset_index()
+        # Add creative total per agent (group by date first to avoid double-counting)
+        if not creative_df.empty and 'creative_total' in creative_df.columns and 'date' in creative_df.columns:
+            # First get daily totals per agent (take first value per date to avoid duplicates)
+            daily_creative = creative_df.groupby(['agent_name', creative_df['date'].dt.date])['creative_total'].first().reset_index()
+            # Then sum across dates per agent
+            agent_creative = daily_creative.groupby('agent_name')['creative_total'].sum().reset_index()
             agent_creative.columns = ['agent_name', 'creative_total']
             agent_perf = agent_perf.merge(agent_creative, on='agent_name', how='left')
             agent_perf['creative_total'] = agent_perf['creative_total'].fillna(0)
@@ -469,7 +483,12 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
     agent_ads = running_ads_df.groupby('agent_name').agg(agg_dict).round(2)
 
     agent_creative = creative_df.groupby('agent_name').size().rename('creatives')
-    agent_sms = sms_df.groupby('agent_name')['sms_total'].sum().rename('sms_total')
+    # Group by date first to avoid double-counting sms_total
+    if 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+        daily_sms = sms_df.groupby(['agent_name', sms_df['date'].dt.date])['sms_total'].first().reset_index()
+        agent_sms = daily_sms.groupby('agent_name')['sms_total'].sum().rename('sms_total')
+    else:
+        agent_sms = sms_df.groupby('agent_name').size().rename('sms_total')
     agent_content = content_df.groupby('agent_name').size().rename('content_posts')
 
     summary = agent_ads.join(agent_creative).join(agent_sms).join(agent_content).reset_index()
@@ -595,7 +614,12 @@ def render_creative_work(creative_df, selected_agent):
     with col1:
         st.metric("Total Creatives", f"{len(creative_df):,}")
     with col2:
-        creative_total_sum = creative_df['creative_total'].sum() if 'creative_total' in creative_df.columns else 0
+        # Group by date first to avoid double-counting (creative_total is daily total)
+        if 'creative_total' in creative_df.columns and 'date' in creative_df.columns:
+            daily_totals = creative_df.groupby(creative_df['date'].dt.date)['creative_total'].first()
+            creative_total_sum = daily_totals.sum()
+        else:
+            creative_total_sum = 0
         st.metric("Creative Total", f"{int(creative_total_sum):,}")
     with col3:
         unique = creative_df['creative_content'].nunique()
@@ -627,9 +651,8 @@ def render_creative_work(creative_df, selected_agent):
         st.subheader("Daily Creative Output")
         daily_creative = creative_df.copy()
         daily_creative['date_only'] = daily_creative['date'].dt.date
-        daily_agg = daily_creative.groupby('date_only').agg({
-            'creative_total': 'sum'
-        }).reset_index()
+        # Take first value per date to avoid double-counting
+        daily_agg = daily_creative.groupby('date_only')['creative_total'].first().reset_index()
         daily_agg.columns = ['date', 'total']
         fig = px.bar(
             daily_agg,
@@ -663,17 +686,29 @@ def render_sms(sms_df, selected_agent):
     # Summary metrics
     col1, col2, col3, col4 = st.columns(4)
 
+    # Group by date first to avoid double-counting (sms_total is daily total)
+    if 'date' in sms_df.columns:
+        daily_sms_totals = sms_df.groupby(sms_df['date'].dt.date)['sms_total'].first()
+        total_sms = daily_sms_totals.sum()
+        # For type stats, group by type and date first, take first per date, then sum per type
+        type_date_totals = sms_df.groupby(['sms_type', sms_df['date'].dt.date])['sms_total'].first().reset_index()
+        type_totals = type_date_totals.groupby('sms_type')['sms_total'].sum()
+        avg_per_type = type_totals.mean() if len(type_totals) > 0 else 0
+        max_total = type_totals.max() if len(type_totals) > 0 else 0
+    else:
+        total_sms = sms_df['sms_total'].sum()
+        avg_per_type = sms_df.groupby('sms_type')['sms_total'].sum().mean()
+        max_total = sms_df.groupby('sms_type')['sms_total'].sum().max()
+
     with col1:
-        st.metric("Total SMS Sent", f"{sms_df['sms_total'].sum():,}")
+        st.metric("Total SMS Sent", f"{int(total_sms):,}")
     with col2:
         unique_types = sms_df['sms_type'].nunique()
         st.metric("SMS Types Used", f"{unique_types:,}")
     with col3:
-        avg_per_type = sms_df.groupby('sms_type')['sms_total'].sum().mean()
         st.metric("Avg per Type", f"{avg_per_type:.1f}")
     with col4:
-        max_total = sms_df.groupby('sms_type')['sms_total'].sum().max()
-        st.metric("Max Type Total", f"{max_total:,}")
+        st.metric("Max Type Total", f"{int(max_total):,}")
 
     st.divider()
 
@@ -681,7 +716,12 @@ def render_sms(sms_df, selected_agent):
 
     with col1:
         st.subheader("SMS Type Distribution")
-        sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
+        # Group by type and date first, take first per date, then sum per type
+        if 'date' in sms_df.columns:
+            type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date])['sms_total'].first().reset_index()
+            sms_by_type = type_date_df.groupby('sms_type')['sms_total'].sum().reset_index()
+        else:
+            sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
         sms_by_type = sms_by_type.sort_values('sms_total', ascending=True)
 
         fig = px.bar(
@@ -699,7 +739,8 @@ def render_sms(sms_df, selected_agent):
         st.subheader("Daily SMS Output")
         daily_sms = sms_df.copy()
         daily_sms['date_only'] = daily_sms['date'].dt.date
-        daily_agg = daily_sms.groupby('date_only')['sms_total'].sum().reset_index()
+        # Take first per date to avoid double-counting (sms_total is daily total)
+        daily_agg = daily_sms.groupby('date_only')['sms_total'].first().reset_index()
         fig = px.line(
             daily_agg,
             x='date_only',
@@ -714,13 +755,24 @@ def render_sms(sms_df, selected_agent):
 
     # SMS detail table
     st.subheader("SMS Details by Agent")
-    sms_pivot = sms_df.pivot_table(
-        index='sms_type',
-        columns='agent_name',
-        values='sms_total',
-        aggfunc='sum',
-        fill_value=0
-    ).reset_index()
+    # Group by agent, type and date first, take first per date, then sum per agent/type
+    if 'date' in sms_df.columns:
+        agent_type_date = sms_df.groupby(['agent_name', 'sms_type', sms_df['date'].dt.date])['sms_total'].first().reset_index()
+        sms_pivot = agent_type_date.pivot_table(
+            index='sms_type',
+            columns='agent_name',
+            values='sms_total',
+            aggfunc='sum',
+            fill_value=0
+        ).reset_index()
+    else:
+        sms_pivot = sms_df.pivot_table(
+            index='sms_type',
+            columns='agent_name',
+            values='sms_total',
+            aggfunc='sum',
+            fill_value=0
+        ).reset_index()
     st.dataframe(sms_pivot, use_container_width=True, hide_index=True)
 
 
