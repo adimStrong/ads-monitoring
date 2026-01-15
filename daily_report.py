@@ -94,7 +94,10 @@ def get_data_for_date_range(ads_list, creative_list, sms_list, content_list, sta
 
     if content_list:
         content_df = pd.concat(content_list, ignore_index=True)
-        # Content may not have date column, use all data
+        # Filter content by date if date column exists
+        if 'date' in content_df.columns:
+            content_df['date_only'] = pd.to_datetime(content_df['date']).dt.date
+            content_df = content_df[(content_df['date_only'] >= start_date) & (content_df['date_only'] <= end_date)]
 
     return ads_df, creative_df, sms_df, content_df
 
@@ -163,20 +166,20 @@ def generate_t1_report(all_ads, all_creative, all_sms, all_content):
     yesterday = datetime.now().date() - timedelta(days=1)
     week_ago = yesterday - timedelta(days=6)  # 7 days including yesterday
 
-    # Get yesterday's data
-    _, creative_t1, sms_t1, _ = get_data_for_date_range(
+    # Get yesterday's data (T+1)
+    _, creative_t1, sms_t1, content_t1 = get_data_for_date_range(
         all_ads, all_creative, all_sms, all_content,
         yesterday, yesterday
     )
 
     # Get last 7 days data (for average)
-    _, creative_7d, sms_7d, _ = get_data_for_date_range(
+    _, creative_7d, sms_7d, content_7d = get_data_for_date_range(
         all_ads, all_creative, all_sms, all_content,
         week_ago, yesterday
     )
 
-    # Content doesn't have date, use all
-    content_df = pd.concat(all_content, ignore_index=True) if all_content else pd.DataFrame()
+    # Use T+1 filtered content
+    content_df = content_t1
 
     # Calculate T+1 stats
     t1_stats = calculate_agent_stats(creative_t1, sms_t1, pd.DataFrame())
@@ -264,7 +267,7 @@ def generate_t1_report(all_ads, all_creative, all_sms, all_content):
     report += f"{'TOTAL':<10}{total_t1_sms:>6}{total_avg_sms:>8.1f}{diff_str:>8}\n"
     report += "</pre>\n\n"
 
-    # Copywriting Summary - only Primary Text entries
+    # Copywriting Summary - only Primary Text entries (T+1 date filtered)
     if not content_df.empty:
         # Filter for Primary Text only
         if 'content_type' in content_df.columns:
@@ -273,7 +276,7 @@ def generate_t1_report(all_ads, all_creative, all_sms, all_content):
             primary_df = content_df
 
         if not primary_df.empty:
-            report += "📝 <b>COPYWRITING TOTAL</b>\n<pre>"
+            report += "📝 <b>COPYWRITING (T+1)</b>\n<pre>"
             report += f"{'Name':<10}{'Posts':>6}\n"
             report += "-" * 16 + "\n"
 
