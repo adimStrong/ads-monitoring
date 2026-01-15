@@ -212,14 +212,43 @@ def main():
     else:
         running_ads_df, creative_df, sms_df, content_df = load_sample_data()
 
-    # Date filter with auto-detection from data
+    # Date filter with auto-detection from data - only allow dates with data
     min_date, max_date = get_date_range(running_ads_df)
+
+    # Convert to date objects if they're datetime
+    if hasattr(min_date, 'date'):
+        min_date = min_date.date()
+    if hasattr(max_date, 'date'):
+        max_date = max_date.date()
+
     st.sidebar.subheader("Date Range")
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        start_date = st.date_input("From", max(min_date, datetime.now() - timedelta(days=30)))
-    with col2:
-        end_date = st.date_input("To", max_date)
+
+    # Check if we have valid data range
+    has_data = min_date is not None and max_date is not None and min_date <= max_date
+
+    if has_data:
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            # Default to last 7 days of available data, or min_date if less data
+            default_start = max(min_date, max_date - timedelta(days=7))
+            start_date = st.date_input(
+                "From",
+                value=default_start,
+                min_value=min_date,
+                max_value=max_date
+            )
+        with col2:
+            end_date = st.date_input(
+                "To",
+                value=max_date,
+                min_value=min_date,
+                max_value=max_date
+            )
+        st.sidebar.caption(f"Data available: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
+    else:
+        st.sidebar.warning("No data available for date filtering")
+        start_date = datetime.now().date() - timedelta(days=7)
+        end_date = datetime.now().date()
 
     # Agent filter
     st.sidebar.subheader("Agent Filter")

@@ -12,7 +12,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import AGENTS
-from data_loader import load_agent_performance_data, load_agent_content_data
+from data_loader import load_agent_performance_data, load_agent_content_data, get_date_range
 
 st.set_page_config(page_title="Team Overview", page_icon="👥", layout="wide")
 
@@ -22,14 +22,6 @@ if os.path.exists(logo_path):
     st.sidebar.image(logo_path, width=120)
 
 st.title("👥 Team Overview & Comparison")
-
-# Sidebar
-st.sidebar.header("Filters")
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    start_date = st.date_input("From", datetime.now() - timedelta(days=30))
-with col2:
-    end_date = st.date_input("To", datetime.now())
 
 # ============================================================
 # DATA LOADING - Load real data from Google Sheets
@@ -69,6 +61,61 @@ def load_all_team_data(agents):
     combined_content = pd.concat(all_content, ignore_index=True) if all_content else pd.DataFrame()
 
     return combined_ads, combined_creative, combined_content
+
+# Sidebar
+st.sidebar.header("Filters")
+
+# Data source toggle
+use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True)
+
+# Load data FIRST to determine date range
+team_ads_df = pd.DataFrame()
+team_creative_df = pd.DataFrame()
+team_content_df = pd.DataFrame()
+
+if use_real_data:
+    with st.spinner("Loading team data from Google Sheets..."):
+        team_ads_df, team_creative_df, team_content_df = load_all_team_data(AGENTS)
+
+    if team_ads_df.empty and team_creative_df.empty:
+        st.warning("Could not load team data from Google Sheets. Using sample data.")
+        use_real_data = False
+
+# Date range - constrained to available data
+min_date, max_date = get_date_range(team_ads_df if not team_ads_df.empty else team_content_df)
+
+# Convert to date objects
+if hasattr(min_date, 'date'):
+    min_date = min_date.date()
+if hasattr(max_date, 'date'):
+    max_date = max_date.date()
+
+has_data = min_date is not None and max_date is not None and (not team_ads_df.empty or not team_content_df.empty)
+
+if has_data:
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        default_start = max(min_date, max_date - timedelta(days=14))
+        start_date = st.date_input(
+            "From",
+            value=default_start,
+            min_value=min_date,
+            max_value=max_date
+        )
+    with col2:
+        end_date = st.date_input(
+            "To",
+            value=max_date,
+            min_value=min_date,
+            max_value=max_date
+        )
+    st.sidebar.caption(f"Data: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
+else:
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_date = st.date_input("From", datetime.now() - timedelta(days=30))
+    with col2:
+        end_date = st.date_input("To", datetime.now())
 
 # Generate sample data (fallback)
 def generate_team_data(agents, start_date, end_date):

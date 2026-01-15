@@ -23,6 +23,15 @@ if os.path.exists(logo_path):
 
 st.title("👤 Agent Performance Dashboard")
 
+# ============================================================
+# DATA LOADING FUNCTIONS
+# ============================================================
+
+@st.cache_data(ttl=300)
+def get_agent_data(agent_name, sheet_name):
+    """Load data for selected agent from Google Sheets"""
+    return load_agent_performance_data(agent_name, sheet_name)
+
 # Sidebar filters
 st.sidebar.header("Filters")
 
@@ -33,29 +42,17 @@ selected_agent = st.sidebar.selectbox(
     index=0
 )
 
-# Date range
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    start_date = st.date_input("From", datetime.now() - timedelta(days=7))
-with col2:
-    end_date = st.date_input("To", datetime.now())
-
-# ============================================================
-# DATA LOADING FUNCTIONS
-# ============================================================
-
-@st.cache_data(ttl=300)
-def get_agent_data(agent_name, sheet_name):
-    """Load data for selected agent from Google Sheets"""
-    return load_agent_performance_data(agent_name, sheet_name)
-
 # Get agent config
 agent_config = next((a for a in AGENTS if a['name'] == selected_agent), None)
 
 # Data source toggle
 use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True)
 
-# Load data
+# Load data FIRST to determine date range
+running_ads_df = None
+creative_df = None
+sms_df = None
+
 if use_real_data and agent_config:
     with st.spinner(f"Loading data for {selected_agent}..."):
         running_ads_df, creative_df, sms_df = get_agent_data(
@@ -66,6 +63,42 @@ if use_real_data and agent_config:
     if running_ads_df is None or running_ads_df.empty:
         st.warning(f"Could not load Google Sheets data for {selected_agent}. Using sample data.")
         use_real_data = False
+
+# Date range - constrained to available data
+min_date, max_date = get_date_range(running_ads_df if running_ads_df is not None else pd.DataFrame())
+
+# Convert to date objects
+if hasattr(min_date, 'date'):
+    min_date = min_date.date()
+if hasattr(max_date, 'date'):
+    max_date = max_date.date()
+
+has_data = min_date is not None and max_date is not None and running_ads_df is not None and not running_ads_df.empty
+
+if has_data:
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        default_start = max(min_date, max_date - timedelta(days=7))
+        start_date = st.date_input(
+            "From",
+            value=default_start,
+            min_value=min_date,
+            max_value=max_date
+        )
+    with col2:
+        end_date = st.date_input(
+            "To",
+            value=max_date,
+            min_value=min_date,
+            max_value=max_date
+        )
+    st.sidebar.caption(f"Data: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
+else:
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        start_date = st.date_input("From", datetime.now() - timedelta(days=7))
+    with col2:
+        end_date = st.date_input("To", datetime.now())
 
 if not use_real_data or running_ads_df is None or running_ads_df.empty:
     # Fall back to sample data
