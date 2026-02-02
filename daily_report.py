@@ -295,6 +295,13 @@ def generate_facebook_ads_section(fb_ads_df, target_date, compare_days=7):
     diff_str = f"+{diff_ftd:,.0f}" if diff_ftd >= 0 else f"{diff_ftd:,.0f}"
     report += f"{'FTD':<12}{t1_ftd:>12,}{avg_ftd:>12,.0f}{diff_str:>10}\n"
 
+    # Conversion Rate (FTD / Register)
+    t1_conv = (t1_ftd / t1_reg * 100) if t1_reg > 0 else 0
+    avg_conv = (avg_ftd / avg_reg * 100) if avg_reg > 0 else 0
+    diff_conv = t1_conv - avg_conv
+    diff_str = f"+{diff_conv:.1f}%" if diff_conv >= 0 else f"{diff_conv:.1f}%"
+    report += f"{'Conv Rate':<12}{t1_conv:>11.1f}%{avg_conv:>11.1f}%{diff_str:>10}\n"
+
     # Cost metrics (CPR and Cost/FTD only)
     report += "-" * 46 + "\n"
     report += f"{'CPR':<12}${t1_totals['cpr']:>10,.2f}\n"
@@ -343,9 +350,10 @@ def generate_facebook_ads_section(fb_ads_df, target_date, compare_days=7):
                     ftd = int(row['result_ftd'])
                     cpr = row['cpr']
                     cpftd = row['cpftd']
+                    conv_rate = (ftd / reg * 100) if reg > 0 else 0
 
                     report += f"{person_name}\n"
-                    report += f"  Spend: ${spend:,.2f} | Reg: {reg} | FTD: {ftd}\n"
+                    report += f"  Spend: ${spend:,.2f} | Reg: {reg} | FTD: {ftd} | Conv: {conv_rate:.1f}%\n"
                     if cpr > 0:
                         report += f"  CPR: ${cpr:.2f}"
                     else:
@@ -359,18 +367,18 @@ def generate_facebook_ads_section(fb_ads_df, target_date, compare_days=7):
                 tier_spend = tier_persons['spend'].sum()
                 tier_reg = int(tier_persons['register'].sum())
                 tier_ftd = int(tier_persons['result_ftd'].sum())
-                tier_cpr = (tier_spend / tier_reg) if tier_reg > 0 else 0
-                tier_cpftd = (tier_spend / tier_ftd) if tier_ftd > 0 else 0
+                tier_conv = (tier_ftd / tier_reg * 100) if tier_reg > 0 else 0
 
                 report += "-" * 40 + "\n"
-                report += f"Subtotal: ${tier_spend:,.2f} | Reg: {tier_reg} | FTD: {tier_ftd}\n"
+                report += f"Subtotal: ${tier_spend:,.2f} | Reg: {tier_reg} | FTD: {tier_ftd} | Conv: {tier_conv:.1f}%\n"
                 report += "</pre>\n\n"
     else:
         report += "<pre>No person data available</pre>\n"
 
     # Grand total
+    grand_conv = (t1_totals['result_ftd'] / t1_totals['register'] * 100) if t1_totals['register'] > 0 else 0
     report += "<b>GRAND TOTAL:</b>\n<pre>"
-    report += f"Spend: ${t1_totals['spend']:,.2f} | Reg: {int(t1_totals['register'])} | FTD: {int(t1_totals['result_ftd'])}\n"
+    report += f"Spend: ${t1_totals['spend']:,.2f} | Reg: {int(t1_totals['register'])} | FTD: {int(t1_totals['result_ftd'])} | Conv: {grand_conv:.1f}%\n"
     report += f"CPR: ${t1_totals['cpr']:.2f} | Cost/FTD: ${t1_totals['cpftd']:.2f}\n"
     report += "</pre>\n\n"
 
