@@ -507,15 +507,23 @@ def load_facebook_ads_data():
         # Try environment variable first (for Railway/cloud deployment)
         google_creds_json = os.getenv('GOOGLE_CREDENTIALS')
         if google_creds_json:
-            creds_dict = json.loads(google_creds_json)
-            creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+            try:
+                creds_dict = json.loads(google_creds_json)
+                creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+                print("Using GOOGLE_CREDENTIALS environment variable")
+            except json.JSONDecodeError as e:
+                print(f"Error parsing GOOGLE_CREDENTIALS JSON: {e}")
+                st.error(f"Error parsing GOOGLE_CREDENTIALS: {e}")
+                return pd.DataFrame()
         else:
             # Fall back to credentials file (local development)
             creds_file = os.path.join(os.path.dirname(__file__), FACEBOOK_ADS_CREDENTIALS_FILE)
             if not os.path.exists(creds_file):
                 print(f"Facebook Ads credentials file not found: {creds_file}")
+                st.warning("No Google credentials found. Set GOOGLE_CREDENTIALS env var or add credentials.json file.")
                 return pd.DataFrame()
             creds = Credentials.from_service_account_file(creds_file, scopes=scopes)
+            print("Using local credentials file")
 
         client = gspread.authorize(creds)
 

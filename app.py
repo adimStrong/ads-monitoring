@@ -182,7 +182,7 @@ def main():
         if os.path.exists(logo_path):
             st.image(logo_path, width=100)
     with col_title:
-        st.markdown('<h1 class="main-header">BINGO365 Daily Monitoring</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="main-header">Advertiser KPI Dashboard</h1>', unsafe_allow_html=True)
 
     # Sidebar
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "logo.jpg")
