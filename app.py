@@ -15,7 +15,7 @@ import random
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import PAGE_TITLE, PAGE_ICON, AGENTS, SMS_TYPES
-from data_loader import load_all_data, get_date_range
+from data_loader import load_all_data, get_date_range, load_facebook_ads_data
 
 # Page configuration
 st.set_page_config(
@@ -216,6 +216,13 @@ def main():
         st.sidebar.info("Loading from Google Sheets...")
         running_ads_df, creative_df, sms_df, content_df = load_all_data()
 
+        # Load Facebook Ads data
+        fb_ads_df = load_facebook_ads_data()
+        if fb_ads_df is not None and not fb_ads_df.empty:
+            st.sidebar.success(f"Loaded {len(fb_ads_df)} FB Ads records")
+        else:
+            fb_ads_df = pd.DataFrame()
+
         if running_ads_df.empty and creative_df.empty and sms_df.empty:
             st.error("Could not load data from Google Sheets. Make sure the sheet is publicly accessible.")
             st.info("Google Sheets ID: 1L4aYgFkv_aoqIUaZo7Zi4NHlNEQiThMKc_0jpIb-MfQ")
@@ -225,6 +232,7 @@ def main():
             st.sidebar.success(f"Loaded {len(running_ads_df)} ad records")
     else:
         running_ads_df, creative_df, sms_df, content_df = load_sample_data()
+        fb_ads_df = pd.DataFrame()
 
     # Date filter with auto-detection from data - only allow dates with data
     min_date, max_date = get_date_range(running_ads_df)
@@ -293,20 +301,20 @@ def main():
         (content_df['date'] <= pd.Timestamp(end_date))
     ]
 
-    # Main content tabs
+    # Main content tabs (Running Ads removed - now uses Facebook Ads data)
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "Overview",
-        "Running Ads",
+        "Facebook Ads",
         "Creative Work",
         "SMS",
         "Content Analysis"
     ])
 
     with tab1:
-        render_overview(running_ads_df, creative_df, sms_df, content_df)
+        render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df)
 
     with tab2:
-        render_running_ads(running_ads_df, selected_agent)
+        render_facebook_ads(fb_ads_df)
 
     with tab3:
         render_creative_work(creative_df, selected_agent)
@@ -318,35 +326,101 @@ def main():
         render_content_analysis(content_df, selected_agent)
 
 
-def render_overview(running_ads_df, creative_df, sms_df, content_df):
-    """Render overview tab with all 3 sections"""
+def render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df=None):
+    """Render overview tab with all sections"""
     st.subheader("Team Overview")
 
     # ============================================================
-    # SECTION 1: WITH RUNNING ADS Summary
+    # SECTION 1: WITH RUNNING ADS Summary (from Facebook Ads by Agent)
     # ============================================================
     st.markdown('<div class="section-header"><h3>WITH RUNNING ADS</h3></div>', unsafe_allow_html=True)
 
-    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
+    if fb_ads_df is not None and not fb_ads_df.empty and 'person_name' in fb_ads_df.columns:
+        # Summary metrics from Facebook Ads
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-    with col1:
-        st.metric("Total Ads", f"{running_ads_df['total_ad'].sum():,}")
-    with col2:
-        st.metric("Impressions", f"{running_ads_df['impressions'].sum():,}")
-    with col3:
-        st.metric("Clicks", f"{running_ads_df['clicks'].sum():,}")
-    with col4:
-        st.metric("Avg CTR", f"{running_ads_df['ctr_percent'].mean():.2f}%")
-    with col5:
-        st.metric("Avg CPC", f"${running_ads_df['cpc'].mean():.2f}")
-    with col6:
-        amount_spent = running_ads_df['amount_spent'].sum() if 'amount_spent' in running_ads_df.columns else 0
-        st.metric("Amount Spent", f"${amount_spent:,.2f}")
-    with col7:
-        avg_cpr = running_ads_df['cpr'].mean() if 'cpr' in running_ads_df.columns else 0
-        st.metric("Avg CPR", f"${avg_cpr:.2f}")
-    with col8:
-        st.metric("Active Ads", f"{running_ads_df['active_count'].sum():,}")
+        total_spend = fb_ads_df['spend'].sum()
+        total_impressions = fb_ads_df['impressions'].sum()
+        total_clicks = fb_ads_df['clicks'].sum()
+        total_register = fb_ads_df['register'].sum()
+        total_ftd = fb_ads_df['result_ftd'].sum()
+        avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+        avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+
+        with col1:
+            st.metric("Total Spend", f"${total_spend:,.2f}")
+        with col2:
+            st.metric("Impressions", f"{int(total_impressions):,}")
+        with col3:
+            st.metric("Clicks", f"{int(total_clicks):,}")
+        with col4:
+            st.metric("CTR", f"{avg_ctr:.2f}%")
+        with col5:
+            st.metric("Register", f"{int(total_register):,}")
+        with col6:
+            st.metric("FTD", f"{int(total_ftd):,}")
+
+        # Agent breakdown table
+        st.subheader("📊 Performance by Agent")
+
+        agent_summary = fb_ads_df.groupby('person_name').agg({
+            'spend': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum',
+        }).reset_index()
+
+        # Calculate derived metrics
+        agent_summary['CPR'] = (agent_summary['spend'] / agent_summary['register']).round(2)
+        agent_summary['Cost/FTD'] = (agent_summary['spend'] / agent_summary['result_ftd']).round(2)
+
+        # Handle inf/nan
+        agent_summary = agent_summary.replace([float('inf'), float('-inf')], 0).fillna(0)
+
+        # Sort by FTD descending
+        agent_summary = agent_summary.sort_values('result_ftd', ascending=False)
+
+        # Rename columns for display
+        agent_summary = agent_summary.rename(columns={
+            'person_name': 'Agent',
+            'spend': 'Spend',
+            'register': 'Register',
+            'result_ftd': 'FTD'
+        })
+
+        # Reorder columns
+        display_cols = ['Agent', 'Spend', 'Register', 'FTD', 'CPR', 'Cost/FTD']
+        agent_summary = agent_summary[display_cols]
+
+        # Format for display
+        st.dataframe(
+            agent_summary,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Agent": st.column_config.TextColumn(width="medium"),
+                "Spend": st.column_config.NumberColumn(format="$,.2f"),
+                "Register": st.column_config.NumberColumn(format=",d"),
+                "FTD": st.column_config.NumberColumn(format=",d"),
+                "CPR": st.column_config.NumberColumn(format="$,.2f"),
+                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
+            }
+        )
+    else:
+        # Fallback to old running_ads_df if no Facebook Ads data
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        with col1:
+            st.metric("Total Ads", f"{running_ads_df['total_ad'].sum():,}")
+        with col2:
+            st.metric("Impressions", f"{running_ads_df['impressions'].sum():,}")
+        with col3:
+            st.metric("Clicks", f"{running_ads_df['clicks'].sum():,}")
+        with col4:
+            st.metric("Avg CTR", f"{running_ads_df['ctr_percent'].mean():.2f}%")
+        with col5:
+            st.metric("Avg CPC", f"${running_ads_df['cpc'].mean():.2f}")
+        with col6:
+            st.metric("Active Ads", f"{running_ads_df['active_count'].sum():,}")
+        st.info("No Facebook Ads data available. Showing legacy data.")
 
     # ============================================================
     # SECTION 2: WITHOUT (Creative Work) Summary
@@ -467,49 +541,256 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df):
     # Agent summary table
     st.subheader("Agent Summary (All Sections)")
 
-    # Build aggregation dict based on available columns
-    agg_dict = {
-        'total_ad': 'sum',
-        'impressions': 'sum',
-        'clicks': 'sum',
-        'ctr_percent': 'mean',
-        'active_count': 'sum'
-    }
-    if 'amount_spent' in running_ads_df.columns:
-        agg_dict['amount_spent'] = 'sum'
-    if 'cpr' in running_ads_df.columns:
-        agg_dict['cpr'] = 'mean'
+    # Use Facebook Ads data for ads metrics (if available)
+    if fb_ads_df is not None and not fb_ads_df.empty and 'person_name' in fb_ads_df.columns:
+        # Aggregate Facebook Ads by person (agent)
+        agent_ads = fb_ads_df.groupby('person_name').agg({
+            'spend': 'sum',
+            'impressions': 'sum',
+            'clicks': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum'
+        }).round(2)
+        agent_ads['ctr'] = (agent_ads['clicks'] / agent_ads['impressions'] * 100).round(2)
+        agent_ads['cpc'] = (agent_ads['spend'] / agent_ads['clicks']).round(2)
+        agent_ads = agent_ads.replace([float('inf'), float('-inf')], 0).fillna(0)
+        agent_ads.index.name = 'agent_name'
+    else:
+        # Fallback to empty DataFrame
+        agent_ads = pd.DataFrame(columns=['spend', 'impressions', 'clicks', 'register', 'result_ftd', 'ctr', 'cpc'])
+        agent_ads.index.name = 'agent_name'
 
-    agent_ads = running_ads_df.groupby('agent_name').agg(agg_dict).round(2)
+    # Creative data
+    agent_creative = creative_df.groupby('agent_name').size().rename('creatives') if not creative_df.empty else pd.Series(dtype=int, name='creatives')
 
-    agent_creative = creative_df.groupby('agent_name').size().rename('creatives')
-    # Group by date first to avoid double-counting sms_total
-    if 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+    # SMS data - Group by date first to avoid double-counting sms_total
+    if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
         daily_sms = sms_df.groupby(['agent_name', sms_df['date'].dt.date])['sms_total'].first().reset_index()
         agent_sms = daily_sms.groupby('agent_name')['sms_total'].sum().rename('sms_total')
-    else:
+    elif not sms_df.empty:
         agent_sms = sms_df.groupby('agent_name').size().rename('sms_total')
-    # Only count Primary Text for copywriting
-    if 'content_type' in content_df.columns:
-        primary_content_df = content_df[content_df['content_type'] == 'Primary Text']
     else:
-        primary_content_df = content_df
-    agent_content = primary_content_df.groupby('agent_name').size().rename('content_posts')
+        agent_sms = pd.Series(dtype=int, name='sms_total')
 
+    # Content data - Only count Primary Text for copywriting
+    if not content_df.empty:
+        if 'content_type' in content_df.columns:
+            primary_content_df = content_df[content_df['content_type'] == 'Primary Text']
+        else:
+            primary_content_df = content_df
+        agent_content = primary_content_df.groupby('agent_name').size().rename('content_posts')
+    else:
+        agent_content = pd.Series(dtype=int, name='content_posts')
+
+    # Combine all data
     summary = agent_ads.join(agent_creative).join(agent_sms).join(agent_content).reset_index()
 
-    # Build column names based on available columns
-    col_names = ['Agent', 'Total Ads', 'Impressions', 'Clicks', 'Avg CTR %', 'Active']
-    if 'amount_spent' in running_ads_df.columns:
-        col_names.append('Amount Spent')
-    if 'cpr' in running_ads_df.columns:
-        col_names.append('Avg CPR')
-    col_names.extend(['Creatives', 'SMS Total', 'Content Posts'])
-
-    summary.columns = col_names
+    # Rename columns for display
+    summary.columns = ['Agent', 'Spend', 'Impressions', 'Clicks', 'Register', 'FTD', 'CTR %', 'CPC', 'Creatives', 'SMS Total', 'Content Posts']
     summary = summary.fillna(0)
 
-    st.dataframe(summary, use_container_width=True, hide_index=True)
+    st.dataframe(
+        summary,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Spend": st.column_config.NumberColumn(format="$,.2f"),
+            "Impressions": st.column_config.NumberColumn(format=",d"),
+            "Clicks": st.column_config.NumberColumn(format=",d"),
+            "Register": st.column_config.NumberColumn(format=",d"),
+            "FTD": st.column_config.NumberColumn(format=",d"),
+            "CTR %": st.column_config.NumberColumn(format="%.2f%%"),
+            "CPC": st.column_config.NumberColumn(format="$,.2f"),
+            "Creatives": st.column_config.NumberColumn(format=",d"),
+            "SMS Total": st.column_config.NumberColumn(format=",d"),
+            "Content Posts": st.column_config.NumberColumn(format=",d"),
+        }
+    )
+
+
+def render_facebook_ads(fb_ads_df):
+    """Render Facebook Ads tab"""
+    st.subheader("💰 Facebook Ads Performance")
+
+    if fb_ads_df is None or fb_ads_df.empty:
+        st.warning("No Facebook Ads data available. Make sure the credentials.json is configured.")
+        return
+
+    # Summary metrics
+    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
+
+    total_spend = fb_ads_df['spend'].sum()
+    total_impressions = fb_ads_df['impressions'].sum()
+    total_clicks = fb_ads_df['clicks'].sum()
+    total_reach = fb_ads_df['reach'].sum()
+    total_register = fb_ads_df['register'].sum()
+    total_ftd = fb_ads_df['result_ftd'].sum()
+    avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+    avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
+
+    with col1:
+        st.metric("Total Spend", f"${total_spend:,.2f}")
+    with col2:
+        st.metric("Impressions", f"{total_impressions:,}")
+    with col3:
+        st.metric("Clicks", f"{total_clicks:,}")
+    with col4:
+        st.metric("Reach", f"{total_reach:,}")
+    with col5:
+        st.metric("CTR", f"{avg_ctr:.2f}%")
+    with col6:
+        st.metric("CPC", f"${avg_cpc:.2f}")
+    with col7:
+        st.metric("Register", f"{int(total_register):,}")
+    with col8:
+        st.metric("FTD", f"{int(total_ftd):,}")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Performance by Person")
+        if 'person_name' in fb_ads_df.columns:
+            person_data = fb_ads_df.groupby('person_name').agg({
+                'spend': 'sum',
+                'impressions': 'sum',
+                'clicks': 'sum',
+                'register': 'sum',
+                'result_ftd': 'sum'
+            }).reset_index()
+            person_data = person_data[person_data['person_name'] != '']
+            person_data = person_data.sort_values('spend', ascending=False)
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=person_data['person_name'],
+                y=person_data['spend'],
+                name='Spend',
+                marker_color='#667eea'
+            ))
+            fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No person names available")
+
+    with col2:
+        st.subheader("FTD by Person")
+        if 'person_name' in fb_ads_df.columns:
+            person_ftd = fb_ads_df.groupby('person_name').agg({
+                'result_ftd': 'sum'
+            }).reset_index()
+            person_ftd = person_ftd[person_ftd['person_name'] != '']
+            person_ftd = person_ftd.sort_values('result_ftd', ascending=False)
+
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=person_ftd['person_name'],
+                y=person_ftd['result_ftd'],
+                name='FTD',
+                marker_color='#764ba2'
+            ))
+            fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No person data available")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("Daily Spend Trend")
+        fb_ads_df['date_only'] = pd.to_datetime(fb_ads_df['date']).dt.date
+        daily_spend = fb_ads_df.groupby('date_only')['spend'].sum().reset_index()
+        daily_spend = daily_spend.sort_values('date_only')
+
+        fig = px.line(
+            daily_spend,
+            x='date_only',
+            y='spend',
+            markers=True,
+            line_shape='spline'
+        )
+        fig.update_traces(line_color='#667eea', line_width=3)
+        fig.update_layout(height=350, xaxis_tickformat='%Y-%m-%d')
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Daily Registrations & FTD")
+        daily_reg = fb_ads_df.groupby('date_only').agg({
+            'register': 'sum',
+            'result_ftd': 'sum'
+        }).reset_index()
+        daily_reg = daily_reg.sort_values('date_only')
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=daily_reg['date_only'],
+            y=daily_reg['register'],
+            name='Register',
+            marker_color='#2ecc71'
+        ))
+        fig.add_trace(go.Bar(
+            x=daily_reg['date_only'],
+            y=daily_reg['result_ftd'],
+            name='FTD',
+            marker_color='#e74c3c'
+        ))
+        fig.update_layout(
+            height=350,
+            barmode='group',
+            xaxis_tickformat='%Y-%m-%d'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    # Detailed table
+    st.subheader("Performance by Person")
+
+    if 'person_name' in fb_ads_df.columns:
+        summary_df = fb_ads_df.groupby('person_name').agg({
+            'spend': 'sum',
+            'impressions': 'sum',
+            'clicks': 'sum',
+            'reach': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum'
+        }).reset_index()
+
+        # Calculate derived metrics
+        summary_df['CTR'] = (summary_df['clicks'] / summary_df['impressions'] * 100).round(2)
+        summary_df['CPR'] = (summary_df['spend'] / summary_df['register']).round(2)
+        summary_df['CPFTD'] = (summary_df['spend'] / summary_df['result_ftd']).round(2)
+
+        # Clean up
+        summary_df = summary_df.fillna(0)
+        summary_df = summary_df.replace([float('inf')], 0)
+
+        # Sort by FTD descending
+        summary_df = summary_df.sort_values('result_ftd', ascending=False)
+
+        # Rename columns
+        summary_df.columns = ['Person', 'Spend', 'Impressions', 'Clicks', 'Reach', 'Register', 'FTD', 'CTR%', 'CPR', 'Cost/FTD']
+
+        st.dataframe(
+            summary_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Person": st.column_config.TextColumn(width="medium"),
+                "Spend": st.column_config.NumberColumn(format="$,.2f"),
+                "Impressions": st.column_config.NumberColumn(format=",d"),
+                "Clicks": st.column_config.NumberColumn(format=",d"),
+                "Reach": st.column_config.NumberColumn(format=",d"),
+                "Register": st.column_config.NumberColumn(format=",d"),
+                "FTD": st.column_config.NumberColumn(format=",d"),
+                "CTR%": st.column_config.NumberColumn(format="%.2f%%"),
+                "CPR": st.column_config.NumberColumn(format="$,.2f"),
+                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
+            }
+        )
+    else:
+        st.dataframe(fb_ads_df, use_container_width=True, hide_index=True)
 
 
 def render_running_ads(running_ads_df, selected_agent):

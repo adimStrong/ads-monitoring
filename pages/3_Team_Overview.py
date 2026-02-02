@@ -12,7 +12,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import AGENTS
-from data_loader import load_agent_performance_data, load_agent_content_data, get_date_range
+from data_loader import load_agent_performance_data, load_agent_content_data, get_date_range, load_facebook_ads_data
 
 st.set_page_config(page_title="Team Overview", page_icon="👥", layout="wide")
 
@@ -66,23 +66,36 @@ def load_all_team_data(agents):
 st.sidebar.header("Filters")
 
 # Data source toggle
-use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True)
+use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True, key="team_overview_toggle")
 
 # Load data FIRST to determine date range
 team_ads_df = pd.DataFrame()
 team_creative_df = pd.DataFrame()
 team_content_df = pd.DataFrame()
+fb_ads_df = pd.DataFrame()
 
 if use_real_data:
     with st.spinner("Loading team data from Google Sheets..."):
         team_ads_df, team_creative_df, team_content_df = load_all_team_data(AGENTS)
 
-    if team_ads_df.empty and team_creative_df.empty:
+        # Load Facebook Ads data (primary source for ads metrics)
+        fb_ads_df = load_facebook_ads_data()
+        if fb_ads_df is not None and not fb_ads_df.empty:
+            st.sidebar.success(f"Loaded {len(fb_ads_df)} Facebook Ads records")
+        else:
+            fb_ads_df = pd.DataFrame()
+
+    if fb_ads_df.empty and team_creative_df.empty:
         st.warning("Could not load team data from Google Sheets. Using sample data.")
         use_real_data = False
 
-# Date range - constrained to available data
-min_date, max_date = get_date_range(team_ads_df if not team_ads_df.empty else team_content_df)
+# Date range - constrained to available data (prefer Facebook Ads)
+if not fb_ads_df.empty:
+    min_date, max_date = get_date_range(fb_ads_df)
+elif not team_ads_df.empty:
+    min_date, max_date = get_date_range(team_ads_df)
+else:
+    min_date, max_date = get_date_range(team_content_df)
 
 # Convert to date objects
 if hasattr(min_date, 'date'):
@@ -90,7 +103,7 @@ if hasattr(min_date, 'date'):
 if hasattr(max_date, 'date'):
     max_date = max_date.date()
 
-has_data = min_date is not None and max_date is not None and (not team_ads_df.empty or not team_content_df.empty)
+has_data = min_date is not None and max_date is not None and (not fb_ads_df.empty or not team_content_df.empty)
 
 if has_data:
     col1, col2 = st.sidebar.columns(2)
@@ -141,36 +154,11 @@ def generate_team_data(agents, start_date, end_date):
 
     return pd.DataFrame(data)
 
-# Data source toggle
-use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True)
-
-if use_real_data:
-    with st.spinner("Loading team data from Google Sheets..."):
-        running_ads_df, creative_df, content_df = load_all_team_data(AGENTS)
-
-    if running_ads_df.empty:
-        st.warning("Could not load Google Sheets data. Using sample data.")
-        use_real_data = False
-        df = generate_team_data(AGENTS, start_date, end_date)
-    else:
-        # Build combined df from real data
-        # Aggregate running ads by date and agent
-        df = running_ads_df.copy()
-
-        # Add content metrics if available
-        if not content_df.empty and 'agent_name' in content_df.columns and 'primary_content' in content_df.columns:
-            content_summary = content_df.groupby(['date', 'agent_name']).agg(
-                content_posts=('primary_content', 'count'),
-                unique_content=('primary_content', 'nunique')
-            ).reset_index()
-            df = df.merge(content_summary, on=['date', 'agent_name'], how='left')
-            df['content_posts'] = df['content_posts'].fillna(0).astype(int)
-            df['unique_content'] = df['unique_content'].fillna(0).astype(int)
-        else:
-            df['content_posts'] = 0
-            df['unique_content'] = 0
-
-        st.sidebar.success(f"Loaded {len(df)} records from Google Sheets")
+# Build df from Facebook Ads data (primary source)
+if use_real_data and not fb_ads_df.empty:
+    # Use Facebook Ads as primary data source
+    df = fb_ads_df.copy()
+    df['agent_name'] = df['person_name']  # Map person_name to agent_name for compatibility
 else:
     df = generate_team_data(AGENTS, start_date, end_date)
 
@@ -183,7 +171,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # Team Summary Metrics
-st.subheader("📊 Team Totals")
+st.subheader("📊 Team Totals (Facebook Ads)")
 
 if df.empty:
     st.info("No data available. Check if Google Sheets have data or use sample data.")
@@ -191,23 +179,23 @@ else:
     col1, col2, col3, col4, col5, col6 = st.columns(6)
 
     with col1:
-        total_ads = df['total_ad'].sum() if 'total_ad' in df.columns else 0
-        st.metric("🎯 Total Ads", f"{total_ads:,}")
+        total_spend = df['spend'].sum() if 'spend' in df.columns else 0
+        st.metric("💵 Total Spend", f"${total_spend:,.2f}")
     with col2:
-        impressions = df['impressions'].sum() if 'impressions' in df.columns else 0
+        impressions = int(df['impressions'].sum()) if 'impressions' in df.columns else 0
         st.metric("👁️ Impressions", f"{impressions:,}")
     with col3:
-        clicks = df['clicks'].sum() if 'clicks' in df.columns else 0
+        clicks = int(df['clicks'].sum()) if 'clicks' in df.columns else 0
         st.metric("👆 Clicks", f"{clicks:,}")
     with col4:
-        avg_ctr = df['ctr_percent'].mean() if 'ctr_percent' in df.columns else 0
-        st.metric("📊 Avg CTR", f"{avg_ctr:.2f}%")
+        avg_ctr = (clicks / impressions * 100) if impressions > 0 else 0
+        st.metric("📊 CTR", f"{avg_ctr:.2f}%")
     with col5:
-        avg_cpc = df['cpc'].mean() if 'cpc' in df.columns else 0
-        st.metric("💰 Avg CPC", f"${avg_cpc:.2f}")
+        register = int(df['register'].sum()) if 'register' in df.columns else 0
+        st.metric("📝 Register", f"{register:,}")
     with col6:
-        avg_conv = df['conversion_rate'].mean() if 'conversion_rate' in df.columns else 0
-        st.metric("🎯 Avg Conv", f"{avg_conv:.2f}%")
+        ftd = int(df['result_ftd'].sum()) if 'result_ftd' in df.columns else 0
+        st.metric("💰 FTD", f"{ftd:,}")
 
 st.divider()
 
@@ -215,48 +203,58 @@ st.divider()
 st.subheader("👤 Individual Agent Summary")
 
 if not df.empty and 'agent_name' in df.columns:
+    # Get unique agents from Facebook Ads data
+    fb_agents = df['agent_name'].unique().tolist()
     cols = st.columns(3)
-    for idx, agent in enumerate(AGENTS):
-        agent_df = df[df['agent_name'] == agent['name']]
+
+    for idx, agent_name in enumerate(fb_agents):
+        agent_df = df[df['agent_name'] == agent_name]
 
         with cols[idx % 3]:
-            total_ads = agent_df['total_ad'].sum() if 'total_ad' in agent_df.columns else 0
-            avg_ctr = agent_df['ctr_percent'].mean() if 'ctr_percent' in agent_df.columns and not agent_df.empty else 0
-            avg_conv = agent_df['conversion_rate'].mean() if 'conversion_rate' in agent_df.columns and not agent_df.empty else 0
-            impressions = agent_df['impressions'].sum() if 'impressions' in agent_df.columns else 0
-            content_posts = agent_df['content_posts'].sum() if 'content_posts' in agent_df.columns else 0
-            unique_content = agent_df['unique_content'].sum() if 'unique_content' in agent_df.columns else 0
-            freshness = (unique_content / content_posts * 100) if content_posts > 0 else 0
+            spend = agent_df['spend'].sum() if 'spend' in agent_df.columns else 0
+            impressions = int(agent_df['impressions'].sum()) if 'impressions' in agent_df.columns else 0
+            reach = int(agent_df['reach'].sum()) if 'reach' in agent_df.columns else 0
+            clicks = int(agent_df['clicks'].sum()) if 'clicks' in agent_df.columns else 0
+            register = int(agent_df['register'].sum()) if 'register' in agent_df.columns else 0
+            ftd = int(agent_df['result_ftd'].sum()) if 'result_ftd' in agent_df.columns else 0
+            ctr = (clicks / impressions * 100) if impressions > 0 else 0
+            cpc = (spend / clicks) if clicks > 0 else 0
+            cpr = (spend / register) if register > 0 else 0
+            cpftd = (spend / ftd) if ftd > 0 else 0
 
-            # Handle NaN values
-            avg_ctr = 0 if pd.isna(avg_ctr) else avg_ctr
-            avg_conv = 0 if pd.isna(avg_conv) else avg_conv
-
-            # Determine performance color
-            if avg_ctr >= 3.5:
+            # Determine performance color based on FTD
+            if ftd >= 30:
                 perf_color = '#28a745'
                 perf_badge = '🏆 Top Performer'
-            elif avg_ctr >= 2.5:
+            elif ftd >= 15:
                 perf_color = '#ffc107'
                 perf_badge = '⭐ Good'
             else:
-                perf_color = '#dc3545'
-                perf_badge = '📈 Needs Improvement'
+                perf_color = '#17a2b8'
+                perf_badge = '📈 Active'
+
+            # Format CPR and CPFTD display
+            cpr_display = f"${cpr:,.2f}" if cpr > 0 else "-"
+            cpftd_display = f"${cpftd:,.2f}" if cpftd > 0 else "-"
 
             st.markdown(f"""
             <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 12px; border-left: 5px solid {perf_color}; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; color: #333;">{agent['name']}</h3>
+                    <h3 style="margin: 0; color: #333;">{agent_name}</h3>
                     <span style="background: {perf_color}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem;">{perf_badge}</span>
                 </div>
             <hr style="margin: 10px 0; border-color: #dee2e6;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.9rem;">
-                <div><strong>Ads:</strong> {total_ads:,}</div>
-                <div><strong>CTR:</strong> {avg_ctr:.2f}%</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                <div><strong>Spend:</strong> ${spend:,.2f}</div>
+                <div><strong>FTD:</strong> {ftd:,}</div>
                 <div><strong>Impressions:</strong> {impressions:,}</div>
-                <div><strong>Conv:</strong> {avg_conv:.2f}%</div>
-                <div><strong>Content:</strong> {content_posts}</div>
-                <div><strong>Freshness:</strong> {freshness:.0f}%</div>
+                <div><strong>Register:</strong> {register:,}</div>
+                <div><strong>Reach:</strong> {reach:,}</div>
+                <div><strong>Clicks:</strong> {clicks:,}</div>
+                <div><strong>CTR:</strong> {ctr:.2f}%</div>
+                <div><strong>CPC:</strong> ${cpc:.2f}</div>
+                <div><strong>CPR:</strong> {cpr_display}</div>
+                <div><strong>Cost/FTD:</strong> {cpftd_display}</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -272,159 +270,100 @@ st.subheader("📈 Performance Comparison")
 if df.empty or 'agent_name' not in df.columns:
     st.info("No data available for comparison charts.")
 else:
-    tab1, tab2, tab3 = st.tabs(["Performance Metrics", "Content Analysis", "Trends"])
+    tab1, tab2 = st.tabs(["Performance Metrics", "Trends"])
 
     with tab1:
-        # Check if required columns exist
-        required_cols = ['ctr_percent', 'conversion_rate', 'total_ad']
-        has_required = all(col in df.columns for col in required_cols)
+        col1, col2 = st.columns(2)
 
-        if has_required:
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # CTR Comparison
-                agent_summary = df.groupby('agent_name').agg({
-                    'ctr_percent': 'mean',
-                    'conversion_rate': 'mean',
-                    'total_ad': 'sum'
-                }).reset_index()
-
-                fig = px.bar(
-                    agent_summary,
-                    x='agent_name',
-                    y='ctr_percent',
-                    color='ctr_percent',
-                    color_continuous_scale='RdYlGn',
-                    title='Average CTR by Agent'
-                )
-                fig.add_hline(y=agent_summary['ctr_percent'].mean(), line_dash="dash", annotation_text="Team Avg")
-                fig.update_layout(height=350, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col2:
-                # Conversion Rate Comparison
-                fig = px.bar(
-                    agent_summary,
-                    x='agent_name',
-                    y='conversion_rate',
-                    color='conversion_rate',
-                    color_continuous_scale='RdYlGn',
-                    title='Average Conversion Rate by Agent'
-                )
-                fig.add_hline(y=agent_summary['conversion_rate'].mean(), line_dash="dash", annotation_text="Team Avg")
-                fig.update_layout(height=350, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
-
-            # Radar Chart
-            st.subheader("🎯 Agent Performance Radar")
-
-            # Normalize metrics for radar - only use columns that exist
-            metrics = [col for col in ['total_ad', 'impressions', 'clicks', 'ctr_percent', 'conversion_rate', 'active_count'] if col in df.columns]
-
-            if len(metrics) >= 3:
-                agent_metrics = df.groupby('agent_name')[metrics].mean().reset_index()
-
-                # Normalize to 0-100 scale
-                for col in metrics:
-                    max_val = agent_metrics[col].max()
-                    if max_val > 0:
-                        agent_metrics[col + '_norm'] = agent_metrics[col] / max_val * 100
-                    else:
-                        agent_metrics[col + '_norm'] = 0
-
-                fig = go.Figure()
-
-                metric_labels = {'total_ad': 'Total Ads', 'impressions': 'Impressions', 'clicks': 'Clicks',
-                                 'ctr_percent': 'CTR', 'conversion_rate': 'Conversion', 'active_count': 'Active Ads'}
-
-                for agent in [a['name'] for a in AGENTS]:
-                    agent_data = agent_metrics[agent_metrics['agent_name'] == agent]
-                    if not agent_data.empty:
-                        agent_data = agent_data.iloc[0]
-                        fig.add_trace(go.Scatterpolar(
-                            r=[agent_data.get(f'{m}_norm', 0) for m in metrics],
-                            theta=[metric_labels.get(m, m) for m in metrics],
-                            fill='toself',
-                            name=agent
-                        ))
-
-                fig.update_layout(
-                    polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-                    showlegend=True,
-                    height=450
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.info("Not enough metrics available for radar chart")
-        else:
-            st.info("Required columns (CTR, Conversion Rate, Total Ad) not found in data")
-
-    with tab2:
-        if 'content_posts' in df.columns and 'unique_content' in df.columns:
-            col1, col2 = st.columns(2)
-
-            with col1:
-                # Content volume by agent
-                content_summary = df.groupby('agent_name').agg({
-                    'content_posts': 'sum',
-                    'unique_content': 'sum'
-                }).reset_index()
-                content_summary['recycled'] = content_summary['content_posts'] - content_summary['unique_content']
-
-                fig = go.Figure()
-                fig.add_trace(go.Bar(
-                    x=content_summary['agent_name'],
-                    y=content_summary['unique_content'],
-                    name='Unique Content',
-                    marker_color='#28a745'
-                ))
-                fig.add_trace(go.Bar(
-                    x=content_summary['agent_name'],
-                    y=content_summary['recycled'],
-                    name='Recycled Content',
-                    marker_color='#ffc107'
-                ))
-                fig.update_layout(barmode='stack', title='Content Volume by Agent', height=350)
-                st.plotly_chart(fig, use_container_width=True)
-
-            with col2:
-                # Freshness score by agent
-                content_summary['freshness'] = content_summary.apply(
-                    lambda row: (row['unique_content'] / row['content_posts'] * 100) if row['content_posts'] > 0 else 0,
-                    axis=1
-                ).round(1)
-
-                fig = px.bar(
-                    content_summary,
-                    x='agent_name',
-                    y='freshness',
-                    color='freshness',
-                    color_continuous_scale='RdYlGn',
-                    title='Content Freshness Score by Agent'
-                )
-                fig.add_hline(y=70, line_dash="dash", line_color="green", annotation_text="Target (70%)")
-                fig.update_layout(height=350, showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Content data not available. Make sure content sheets are loaded.")
-
-    with tab3:
-        # Daily trend by agent
-        trend_cols = ['total_ad', 'impressions', 'ctr_percent']
-        available_trend_cols = [col for col in trend_cols if col in df.columns]
-
-        if available_trend_cols and 'date' in df.columns:
-            daily_by_agent = df.groupby(['date', 'agent_name'])[available_trend_cols].agg({
-                col: 'sum' if col != 'ctr_percent' else 'mean' for col in available_trend_cols
+        with col1:
+            # Spend by Agent
+            agent_summary = df.groupby('agent_name').agg({
+                'spend': 'sum',
+                'impressions': 'sum',
+                'clicks': 'sum',
+                'register': 'sum',
+                'result_ftd': 'sum'
             }).reset_index()
 
-            metric_choice = st.selectbox("Select Metric", available_trend_cols)
-            metric_labels = {'total_ad': 'Total Ads', 'impressions': 'Impressions', 'ctr_percent': 'CTR %'}
+            fig = px.bar(
+                agent_summary,
+                x='agent_name',
+                y='spend',
+                color='spend',
+                color_continuous_scale='Blues',
+                title='Total Spend by Agent'
+            )
+            fig.add_hline(y=agent_summary['spend'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(height=350, showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col2:
+            # FTD by Agent
+            fig = px.bar(
+                agent_summary,
+                x='agent_name',
+                y='result_ftd',
+                color='result_ftd',
+                color_continuous_scale='Greens',
+                title='FTD by Agent'
+            )
+            fig.add_hline(y=agent_summary['result_ftd'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(height=350, showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Radar Chart
+        st.subheader("🎯 Agent Performance Radar")
+
+        metrics = ['spend', 'impressions', 'clicks', 'register', 'result_ftd']
+        agent_metrics = df.groupby('agent_name')[metrics].sum().reset_index()
+
+        # Normalize to 0-100 scale
+        for col in metrics:
+            max_val = agent_metrics[col].max()
+            if max_val > 0:
+                agent_metrics[col + '_norm'] = agent_metrics[col] / max_val * 100
+            else:
+                agent_metrics[col + '_norm'] = 0
+
+        fig = go.Figure()
+
+        metric_labels = {'spend': 'Spend', 'impressions': 'Impressions', 'clicks': 'Clicks',
+                         'register': 'Register', 'result_ftd': 'FTD'}
+
+        for agent in agent_metrics['agent_name'].unique():
+            agent_data = agent_metrics[agent_metrics['agent_name'] == agent].iloc[0]
+            fig.add_trace(go.Scatterpolar(
+                r=[agent_data.get(f'{m}_norm', 0) for m in metrics],
+                theta=[metric_labels.get(m, m) for m in metrics],
+                fill='toself',
+                name=agent
+            ))
+
+        fig.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
+            showlegend=True,
+            height=450
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+    with tab2:
+        # Daily trend by agent
+        if 'date' in df.columns:
+            df['date_only'] = pd.to_datetime(df['date']).dt.date
+            daily_by_agent = df.groupby(['date_only', 'agent_name']).agg({
+                'spend': 'sum',
+                'impressions': 'sum',
+                'clicks': 'sum',
+                'register': 'sum',
+                'result_ftd': 'sum'
+            }).reset_index()
+
+            metric_choice = st.selectbox("Select Metric", ['spend', 'impressions', 'clicks', 'register', 'result_ftd'])
+            metric_labels = {'spend': 'Spend ($)', 'impressions': 'Impressions', 'clicks': 'Clicks', 'register': 'Register', 'result_ftd': 'FTD'}
 
             fig = px.line(
                 daily_by_agent,
-                x='date',
+                x='date_only',
                 y=metric_choice,
                 color='agent_name',
                 title=f'{metric_labels.get(metric_choice, metric_choice)} Trend by Agent',
@@ -442,81 +381,67 @@ st.subheader("🏆 Agent Leaderboard")
 if df.empty or 'agent_name' not in df.columns:
     st.info("No data available for leaderboard")
 else:
-    # Build aggregation dict with only available columns
-    agg_dict = {}
-    if 'total_ad' in df.columns:
-        agg_dict['total_ad'] = 'sum'
-    if 'impressions' in df.columns:
-        agg_dict['impressions'] = 'sum'
-    if 'clicks' in df.columns:
-        agg_dict['clicks'] = 'sum'
-    if 'ctr_percent' in df.columns:
-        agg_dict['ctr_percent'] = 'mean'
-    if 'conversion_rate' in df.columns:
-        agg_dict['conversion_rate'] = 'mean'
-    if 'content_posts' in df.columns:
-        agg_dict['content_posts'] = 'sum'
-    if 'unique_content' in df.columns:
-        agg_dict['unique_content'] = 'sum'
+    # Build leaderboard from Facebook Ads data
+    leaderboard = df.groupby('agent_name').agg({
+        'spend': 'sum',
+        'impressions': 'sum',
+        'clicks': 'sum',
+        'reach': 'sum',
+        'register': 'sum',
+        'result_ftd': 'sum'
+    }).reset_index()
 
-    if agg_dict:
-        leaderboard = df.groupby('agent_name').agg(agg_dict).reset_index()
+    # Calculate derived metrics
+    leaderboard['ctr'] = (leaderboard['clicks'] / leaderboard['impressions'] * 100).round(2)
+    leaderboard['cpr'] = (leaderboard['spend'] / leaderboard['register']).round(2)
+    leaderboard['cpftd'] = (leaderboard['spend'] / leaderboard['result_ftd']).round(2)
 
-        # Calculate freshness if content columns exist
-        if 'content_posts' in leaderboard.columns and 'unique_content' in leaderboard.columns:
-            leaderboard['freshness'] = leaderboard.apply(
-                lambda row: (row['unique_content'] / row['content_posts'] * 100) if row['content_posts'] > 0 else 0,
-                axis=1
-            ).round(1)
-        else:
-            leaderboard['freshness'] = 0
+    # Handle inf/nan
+    leaderboard = leaderboard.replace([float('inf'), float('-inf')], 0).fillna(0)
 
-        # Calculate overall score (weighted average) - use only available metrics
-        score_components = []
-        if 'ctr_percent' in leaderboard.columns:
-            score_components.append(leaderboard['ctr_percent'].fillna(0) * 0.3)
-        if 'conversion_rate' in leaderboard.columns:
-            score_components.append(leaderboard['conversion_rate'].fillna(0) * 0.3)
-        if 'freshness' in leaderboard.columns:
-            score_components.append(leaderboard['freshness'].fillna(0) * 0.2)
-        if 'total_ad' in leaderboard.columns:
-            max_ads = leaderboard['total_ad'].max()
-            if max_ads > 0:
-                score_components.append((leaderboard['total_ad'] / max_ads * 100) * 0.2)
+    # Sort by FTD descending
+    leaderboard = leaderboard.sort_values('result_ftd', ascending=False).reset_index(drop=True)
 
-        if score_components:
-            leaderboard['score'] = sum(score_components).round(1)
-        else:
-            leaderboard['score'] = 0
+    # Add rank column
+    leaderboard['rank'] = range(1, len(leaderboard) + 1)
 
-        leaderboard = leaderboard.sort_values('score', ascending=False).reset_index(drop=True)
-        leaderboard.index = leaderboard.index + 1  # Start from 1
+    # Rename for display - cleaner columns
+    display_leaderboard = leaderboard[['rank', 'agent_name', 'spend', 'register', 'result_ftd', 'cpr', 'cpftd']].copy()
+    display_leaderboard.columns = ['#', 'Agent', 'Spend', 'Register', 'FTD', 'CPR', 'Cost/FTD']
 
-        # Build display columns dynamically
-        display_cols = ['agent_name']
-        col_names = ['Agent']
-        col_config = {}
+    st.dataframe(
+        display_leaderboard,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "#": st.column_config.NumberColumn(width="small"),
+            "Agent": st.column_config.TextColumn(width="medium"),
+            "Spend": st.column_config.NumberColumn(format="$,.2f", width="small"),
+            "Register": st.column_config.NumberColumn(format=",d", width="small"),
+            "FTD": st.column_config.NumberColumn(format=",d", width="small"),
+            "CPR": st.column_config.NumberColumn(format="$,.2f", width="small"),
+            "Cost/FTD": st.column_config.NumberColumn(format="$,.2f", width="small"),
+        }
+    )
 
-        for col, name, fmt in [
-            ('total_ad', 'Total Ads', None),
-            ('impressions', 'Impressions', None),
-            ('clicks', 'Clicks', None),
-            ('ctr_percent', 'Avg CTR %', st.column_config.NumberColumn(format="%.2f%%")),
-            ('conversion_rate', 'Avg Conv %', st.column_config.NumberColumn(format="%.2f%%")),
-            ('freshness', 'Freshness %', st.column_config.NumberColumn(format="%.1f%%")),
-            ('score', 'Overall Score', st.column_config.ProgressColumn(min_value=0, max_value=100))
-        ]:
-            if col in leaderboard.columns:
-                display_cols.append(col)
-                col_names.append(name)
-                if fmt:
-                    col_config[name] = fmt
-
-        display_leaderboard = leaderboard[display_cols].copy()
-        display_leaderboard.columns = col_names
+    # Show detailed metrics in expandable section
+    with st.expander("📊 View All Metrics"):
+        detail_df = leaderboard[['agent_name', 'spend', 'impressions', 'reach', 'clicks', 'ctr', 'register', 'result_ftd', 'cpr', 'cpftd']].copy()
+        detail_df.columns = ['Agent', 'Spend', 'Impressions', 'Reach', 'Clicks', 'CTR %', 'Register', 'FTD', 'CPR', 'Cost/FTD']
 
         st.dataframe(
-            display_leaderboard,
+            detail_df,
             use_container_width=True,
-            column_config=col_config
+            hide_index=True,
+            column_config={
+                "Spend": st.column_config.NumberColumn(format="$,.2f"),
+                "Impressions": st.column_config.NumberColumn(format=",d"),
+                "Reach": st.column_config.NumberColumn(format=",d"),
+                "Clicks": st.column_config.NumberColumn(format=",d"),
+                "CTR %": st.column_config.NumberColumn(format="%.2f%%"),
+                "Register": st.column_config.NumberColumn(format=",d"),
+                "FTD": st.column_config.NumberColumn(format=",d"),
+                "CPR": st.column_config.NumberColumn(format="$,.2f"),
+                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
+            }
         )

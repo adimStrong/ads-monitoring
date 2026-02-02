@@ -9,7 +9,13 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import GOOGLE_SHEETS_ID, AGENTS, RUNNING_ADS_COLUMNS, CREATIVE_WORK_COLUMNS, SMS_COLUMNS, CONTENT_COLUMNS
+from config import (
+    GOOGLE_SHEETS_ID, AGENTS, RUNNING_ADS_COLUMNS, CREATIVE_WORK_COLUMNS, SMS_COLUMNS, CONTENT_COLUMNS,
+    INDIAN_PROMOTION_SHEET_ID, INDIAN_PROMOTION_GID, INDIAN_PROMOTION_AGENTS,
+    FACEBOOK_ADS_SHEET_ID, FACEBOOK_ADS_CREDENTIALS_FILE, FACEBOOK_ADS_SHEETS,
+    FACEBOOK_ADS_ACCOUNT_START_COLS, FACEBOOK_ADS_COLUMN_OFFSETS, FACEBOOK_ADS_DATA_START_ROW,
+    FACEBOOK_ADS_NAMES_ROW, EXCLUDED_PERSONS
+)
 
 
 def get_public_sheet_url(sheet_id, sheet_name):
@@ -416,6 +422,236 @@ def load_agent_content_data(agent_name, sheet_name):
         return None
 
 
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def load_indian_promotion_content():
+    """
+    Load copywriting data from Indian Promotion sheet
+    This sheet has all agents in one sheet with separate column groups.
+    Only counts Primary Text entries.
+
+    Returns: DataFrame with columns: date, agent_name, content_type, primary_content, condition, status
+    """
+    try:
+        # Build URL with gid for specific sheet
+        url = f"https://docs.google.com/spreadsheets/d/{INDIAN_PROMOTION_SHEET_ID}/gviz/tq?tqx=out:csv&gid={INDIAN_PROMOTION_GID}"
+
+        # Read all data without header
+        df = pd.read_csv(url, header=None)
+
+        if df.empty:
+            return pd.DataFrame()
+
+        all_content = []
+
+        for agent_name, cols in INDIAN_PROMOTION_AGENTS.items():
+            last_valid_date = None
+
+            for idx in range(1, len(df)):  # Skip header row
+                # Get date (handle merged cells)
+                date_val = df.iloc[idx, cols['date']] if pd.notna(df.iloc[idx, cols['date']]) else None
+                parsed_date = parse_date(date_val)
+
+                if parsed_date:
+                    last_valid_date = parsed_date
+
+                # Use last valid date for rows without dates
+                current_date = parsed_date if parsed_date else last_valid_date
+
+                if not current_date:
+                    continue
+
+                # Get type and content
+                type_val = str(df.iloc[idx, cols['type']]) if pd.notna(df.iloc[idx, cols['type']]) else ''
+                content_val = str(df.iloc[idx, cols['content']]) if pd.notna(df.iloc[idx, cols['content']]) else ''
+                condition_val = str(df.iloc[idx, cols['condition']]) if pd.notna(df.iloc[idx, cols['condition']]) else ''
+                status_val = str(df.iloc[idx, cols['status']]) if pd.notna(df.iloc[idx, cols['status']]) else ''
+
+                # Only include Primary Text with actual content
+                if 'Primary Text' in type_val and content_val not in ['', 'nan']:
+                    all_content.append({
+                        'date': current_date,
+                        'agent_name': agent_name,
+                        'content_type': 'Primary Text',
+                        'primary_content': content_val.strip(),
+                        'condition': condition_val.strip() if condition_val != 'nan' else '',
+                        'status': status_val.strip() if status_val != 'nan' else '',
+                        'source': 'Indian Promotion'
+                    })
+
+        return pd.DataFrame(all_content) if all_content else pd.DataFrame()
+
+    except Exception as e:
+        st.warning(f"Could not load Indian Promotion data: {str(e)}")
+        return pd.DataFrame()
+
+
+def load_facebook_ads_data():
+    """
+    Load Facebook Ads data from INDIVIDUAL KPI sheet using service account authentication.
+    Single sheet contains all 8 persons with properly aligned dates.
+
+    Persons (in order by column): JASON, RON, SHILA, ADRIAN, JOMAR, KRISSA, MIKA, DER
+    Column positions: 17, 27, 37, 47, 57, 67, 77, 87
+
+    Returns: DataFrame with columns:
+        date, person_name, spend, cost_php, result_ftd, register,
+        reach, impressions, clicks, cpm, ctr, cpc, cost_per_register, cost_per_ftd
+    """
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        creds_file = os.path.join(os.path.dirname(__file__), FACEBOOK_ADS_CREDENTIALS_FILE)
+        if not os.path.exists(creds_file):
+            print(f"Facebook Ads credentials file not found: {creds_file}")
+            return pd.DataFrame()
+
+        scopes = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+        creds = Credentials.from_service_account_file(creds_file, scopes=scopes)
+        client = gspread.authorize(creds)
+
+        spreadsheet = client.open_by_key(FACEBOOK_ADS_SHEET_ID)
+
+        all_ads_data = []
+
+        for sheet_info in FACEBOOK_ADS_SHEETS:
+            sheet_name = sheet_info['name']
+            try:
+                ws = spreadsheet.worksheet(sheet_name)
+                all_data = ws.get_all_values()
+
+                if len(all_data) < FACEBOOK_ADS_DATA_START_ROW + 1:
+                    continue
+
+                # Row 2 (index 1) has person names in INDIVIDUAL KPI sheet
+                names_row = all_data[FACEBOOK_ADS_NAMES_ROW] if len(all_data) > FACEBOOK_ADS_NAMES_ROW else []
+
+                # Row 3 (index 2) has account IDs (fallback)
+                account_ids_row = all_data[2] if len(all_data) > 2 else []
+
+                # Extract person names for each column group
+                person_names = {}
+                account_names = {}
+                for start_col in FACEBOOK_ADS_ACCOUNT_START_COLS:
+                    # Get person name from names row
+                    if start_col < len(names_row):
+                        person_name = names_row[start_col].strip().upper()
+                        if person_name:
+                            person_names[start_col] = person_name
+
+                    # Get account ID from Row 3 (as fallback/reference)
+                    if start_col < len(account_ids_row):
+                        acc_id = account_ids_row[start_col].replace('\n', ' / ').strip()
+                        if acc_id and 'DATE' not in acc_id.upper():
+                            account_names[start_col] = acc_id
+
+                print(f"Found persons in {sheet_name}: {list(person_names.values())}")
+
+                # Process data rows (starting from row 5, index 4)
+                for row_idx in range(FACEBOOK_ADS_DATA_START_ROW, len(all_data)):
+                    row = all_data[row_idx]
+
+                    # Skip header rows (names row, account row, headers row)
+                    if row_idx <= 3:
+                        continue
+
+                    # Process each person's column group
+                    for start_col in FACEBOOK_ADS_ACCOUNT_START_COLS:
+                        # Need person name
+                        if start_col not in person_names:
+                            continue
+
+                        offsets = FACEBOOK_ADS_COLUMN_OFFSETS
+
+                        # Get date
+                        date_col = start_col + offsets['date']
+                        date_val = row[date_col] if date_col < len(row) else ''
+                        parsed_date = parse_date(date_val)
+
+                        if not parsed_date:
+                            continue
+
+                        # Get spend
+                        spend_col = start_col + offsets['spend']
+                        spend_val = row[spend_col] if spend_col < len(row) else ''
+                        spend = parse_numeric(spend_val.replace(',', '').replace('$', '')) if spend_val else 0
+
+                        # Skip rows with no spend
+                        if spend == 0:
+                            continue
+
+                        # Get other metrics
+                        cost_php_col = start_col + offsets['cost_php']
+                        cost_php = parse_numeric(row[cost_php_col].replace(',', '') if cost_php_col < len(row) and row[cost_php_col] else '0')
+
+                        result_col = start_col + offsets['result_ftd']
+                        result_ftd = int(parse_numeric(row[result_col].replace(',', '') if result_col < len(row) and row[result_col] else '0'))
+
+                        register_col = start_col + offsets['register']
+                        register = int(parse_numeric(row[register_col].replace(',', '') if register_col < len(row) and row[register_col] else '0'))
+
+                        reach_col = start_col + offsets['reach']
+                        reach = int(parse_numeric(row[reach_col].replace(',', '') if reach_col < len(row) and row[reach_col] else '0'))
+
+                        impressions_col = start_col + offsets['impressions']
+                        impressions = int(parse_numeric(row[impressions_col].replace(',', '') if impressions_col < len(row) and row[impressions_col] else '0'))
+
+                        clicks_col = start_col + offsets['clicks']
+                        clicks = int(parse_numeric(row[clicks_col].replace(',', '') if clicks_col < len(row) and row[clicks_col] else '0'))
+
+                        # Calculate derived metrics
+                        ctr = (clicks / impressions * 100) if impressions > 0 else 0
+                        cpc = (spend / clicks) if clicks > 0 else 0
+                        cpm = (spend / impressions * 1000) if impressions > 0 else 0
+                        cost_per_register = (spend / register) if register > 0 else 0
+                        cost_per_ftd = (spend / result_ftd) if result_ftd > 0 else 0
+
+                        # Get person name
+                        person_name = person_names.get(start_col, '')
+                        account_id = account_names.get(start_col, '')
+
+                        all_ads_data.append({
+                            'date': parsed_date,
+                            'person_name': person_name,
+                            'account_name': account_id,
+                            'spend': spend,
+                            'cost_php': cost_php,
+                            'result_ftd': result_ftd,
+                            'register': register,
+                            'reach': reach,
+                            'impressions': impressions,
+                            'clicks': clicks,
+                            'ctr': round(ctr, 2),
+                            'cpc': round(cpc, 2),
+                            'cpm': round(cpm, 2),
+                            'cost_per_register': round(cost_per_register, 2),
+                            'cost_per_ftd': round(cost_per_ftd, 2),
+                        })
+
+                print(f"Loaded {len([d for d in all_ads_data])} rows from {sheet_name}")
+
+            except Exception as e:
+                print(f"Error loading {sheet_name}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
+
+        if all_ads_data:
+            df = pd.DataFrame(all_ads_data)
+            # Filter out excluded persons if configured
+            if EXCLUDED_PERSONS and 'person_name' in df.columns:
+                df = df[~df['person_name'].isin(EXCLUDED_PERSONS)]
+                print(f"Excluded persons filtered: {EXCLUDED_PERSONS}")
+            return df
+        return pd.DataFrame()
+
+    except Exception as e:
+        print(f"Error loading Facebook Ads data: {e}")
+        import traceback
+        traceback.print_exc()
+        return pd.DataFrame()
+
+
 def load_all_data():
     """
     Load all data from all agents
@@ -454,6 +690,12 @@ def load_all_data():
 
         if content_df is not None and not content_df.empty:
             all_content.append(content_df)
+
+    # Load Indian Promotion content (additional copywriting data)
+    progress_text.text("Loading Indian Promotion data...")
+    indian_content_df = load_indian_promotion_content()
+    if indian_content_df is not None and not indian_content_df.empty:
+        all_content.append(indian_content_df)
 
     progress_text.empty()
     progress_bar.empty()

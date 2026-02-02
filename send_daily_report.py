@@ -1,6 +1,6 @@
 """
 Standalone script to send daily T+1 report to Telegram
-Designed to be run by Windows Task Scheduler at 8am daily
+Designed to be run by Windows Task Scheduler at 2pm daily
 """
 import sys
 import os
@@ -9,26 +9,27 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import requests
-from data_loader import load_agent_performance_data, load_agent_content_data
-from config import AGENTS
-from daily_report import generate_t1_report
+from datetime import datetime, timedelta
+from data_loader import load_facebook_ads_data
+from daily_report import generate_facebook_ads_section
 
 def send_report():
-    """Load data, generate report, and send to Telegram"""
-    print("Loading data...")
-    all_ads, all_creative, all_sms, all_content = [], [], [], []
+    """Load data from INDIVIDUAL KPI sheet, generate report, and send to Telegram"""
+    print("Loading Facebook Ads data from INDIVIDUAL KPI sheet...")
+    fb_ads_df = load_facebook_ads_data()
 
-    for agent in AGENTS:
-        running_ads, creative, sms = load_agent_performance_data(agent['name'], agent['sheet_performance'])
-        content = load_agent_content_data(agent['name'], agent['sheet_content'])
-        if running_ads is not None and not running_ads.empty: all_ads.append(running_ads)
-        if creative is not None and not creative.empty: all_creative.append(creative)
-        if sms is not None and not sms.empty: all_sms.append(sms)
-        if content is not None and not content.empty: all_content.append(content)
+    if fb_ads_df is None or fb_ads_df.empty:
+        print("[ERROR] No Facebook Ads data loaded!")
+        return False
 
-    print("Generating T+1 report...")
-    report = generate_t1_report(all_ads, all_creative, all_sms, all_content)
-    report += '\n\n@xxxadsron @Adsbasty'
+    # T+1 reporting: yesterday's data
+    yesterday = (datetime.now() - timedelta(days=1)).date()
+
+    print(f"Generating T+1 report for {yesterday}...")
+    report = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}\n"
+    report += f"<i>vs Last 7 Days Average</i>\n\n"
+    report += generate_facebook_ads_section(fb_ads_df, yesterday)
+    report += '\n@xxxadsron @Adsbasty'
 
     # Telegram config
     bot_token = '8126268680:AAEXeyB0DSmLIhx34BOlUVkFYkfvv-PW5C8'

@@ -9,7 +9,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from data_loader import load_agent_performance_data, load_agent_content_data
+from data_loader import load_agent_performance_data, load_agent_content_data, load_indian_promotion_content, load_facebook_ads_data
 from config import AGENTS
 from telegram_reporter import TelegramReporter
 
@@ -54,6 +54,15 @@ def load_all_agent_data():
                 all_content.append(content)
         except Exception as e:
             print(f"Error loading content data for {agent['name']}: {e}")
+
+    # Load Indian Promotion content (additional copywriting data)
+    try:
+        indian_content = load_indian_promotion_content()
+        if indian_content is not None and not indian_content.empty:
+            all_content.append(indian_content)
+            print(f"Loaded {len(indian_content)} rows from Indian Promotion sheet")
+    except Exception as e:
+        print(f"Error loading Indian Promotion data: {e}")
 
     return all_ads, all_creative, all_sms, all_content
 
@@ -156,7 +165,219 @@ def calculate_agent_stats(creative_df, sms_df, content_df):
     return stats
 
 
-def generate_t1_report(all_ads, all_creative, all_sms, all_content):
+def classify_performance_tier(spend, ftd):
+    """
+    Classify a person into a performance tier based on spend and FTD.
+
+    Tiers:
+    - Top Performers: FTD >= 50 OR Spend >= $1,000
+    - Mid Performers: FTD >= 20 OR Spend >= $400
+    - Developing: Below mid tier thresholds
+    """
+    if ftd >= 50 or spend >= 1000:
+        return 'top'
+    elif ftd >= 20 or spend >= 400:
+        return 'mid'
+    else:
+        return 'developing'
+
+
+def generate_facebook_ads_section(fb_ads_df, target_date, compare_days=7):
+    """
+    Generate Facebook Ads performance section for the report.
+    Uses Performance Tier Grouping (Top/Mid/Developing) instead of BM grouping.
+
+    Args:
+        fb_ads_df: DataFrame with Facebook Ads data
+        target_date: The date to report on (T+1)
+        compare_days: Number of days for average comparison
+
+    Returns:
+        str: Formatted Facebook Ads section
+    """
+    if fb_ads_df.empty:
+        return ""
+
+    # Filter for target date
+    fb_ads_df['date_only'] = pd.to_datetime(fb_ads_df['date']).dt.date
+    t1_data = fb_ads_df[fb_ads_df['date_only'] == target_date]
+
+    # Get comparison period data
+    week_ago = target_date - timedelta(days=compare_days-1)
+    period_data = fb_ads_df[(fb_ads_df['date_only'] >= week_ago) & (fb_ads_df['date_only'] <= target_date)]
+
+    if t1_data.empty:
+        return ""
+
+    # Aggregate T+1 totals
+    t1_totals = {
+        'spend': t1_data['spend'].sum(),
+        'impressions': t1_data['impressions'].sum(),
+        'clicks': t1_data['clicks'].sum(),
+        'reach': t1_data['reach'].sum(),
+        'register': t1_data['register'].sum(),
+        'result_ftd': t1_data['result_ftd'].sum(),
+    }
+
+    # Calculate derived metrics for T+1
+    t1_totals['ctr'] = (t1_totals['clicks'] / t1_totals['impressions'] * 100) if t1_totals['impressions'] > 0 else 0
+    t1_totals['cpc'] = (t1_totals['spend'] / t1_totals['clicks']) if t1_totals['clicks'] > 0 else 0
+    t1_totals['cpm'] = (t1_totals['spend'] / t1_totals['impressions'] * 1000) if t1_totals['impressions'] > 0 else 0
+    t1_totals['cpr'] = (t1_totals['spend'] / t1_totals['register']) if t1_totals['register'] > 0 else 0
+    t1_totals['cpftd'] = (t1_totals['spend'] / t1_totals['result_ftd']) if t1_totals['result_ftd'] > 0 else 0
+
+    # Calculate 7-day averages
+    avg_totals = {}
+    if not period_data.empty:
+        daily_agg = period_data.groupby('date_only').agg({
+            'spend': 'sum',
+            'impressions': 'sum',
+            'clicks': 'sum',
+            'reach': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum'
+        }).reset_index()
+
+        num_days = len(daily_agg)
+        avg_totals = {
+            'spend': daily_agg['spend'].sum() / num_days if num_days > 0 else 0,
+            'impressions': daily_agg['impressions'].sum() / num_days if num_days > 0 else 0,
+            'clicks': daily_agg['clicks'].sum() / num_days if num_days > 0 else 0,
+            'reach': daily_agg['reach'].sum() / num_days if num_days > 0 else 0,
+            'register': daily_agg['register'].sum() / num_days if num_days > 0 else 0,
+            'result_ftd': daily_agg['result_ftd'].sum() / num_days if num_days > 0 else 0,
+        }
+
+    # Build report section
+    report = "💰 <b>FACEBOOK ADS (T+1)</b>\n"
+    report += "<pre>"
+    report += f"{'Metric':<12}{'T+1':>12}{'7D Avg':>12}{'Diff':>10}\n"
+    report += "-" * 46 + "\n"
+
+    # Spend
+    t1_spend = t1_totals['spend']
+    avg_spend = avg_totals.get('spend', 0)
+    diff_spend = t1_spend - avg_spend
+    diff_str = f"+${diff_spend:,.0f}" if diff_spend >= 0 else f"-${abs(diff_spend):,.0f}"
+    report += f"{'Spend':<12}${t1_spend:>10,.2f}${avg_spend:>10,.2f}{diff_str:>10}\n"
+
+    # Impressions
+    t1_impr = int(t1_totals['impressions'])
+    avg_impr = avg_totals.get('impressions', 0)
+    diff_impr = t1_impr - avg_impr
+    diff_str = f"+{diff_impr:,.0f}" if diff_impr >= 0 else f"{diff_impr:,.0f}"
+    report += f"{'Impressions':<12}{t1_impr:>12,}{avg_impr:>12,.0f}{diff_str:>10}\n"
+
+    # Clicks
+    t1_clicks = int(t1_totals['clicks'])
+    avg_clicks = avg_totals.get('clicks', 0)
+    diff_clicks = t1_clicks - avg_clicks
+    diff_str = f"+{diff_clicks:,.0f}" if diff_clicks >= 0 else f"{diff_clicks:,.0f}"
+    report += f"{'Clicks':<12}{t1_clicks:>12,}{avg_clicks:>12,.0f}{diff_str:>10}\n"
+
+    # CTR
+    avg_ctr = (avg_totals.get('clicks', 0) / avg_totals.get('impressions', 1) * 100) if avg_totals.get('impressions', 0) > 0 else 0
+    diff_ctr = t1_totals['ctr'] - avg_ctr
+    diff_str = f"+{diff_ctr:.2f}%" if diff_ctr >= 0 else f"{diff_ctr:.2f}%"
+    report += f"{'CTR':<12}{t1_totals['ctr']:>11.2f}%{avg_ctr:>11.2f}%{diff_str:>10}\n"
+
+    # Register
+    t1_reg = int(t1_totals['register'])
+    avg_reg = avg_totals.get('register', 0)
+    diff_reg = t1_reg - avg_reg
+    diff_str = f"+{diff_reg:,.0f}" if diff_reg >= 0 else f"{diff_reg:,.0f}"
+    report += f"{'Register':<12}{t1_reg:>12,}{avg_reg:>12,.0f}{diff_str:>10}\n"
+
+    # FTD (First Time Deposit / Results)
+    t1_ftd = int(t1_totals['result_ftd'])
+    avg_ftd = avg_totals.get('result_ftd', 0)
+    diff_ftd = t1_ftd - avg_ftd
+    diff_str = f"+{diff_ftd:,.0f}" if diff_ftd >= 0 else f"{diff_ftd:,.0f}"
+    report += f"{'FTD':<12}{t1_ftd:>12,}{avg_ftd:>12,.0f}{diff_str:>10}\n"
+
+    # Cost metrics (CPR and Cost/FTD only)
+    report += "-" * 46 + "\n"
+    report += f"{'CPR':<12}${t1_totals['cpr']:>10,.2f}\n"
+    report += f"{'Cost/FTD':<12}${t1_totals['cpftd']:>10,.2f}\n"
+    report += "</pre>\n\n"
+
+    # Group by person and calculate metrics
+    if 'person_name' in t1_data.columns:
+        person_data = t1_data.groupby('person_name').agg({
+            'spend': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum',
+            'impressions': 'sum',
+            'clicks': 'sum'
+        }).reset_index()
+
+        # Calculate derived metrics and tier
+        person_data['cpr'] = person_data.apply(
+            lambda x: x['spend'] / x['register'] if x['register'] > 0 else 0, axis=1
+        )
+        person_data['cpftd'] = person_data.apply(
+            lambda x: x['spend'] / x['result_ftd'] if x['result_ftd'] > 0 else 0, axis=1
+        )
+        person_data['tier'] = person_data.apply(
+            lambda x: classify_performance_tier(x['spend'], x['result_ftd']), axis=1
+        )
+
+        # Define tier info
+        tiers = [
+            ('top', '🥇 TOP PERFORMERS', 'FTD >= 50 or Spend >= $1,000'),
+            ('mid', '🥈 MID PERFORMERS', 'FTD >= 20 or Spend >= $400'),
+            ('developing', '🥉 DEVELOPING', 'Below thresholds'),
+        ]
+
+        for tier_key, tier_name, tier_desc in tiers:
+            tier_persons = person_data[person_data['tier'] == tier_key].sort_values('result_ftd', ascending=False)
+
+            if not tier_persons.empty:
+                report += f"<b>{tier_name}</b>\n"
+                report += f"<i>{tier_desc}</i>\n<pre>"
+
+                for _, row in tier_persons.iterrows():
+                    person_name = row['person_name']
+                    spend = row['spend']
+                    reg = int(row['register'])
+                    ftd = int(row['result_ftd'])
+                    cpr = row['cpr']
+                    cpftd = row['cpftd']
+
+                    report += f"{person_name}\n"
+                    report += f"  Spend: ${spend:,.2f} | Reg: {reg} | FTD: {ftd}\n"
+                    if cpr > 0:
+                        report += f"  CPR: ${cpr:.2f}"
+                    else:
+                        report += f"  CPR: -"
+                    if cpftd > 0:
+                        report += f" | Cost/FTD: ${cpftd:.2f}\n"
+                    else:
+                        report += f" | Cost/FTD: -\n"
+
+                # Tier subtotal
+                tier_spend = tier_persons['spend'].sum()
+                tier_reg = int(tier_persons['register'].sum())
+                tier_ftd = int(tier_persons['result_ftd'].sum())
+                tier_cpr = (tier_spend / tier_reg) if tier_reg > 0 else 0
+                tier_cpftd = (tier_spend / tier_ftd) if tier_ftd > 0 else 0
+
+                report += "-" * 40 + "\n"
+                report += f"Subtotal: ${tier_spend:,.2f} | Reg: {tier_reg} | FTD: {tier_ftd}\n"
+                report += "</pre>\n\n"
+    else:
+        report += "<pre>No person data available</pre>\n"
+
+    # Grand total
+    report += "<b>GRAND TOTAL:</b>\n<pre>"
+    report += f"Spend: ${t1_totals['spend']:,.2f} | Reg: {int(t1_totals['register'])} | FTD: {int(t1_totals['result_ftd'])}\n"
+    report += f"CPR: ${t1_totals['cpr']:.2f} | Cost/FTD: ${t1_totals['cpftd']:.2f}\n"
+    report += "</pre>\n\n"
+
+    return report
+
+
+def generate_t1_report(all_ads, all_creative, all_sms, all_content, fb_ads_df=None):
     """
     Generate T+1 report (yesterday) with comparison to 7-day average
 
@@ -212,83 +433,16 @@ def generate_t1_report(all_ads, all_creative, all_sms, all_content):
                 total = len(agent_data)
             avg_stats[agent]['sms'] = total / 7
 
-    # Build report
+    # Build report - Facebook Ads only
     report = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}\n"
     report += f"<i>vs Last 7 Days Average</i>\n\n"
 
-    # Creative Section
-    report += "🎨 <b>CREATIVE</b>\n<pre>"
-    report += f"{'Name':<10}{'T+1':>6}{'7D Avg':>8}{'Diff':>8}\n"
-    report += "-" * 32 + "\n"
-
-    all_agents = set(list(t1_stats.keys()) + list(avg_stats.keys()))
-    total_t1_creative = 0
-    total_avg_creative = 0
-
-    for agent in sorted(all_agents):
-        t1_val = t1_stats.get(agent, {}).get('creative', 0)
-        avg_val = avg_stats.get(agent, {}).get('creative', 0)
-        diff = t1_val - avg_val
-        diff_str = f"+{diff:.0f}" if diff >= 0 else f"{diff:.0f}"
-
-        total_t1_creative += t1_val
-        total_avg_creative += avg_val
-
-        report += f"{agent:<10}{t1_val:>6}{avg_val:>8.1f}{diff_str:>8}\n"
-
-    report += "-" * 32 + "\n"
-    total_diff = total_t1_creative - total_avg_creative
-    diff_str = f"+{total_diff:.0f}" if total_diff >= 0 else f"{total_diff:.0f}"
-    report += f"{'TOTAL':<10}{total_t1_creative:>6}{total_avg_creative:>8.1f}{diff_str:>8}\n"
-    report += "</pre>\n\n"
-
-    # SMS Section
-    report += "📱 <b>SMS</b>\n<pre>"
-    report += f"{'Name':<10}{'T+1':>6}{'7D Avg':>8}{'Diff':>8}\n"
-    report += "-" * 32 + "\n"
-
-    total_t1_sms = 0
-    total_avg_sms = 0
-
-    for agent in sorted(all_agents):
-        t1_val = t1_stats.get(agent, {}).get('sms', 0)
-        avg_val = avg_stats.get(agent, {}).get('sms', 0)
-        diff = t1_val - avg_val
-        diff_str = f"+{diff:.0f}" if diff >= 0 else f"{diff:.0f}"
-
-        total_t1_sms += t1_val
-        total_avg_sms += avg_val
-
-        report += f"{agent:<10}{t1_val:>6}{avg_val:>8.1f}{diff_str:>8}\n"
-
-    report += "-" * 32 + "\n"
-    total_diff = total_t1_sms - total_avg_sms
-    diff_str = f"+{total_diff:.0f}" if total_diff >= 0 else f"{total_diff:.0f}"
-    report += f"{'TOTAL':<10}{total_t1_sms:>6}{total_avg_sms:>8.1f}{diff_str:>8}\n"
-    report += "</pre>\n\n"
-
-    # Copywriting Summary - only Primary Text entries (T+1 date filtered)
-    if not content_df.empty:
-        # Filter for Primary Text only
-        if 'content_type' in content_df.columns:
-            primary_df = content_df[content_df['content_type'] == 'Primary Text']
-        else:
-            primary_df = content_df
-
-        if not primary_df.empty:
-            report += "📝 <b>COPYWRITING (T+1)</b>\n<pre>"
-            report += f"{'Name':<10}{'Posts':>6}\n"
-            report += "-" * 16 + "\n"
-
-            total_copy = 0
-            for agent in sorted(primary_df['agent_name'].unique()):
-                count = len(primary_df[primary_df['agent_name'] == agent])
-                total_copy += count
-                report += f"{agent:<10}{count:>6}\n"
-
-            report += "-" * 16 + "\n"
-            report += f"{'TOTAL':<10}{total_copy:>6}\n"
-            report += "</pre>"
+    # Facebook Ads Section only
+    if fb_ads_df is not None and not fb_ads_df.empty:
+        fb_section = generate_facebook_ads_section(fb_ads_df, yesterday)
+        report += fb_section
+    else:
+        report += "⚠️ No Facebook Ads data available for this date.\n"
 
     return report
 
@@ -539,21 +693,25 @@ def generate_no_ads_report(creative_list, sms_list, content_list, report_date):
 
 
 def generate_daily_report(report_date=None, send_to_telegram=True):
-    """Generate and optionally send daily report"""
+    """Generate and optionally send daily report - Facebook Ads only"""
     if report_date is None:
         report_date = datetime.now().date()
 
     print(f"Generating report for {report_date}...")
 
-    all_ads, all_creative, all_sms, all_content = load_all_agent_data()
-    has_running_ads, today_ads = check_running_ads(all_ads, report_date)
+    # Load Facebook Ads data only
+    fb_ads_df = load_facebook_ads_data()
 
-    if has_running_ads:
-        print("[OK] Running ads found - generating ads report")
-        report = generate_ads_report(today_ads, report_date)
+    report = f"📊 <b>BINGO365 Daily Report</b> - {report_date.strftime('%b %d, %Y')}\n\n"
+
+    if fb_ads_df is not None and not fb_ads_df.empty:
+        fb_section = generate_facebook_ads_section(fb_ads_df, report_date)
+        if fb_section:
+            report += fb_section
+        else:
+            report += "⚠️ No Facebook Ads data for this date.\n"
     else:
-        print("[!] No running ads - generating creative/SMS/copywriting report")
-        report = generate_no_ads_report(all_creative, all_sms, all_content, report_date)
+        report += "⚠️ No Facebook Ads data available.\n"
 
     if send_to_telegram:
         try:
@@ -571,8 +729,19 @@ def send_t1_report():
     """Send T+1 report (yesterday with 7-day avg comparison)"""
     print("Generating T+1 report...")
 
+    # Load agent data
     all_ads, all_creative, all_sms, all_content = load_all_agent_data()
-    report = generate_t1_report(all_ads, all_creative, all_sms, all_content)
+
+    # Load Facebook Ads data
+    print("Loading Facebook Ads data...")
+    fb_ads_df = load_facebook_ads_data()
+    if fb_ads_df is not None and not fb_ads_df.empty:
+        print(f"Loaded {len(fb_ads_df)} rows of Facebook Ads data")
+    else:
+        print("No Facebook Ads data loaded")
+        fb_ads_df = None
+
+    report = generate_t1_report(all_ads, all_creative, all_sms, all_content, fb_ads_df)
 
     try:
         reporter = TelegramReporter()
