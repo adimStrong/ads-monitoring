@@ -481,66 +481,85 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df=N
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Daily Performance Trend")
-        daily_perf = running_ads_df.copy()
-        daily_perf['date_only'] = daily_perf['date'].dt.date
-        daily_agg = daily_perf.groupby('date_only').agg({
-            'total_ad': 'sum',
-            'impressions': 'sum',
-            'clicks': 'sum'
-        }).reset_index()
+        st.subheader("Daily Ad Results Trend")
+        # Use Facebook Ads data for daily results
+        if fb_ads_df is not None and not fb_ads_df.empty:
+            daily_results = fb_ads_df.copy()
+            daily_results['date_only'] = pd.to_datetime(daily_results['date']).dt.date
+            daily_agg = daily_results.groupby('date_only').agg({
+                'spend': 'sum',
+                'register': 'sum',
+                'result_ftd': 'sum'
+            }).reset_index()
+            daily_agg = daily_agg.sort_values('date_only')
 
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=daily_agg['date_only'],
-            y=daily_agg['total_ad'],
-            name='Total Ads',
-            marker_color='#667eea'
-        ))
-        fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20), xaxis_tickformat='%Y-%m-%d')
-        fig.update_xaxes(type='category')  # Prevent duplicate dates
-        st.plotly_chart(fig, use_container_width=True)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=daily_agg['date_only'],
+                y=daily_agg['register'],
+                name='Register',
+                marker_color='#3498db',
+                text=daily_agg['register'].astype(int),
+                textposition='outside'
+            ))
+            fig.add_trace(go.Bar(
+                x=daily_agg['date_only'],
+                y=daily_agg['result_ftd'],
+                name='FTD',
+                marker_color='#2ecc71',
+                text=daily_agg['result_ftd'].astype(int),
+                textposition='outside'
+            ))
+            fig.update_layout(
+                height=350,
+                margin=dict(l=20, r=20, t=40, b=20),
+                xaxis_tickformat='%Y-%m-%d',
+                barmode='group',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
+            )
+            fig.update_xaxes(type='category')
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No Facebook Ads data available")
 
     with col2:
-        st.subheader("Agent Performance Comparison")
-        # Combine ads and creative data for agent comparison
-        agent_perf = running_ads_df.groupby('agent_name').agg({
-            'total_ad': 'sum',
-            'ctr_percent': 'mean',
-        }).reset_index()
+        st.subheader("Agent Ad Results Comparison")
+        # Use Facebook Ads data for agent comparison
+        if fb_ads_df is not None and not fb_ads_df.empty and 'person_name' in fb_ads_df.columns:
+            agent_results = fb_ads_df.groupby('person_name').agg({
+                'spend': 'sum',
+                'register': 'sum',
+                'result_ftd': 'sum'
+            }).reset_index()
+            agent_results = agent_results[agent_results['person_name'] != '']
+            agent_results = agent_results.sort_values('result_ftd', ascending=False)
 
-        # Add creative total per agent (group by date first to avoid double-counting)
-        if not creative_df.empty and 'creative_total' in creative_df.columns and 'date' in creative_df.columns:
-            # First get daily totals per agent (take first value per date to avoid duplicates)
-            daily_creative = creative_df.groupby(['agent_name', creative_df['date'].dt.date])['creative_total'].first().reset_index()
-            # Then sum across dates per agent
-            agent_creative = daily_creative.groupby('agent_name')['creative_total'].sum().reset_index()
-            agent_creative.columns = ['agent_name', 'creative_total']
-            agent_perf = agent_perf.merge(agent_creative, on='agent_name', how='left')
-            agent_perf['creative_total'] = agent_perf['creative_total'].fillna(0)
+            fig = go.Figure()
+            fig.add_trace(go.Bar(
+                x=agent_results['person_name'],
+                y=agent_results['register'],
+                name='Register',
+                marker_color='#3498db',
+                text=agent_results['register'].astype(int),
+                textposition='outside'
+            ))
+            fig.add_trace(go.Bar(
+                x=agent_results['person_name'],
+                y=agent_results['result_ftd'],
+                name='FTD',
+                marker_color='#2ecc71',
+                text=agent_results['result_ftd'].astype(int),
+                textposition='outside'
+            ))
+            fig.update_layout(
+                height=350,
+                margin=dict(l=20, r=20, t=40, b=20),
+                barmode='group',
+                legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
+            )
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            agent_perf['creative_total'] = 0
-
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=agent_perf['agent_name'],
-            y=agent_perf['total_ad'],
-            name='Total Ads',
-            marker_color='#667eea'
-        ))
-        fig.add_trace(go.Bar(
-            x=agent_perf['agent_name'],
-            y=agent_perf['creative_total'],
-            name='Creative Total',
-            marker_color='#764ba2'
-        ))
-        fig.update_layout(
-            height=350,
-            margin=dict(l=20, r=20, t=20, b=20),
-            barmode='group',
-            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1)
-        )
-        st.plotly_chart(fig, use_container_width=True)
+            st.info("No Facebook Ads data available")
 
     # Agent summary table
     st.subheader("Agent Summary (All Sections)")
@@ -651,53 +670,109 @@ def render_facebook_ads(fb_ads_df):
 
     st.divider()
 
-    col1, col2 = st.columns(2)
+    # AGENT COMPARISON - SPEND VS RESULTS (Prominent Section)
+    st.subheader("Agent Comparison: Spend vs Results")
 
-    with col1:
-        st.subheader("Performance by Person")
-        if 'person_name' in fb_ads_df.columns:
-            person_data = fb_ads_df.groupby('person_name').agg({
-                'spend': 'sum',
-                'impressions': 'sum',
-                'clicks': 'sum',
-                'register': 'sum',
-                'result_ftd': 'sum'
-            }).reset_index()
-            person_data = person_data[person_data['person_name'] != '']
-            person_data = person_data.sort_values('spend', ascending=False)
+    if 'person_name' in fb_ads_df.columns:
+        # Aggregate data by person
+        agent_compare = fb_ads_df.groupby('person_name').agg({
+            'spend': 'sum',
+            'register': 'sum',
+            'result_ftd': 'sum'
+        }).reset_index()
+        agent_compare = agent_compare[agent_compare['person_name'] != '']
+        agent_compare = agent_compare.sort_values('result_ftd', ascending=False)
 
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=person_data['person_name'],
-                y=person_data['spend'],
-                name='Spend',
-                marker_color='#667eea'
+        # Calculate Cost per FTD
+        agent_compare['cost_per_ftd'] = (agent_compare['spend'] / agent_compare['result_ftd']).round(2)
+        agent_compare['cost_per_ftd'] = agent_compare['cost_per_ftd'].replace([float('inf')], 0).fillna(0)
+
+        # Combined Spend & FTD Bar Chart (Side by Side)
+        fig_combined = go.Figure()
+
+        fig_combined.add_trace(go.Bar(
+            x=agent_compare['person_name'],
+            y=agent_compare['spend'],
+            name='Spend ($)',
+            marker_color='#e74c3c',
+            text=agent_compare['spend'].apply(lambda x: f'${x:,.0f}'),
+            textposition='outside',
+            yaxis='y'
+        ))
+
+        fig_combined.add_trace(go.Bar(
+            x=agent_compare['person_name'],
+            y=agent_compare['result_ftd'],
+            name='FTD (Result)',
+            marker_color='#2ecc71',
+            text=agent_compare['result_ftd'].apply(lambda x: f'{int(x)}'),
+            textposition='outside',
+            yaxis='y2'
+        ))
+
+        fig_combined.update_layout(
+            height=400,
+            barmode='group',
+            yaxis=dict(title='Spend ($)', side='left', showgrid=False),
+            yaxis2=dict(title='FTD', side='right', overlaying='y', showgrid=False),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+            margin=dict(l=20, r=20, t=60, b=20)
+        )
+        st.plotly_chart(fig_combined, use_container_width=True)
+
+        # Cost Efficiency Chart
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.subheader("Cost per FTD by Agent")
+            agent_sorted_cpr = agent_compare.sort_values('cost_per_ftd', ascending=True)
+
+            # Color gradient: green (low cost) to red (high cost)
+            colors = ['#2ecc71' if x < agent_compare['cost_per_ftd'].median() else '#e74c3c'
+                      for x in agent_sorted_cpr['cost_per_ftd']]
+
+            fig_cpr = go.Figure()
+            fig_cpr.add_trace(go.Bar(
+                x=agent_sorted_cpr['person_name'],
+                y=agent_sorted_cpr['cost_per_ftd'],
+                marker_color=colors,
+                text=agent_sorted_cpr['cost_per_ftd'].apply(lambda x: f'${x:,.2f}'),
+                textposition='outside'
             ))
-            fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No person names available")
+            fig_cpr.update_layout(
+                height=350,
+                margin=dict(l=20, r=20, t=20, b=20),
+                yaxis_title='Cost per FTD ($)'
+            )
+            st.plotly_chart(fig_cpr, use_container_width=True)
 
-    with col2:
-        st.subheader("FTD by Person")
-        if 'person_name' in fb_ads_df.columns:
-            person_ftd = fb_ads_df.groupby('person_name').agg({
-                'result_ftd': 'sum'
-            }).reset_index()
-            person_ftd = person_ftd[person_ftd['person_name'] != '']
-            person_ftd = person_ftd.sort_values('result_ftd', ascending=False)
-
-            fig = go.Figure()
-            fig.add_trace(go.Bar(
-                x=person_ftd['person_name'],
-                y=person_ftd['result_ftd'],
-                name='FTD',
-                marker_color='#764ba2'
+        with col2:
+            st.subheader("Spend vs FTD Efficiency")
+            # Scatter plot showing efficiency
+            fig_scatter = go.Figure()
+            fig_scatter.add_trace(go.Scatter(
+                x=agent_compare['spend'],
+                y=agent_compare['result_ftd'],
+                mode='markers+text',
+                text=agent_compare['person_name'],
+                textposition='top center',
+                marker=dict(
+                    size=agent_compare['result_ftd'] * 2 + 10,
+                    color=agent_compare['cost_per_ftd'],
+                    colorscale='RdYlGn_r',
+                    showscale=True,
+                    colorbar=dict(title='Cost/FTD')
+                )
             ))
-            fig.update_layout(height=350, margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No person data available")
+            fig_scatter.update_layout(
+                height=350,
+                margin=dict(l=20, r=20, t=20, b=20),
+                xaxis_title='Total Spend ($)',
+                yaxis_title='Total FTD'
+            )
+            st.plotly_chart(fig_scatter, use_container_width=True)
+    else:
+        st.info("No person data available for comparison")
 
     st.divider()
 

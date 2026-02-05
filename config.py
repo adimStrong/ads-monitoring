@@ -151,7 +151,7 @@ FACEBOOK_ADS_CREDENTIALS_FILE = "credentials.json"
 # Sheets to load - Now using INDIVIDUAL KPI sheet (single source of truth)
 # This replaces the previous dual BM sheets (BM: XSKG CS, BM: Juanzone365)
 FACEBOOK_ADS_SHEETS = [
-    {"name": "INDIVIDUAL KPI", "gid": 1788804487},
+    {"name": "INDIVIDUAL KPI", "gid": 2103624741},
 ]
 
 # Each person has 10 columns with these starting positions:
