@@ -164,17 +164,44 @@ def main():
     with col_btn1:
         if st.button("📤 Send to Telegram", type="primary", use_container_width=True):
             try:
-                from realtime_reporter import send_realtime_report
+                from telegram_reporter import TelegramReporter
+                from realtime_reporter import (
+                    get_latest_date_data, load_previous_report, compare_with_previous,
+                    check_low_spend, detect_no_change_agents, generate_text_summary,
+                    prepare_report_data, save_current_report
+                )
+                from config import NO_CHANGE_ALERT
+
                 with st.spinner("Sending report to Telegram..."):
-                    success = send_realtime_report(send_screenshot=False, send_text=True, combined=False)
-                    if success:
-                        st.success("✅ Report sent!")
+                    # Get data
+                    current_data, latest_date = get_latest_date_data()
+                    if current_data is None or current_data.empty:
+                        st.error("No data available")
                     else:
-                        st.error("❌ Failed to send")
+                        # Load previous for comparison
+                        previous_data = load_previous_report()
+                        changes = compare_with_previous(current_data, previous_data)
+                        low_spend = check_low_spend(current_data)
+                        no_change = detect_no_change_agents(changes) if NO_CHANGE_ALERT else []
+
+                        # Generate text summary
+                        text_summary = generate_text_summary(
+                            current_data, latest_date, changes, low_spend, no_change
+                        )
+
+                        # Send to Telegram
+                        reporter = TelegramReporter()
+                        reporter.send_message(text_summary)
+
+                        # Save for next comparison
+                        report_data = prepare_report_data(current_data, latest_date)
+                        save_current_report(report_data)
+
+                        st.success("✅ Report sent!")
             except ValueError as e:
                 st.error(f"⚠️ Telegram not configured: {e}")
             except Exception as e:
-                st.error(f"❌ Error: {e}")
+                st.error(f"❌ Error: {str(e)}")
     with col_btn2:
         if st.button("🔄 Refresh Data", type="secondary", use_container_width=True):
             st.cache_data.clear()

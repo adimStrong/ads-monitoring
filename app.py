@@ -201,7 +201,12 @@ def main():
     # Send Real-Time Report button
     if st.sidebar.button("📤 Send Report to Telegram", type="secondary"):
         try:
-            from realtime_reporter import send_realtime_report, generate_text_summary, get_latest_date_data, load_previous_report, compare_with_previous, check_low_spend, detect_no_change_agents
+            from telegram_reporter import TelegramReporter
+            from realtime_reporter import (
+                get_latest_date_data, load_previous_report, compare_with_previous,
+                check_low_spend, detect_no_change_agents, generate_text_summary,
+                prepare_report_data, save_current_report
+            )
             from config import NO_CHANGE_ALERT
 
             with st.spinner("Generating and sending report to Telegram..."):
@@ -210,16 +215,30 @@ def main():
                 if current_data is None or current_data.empty:
                     st.sidebar.error("No data available")
                 else:
-                    # Send text-only report (screenshot not available on cloud)
-                    success = send_realtime_report(send_screenshot=False, send_text=True, combined=False)
-                    if success:
-                        st.sidebar.success("✅ Report sent to Telegram!")
-                    else:
-                        st.sidebar.error("❌ Failed to send report")
+                    # Load previous for comparison
+                    previous_data = load_previous_report()
+                    changes = compare_with_previous(current_data, previous_data)
+                    low_spend = check_low_spend(current_data)
+                    no_change = detect_no_change_agents(changes) if NO_CHANGE_ALERT else []
+
+                    # Generate text summary
+                    text_summary = generate_text_summary(
+                        current_data, latest_date, changes, low_spend, no_change
+                    )
+
+                    # Send to Telegram
+                    reporter = TelegramReporter()
+                    reporter.send_message(text_summary)
+
+                    # Save for next comparison
+                    report_data = prepare_report_data(current_data, latest_date)
+                    save_current_report(report_data)
+
+                    st.sidebar.success("✅ Report sent to Telegram!")
         except ValueError as e:
             st.sidebar.error(f"⚠️ Telegram not configured: {e}")
         except Exception as e:
-            st.sidebar.error(f"❌ Failed to send report: {e}")
+            st.sidebar.error(f"❌ Error: {str(e)}")
 
     # Load data
     if use_real_data:
