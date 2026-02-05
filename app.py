@@ -217,7 +217,7 @@ def main():
                 else:
                     # Load previous for comparison
                     previous_data = load_previous_report()
-                    changes = compare_with_previous(current_data, previous_data)
+                    changes = compare_with_previous(current_data, previous_data, latest_date)
                     low_spend = check_low_spend(current_data)
                     no_change = detect_no_change_agents(changes) if NO_CHANGE_ALERT else []
 

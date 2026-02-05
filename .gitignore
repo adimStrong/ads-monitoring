@@ -25,3 +25,7 @@ Thumbs.db
 credentials.json
 *.pem
 *.key
+railway_credentials.txt
+last_report_data.json
+realtime_report.log
+reports/

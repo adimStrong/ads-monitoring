@@ -96,19 +96,29 @@ def save_current_report(report_data):
         print(f"[ERROR] Could not save report data: {e}")
 
 
-def compare_with_previous(current_data, previous_data):
+def compare_with_previous(current_data, previous_data, current_date=None):
     """
     Compare current data with previous period data.
+    Only compares if the date is the same (within same day tracking).
+    If date changed, returns None to indicate fresh start.
 
     Args:
         current_data: DataFrame with current period data
         previous_data: Dictionary with previous period data
+        current_date: Current data date for comparison
 
     Returns:
-        dict: Changes per agent
+        dict: Changes per agent, or None if date changed (fresh day)
     """
     if previous_data is None:
         return None
+
+    # Check if date changed - if so, don't compare (fresh day)
+    prev_date = previous_data.get('date', None)
+    if current_date and prev_date:
+        if str(current_date) != str(prev_date):
+            print(f"[INFO] Date changed from {prev_date} to {current_date} - starting fresh comparison")
+            return None
 
     changes = {}
     prev_agents = previous_data.get('agents', {})
@@ -458,8 +468,8 @@ def send_realtime_report(send_screenshot=True, send_text=True, combined=True):
         # 2. Load previous report for comparison
         previous_data = load_previous_report()
 
-        # 3. Compare with previous
-        changes = compare_with_previous(current_data, previous_data)
+        # 3. Compare with previous (only if same date)
+        changes = compare_with_previous(current_data, previous_data, latest_date)
 
         # 4. Detect alerts
         low_spend_agents = check_low_spend(current_data)
@@ -546,7 +556,7 @@ if __name__ == "__main__":
         current_data, latest_date = get_latest_date_data()
         if current_data is not None:
             previous_data = load_previous_report()
-            changes = compare_with_previous(current_data, previous_data)
+            changes = compare_with_previous(current_data, previous_data, latest_date)
             low_spend = check_low_spend(current_data)
             no_change = detect_no_change_agents(changes)
 

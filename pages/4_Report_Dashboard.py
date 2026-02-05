@@ -180,7 +180,7 @@ def main():
                     else:
                         # Load previous for comparison
                         previous_data = load_previous_report()
-                        changes = compare_with_previous(current_data, previous_data)
+                        changes = compare_with_previous(current_data, previous_data, latest_date)
                         low_spend = check_low_spend(current_data)
                         no_change = detect_no_change_agents(changes) if NO_CHANGE_ALERT else []
 
@@ -293,7 +293,7 @@ def main():
         <div class="metric-card metric-card-blue">
             <div class="metric-label">Cost Per Register</div>
             <div class="metric-value">${team_totals['cpr']:.2f}</div>
-            <div class="metric-label">Target: &lt;$15</div>
+            <div class="metric-label">Target: &lt;$2</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -302,7 +302,7 @@ def main():
         <div class="metric-card metric-card-orange">
             <div class="metric-label">Cost Per FTD</div>
             <div class="metric-value">${team_totals['cpftd']:.2f}</div>
-            <div class="metric-label">Target: &lt;$60</div>
+            <div class="metric-label">Target: &lt;$8</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -450,7 +450,7 @@ def main():
             color='cpr',
             color_continuous_scale='Reds_r'  # Lower is better (reversed)
         )
-        fig_cpr.add_hline(y=15, line_dash="dash", line_color="green", annotation_text="Target: $15")
+        fig_cpr.add_hline(y=2, line_dash="dash", line_color="green", annotation_text="Target: $2")
         fig_cpr.update_layout(
             xaxis_title="Agent",
             yaxis_title="CPR (USD)",
@@ -468,7 +468,7 @@ def main():
             color='cpftd',
             color_continuous_scale='Oranges_r'  # Lower is better (reversed)
         )
-        fig_cpftd.add_hline(y=60, line_dash="dash", line_color="green", annotation_text="Target: $60")
+        fig_cpftd.add_hline(y=8, line_dash="dash", line_color="green", annotation_text="Target: $8")
         fig_cpftd.update_layout(
             xaxis_title="Agent",
             yaxis_title="Cost/FTD (USD)",
