@@ -101,6 +101,10 @@ def main():
         date_to = st.date_input("To", value=max_selectable_date, min_value=data_min_date, max_value=max_selectable_date)
 
         st.markdown("---")
+        st.subheader("Channel Filter")
+        channel_filter = st.selectbox("Select Channel", ["All", "Facebook", "Google"])
+
+        st.markdown("---")
         st.subheader("Other Reports")
         st.page_link("pages/6_Roll_Back.py", label="🔄 Roll Back", icon="📈")
         st.page_link("pages/7_Violet.py", label="💜 Violet", icon="📈")
@@ -111,6 +115,14 @@ def main():
     if has_google:
         google_df = google_df[(google_df['date'].dt.date >= date_from) & (google_df['date'].dt.date <= date_to)]
 
+    # Apply channel filter
+    show_fb = channel_filter in ["All", "Facebook"] and has_fb and not fb_df.empty
+    show_google = channel_filter in ["All", "Google"] and has_google and not google_df.empty
+
+    if not show_fb and not show_google:
+        st.warning("No data in selected date range or channel.")
+        return
+
     # Summary comparison
     st.markdown('<div class="section-header"><h3>📊 CHANNEL COMPARISON - DAILY ROI</h3></div>', unsafe_allow_html=True)
 
@@ -118,7 +130,7 @@ def main():
 
     # Facebook Summary
     with col1:
-        if has_fb and not fb_df.empty:
+        if show_fb:
             fb_totals = {
                 'cost': fb_df['cost'].sum(),
                 'register': fb_df['register'].sum(),
@@ -145,7 +157,7 @@ def main():
 
     # Google Summary
     with col2:
-        if has_google and not google_df.empty:
+        if show_google:
             g_totals = {
                 'cost': google_df['cost'].sum(),
                 'register': google_df['register'].sum(),
@@ -177,13 +189,13 @@ def main():
 
     # Prepare combined data
     chart_data = []
-    if has_fb and not fb_df.empty:
+    if show_fb:
         fb_daily = fb_df.groupby(fb_df['date'].dt.date).agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum'}).reset_index()
         fb_daily['channel'] = 'Facebook'
         fb_daily.columns = ['date', 'cost', 'ftd', 'register', 'channel']
         chart_data.append(fb_daily)
 
-    if has_google and not google_df.empty:
+    if show_google:
         g_daily = google_df.groupby(google_df['date'].dt.date).agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum'}).reset_index()
         g_daily['channel'] = 'Google'
         g_daily.columns = ['date', 'cost', 'ftd', 'register', 'channel']
@@ -240,7 +252,7 @@ def main():
     st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY</h3></div>', unsafe_allow_html=True)
 
     weekly_data = []
-    if has_fb and not fb_df.empty:
+    if show_fb:
         fb_weekly = fb_df.copy()
         fb_weekly['week'] = fb_weekly['date'].dt.isocalendar().week
         fb_weekly['year'] = fb_weekly['date'].dt.isocalendar().year
@@ -249,7 +261,7 @@ def main():
         fb_w['channel'] = 'Facebook'
         weekly_data.append(fb_w)
 
-    if has_google and not google_df.empty:
+    if show_google:
         g_weekly = google_df.copy()
         g_weekly['week'] = g_weekly['date'].dt.isocalendar().week
         g_weekly['year'] = g_weekly['date'].dt.isocalendar().year
@@ -306,7 +318,7 @@ def main():
     st.markdown('<div class="section-header"><h3>📊 MONTHLY SUMMARY</h3></div>', unsafe_allow_html=True)
 
     monthly_data = []
-    if has_fb and not fb_df.empty:
+    if show_fb:
         fb_monthly = fb_df.copy()
         fb_monthly['month'] = fb_monthly['date'].dt.to_period('M').astype(str)
         fb_m = fb_monthly.groupby('month').agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum', 'ftd_recharge': 'sum'}).reset_index()
@@ -314,7 +326,7 @@ def main():
         fb_m['roas'] = fb_m.apply(lambda x: x['ftd_recharge'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
         monthly_data.append(fb_m)
 
-    if has_google and not google_df.empty:
+    if show_google:
         g_monthly = google_df.copy()
         g_monthly['month'] = g_monthly['date'].dt.to_period('M').astype(str)
         g_m = g_monthly.groupby('month').agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum', 'ftd_recharge': 'sum'}).reset_index()
@@ -372,7 +384,7 @@ def main():
     tab1, tab2 = st.tabs(["📘 Facebook Data", "🔍 Google Data"])
 
     with tab1:
-        if has_fb and not fb_df.empty:
+        if show_fb:
             display_df = fb_df[['date', 'register', 'ftd', 'ftd_recharge', 'cost', 'cpr', 'roas']].copy()
             display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
             display_df = display_df.sort_values('date', ascending=False)
@@ -383,7 +395,7 @@ def main():
             st.info("No Facebook data available")
 
     with tab2:
-        if has_google and not google_df.empty:
+        if show_google:
             display_df = google_df[['date', 'register', 'ftd', 'ftd_recharge', 'cost', 'cpr', 'roas']].copy()
             display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
             display_df = display_df.sort_values('date', ascending=False)
