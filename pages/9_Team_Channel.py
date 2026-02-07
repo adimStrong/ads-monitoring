@@ -1,6 +1,7 @@
 """
 Team Channel Performance Dashboard
-Shows per-channel source performance across multiple teams with daily, weekly, and monthly trends.
+Shows per-channel source performance across multiple teams
+with daily, weekly, and monthly trends.
 """
 import streamlit as st
 import pandas as pd
