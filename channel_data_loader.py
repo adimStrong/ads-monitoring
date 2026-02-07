@@ -28,6 +28,9 @@ from config import (
     COUNTERPART_FB_COLUMNS,
     COUNTERPART_GOOGLE_COLUMNS,
     COUNTERPART_DATA_START_ROW,
+    TEAM_CHANNEL_SHEET,
+    TEAM_CHANNEL_COLUMNS,
+    TEAM_CHANNEL_DATA_START_ROW,
 )
 
 
@@ -737,6 +740,155 @@ def load_counterpart_data():
         traceback.print_exc()
         return {'fb': pd.DataFrame(), 'google': pd.DataFrame(),
                 'fb_overall': pd.DataFrame(), 'google_overall': pd.DataFrame()}
+
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def load_team_channel_data():
+    """
+    Load Team Channel data from Google Sheets.
+
+    Sheet structure:
+    - Rows 1-15: OVERALL section (team names in col B, channel in col C, data in D-H)
+      + Also PER TEAM OVERALL section in columns I-P
+    - Then empty rows
+    - Then "DAILY SUMMARY REFERRAL CHANNEL REPORT" header
+    - Then daily sections with date headers like "January 28" in col C
+    - Daily data: no team name, just channel + metrics in C-H
+
+    Returns:
+        dict: {
+            'overall': DataFrame (overall per-team per-channel totals),
+            'daily': DataFrame (daily channel-level data)
+        }
+    """
+    try:
+        client = get_google_client()
+        if client is None:
+            return {'overall': pd.DataFrame(), 'daily': pd.DataFrame()}
+
+        spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
+        worksheet = spreadsheet.get_worksheet_by_id(TEAM_CHANNEL_SHEET['gid'])
+        all_data = worksheet.get_all_values()
+
+        overall_records = []
+        daily_records = []
+        current_date = None
+        cols = TEAM_CHANNEL_COLUMNS
+
+        # Keywords to skip (lowercase)
+        skip_keywords = [
+            '渠道来源', 'channel source', 'overall channel statistics report',
+            'per team overall channel statistics report',
+            'per team over all channel statistics report',
+            'daily summary referral channel report',
+            'weekly summary referral channel report',
+            'cost', 'team',
+        ]
+
+        def is_skip_header(text):
+            """Check if text is a section/column header to skip."""
+            t = text.lower().strip()
+            for kw in skip_keywords:
+                if kw in t:
+                    return True
+            return False
+
+        in_daily_section = False
+
+        for row_idx, row in enumerate(all_data):
+            if not row or len(row) <= cols['arppu']:
+                continue
+
+            team_cell = str(row[cols['team_name']]).strip() if len(row) > cols['team_name'] else ''
+            channel_cell = str(row[cols['channel_source']]).strip() if len(row) > cols['channel_source'] else ''
+
+            # Check for "DAILY SUMMARY" marker
+            if 'daily summary' in channel_cell.lower():
+                in_daily_section = True
+                continue
+
+            # Check if channel cell is a date header (in daily section)
+            if is_date_header(channel_cell):
+                current_date = parse_date_header(channel_cell)
+                in_daily_section = True
+                continue
+
+            # Skip header rows
+            if is_skip_header(channel_cell) or is_skip_header(team_cell):
+                continue
+
+            # Skip empty channel rows
+            if not channel_cell:
+                continue
+
+            # Skip if channel source doesn't look like a DEERPROMO channel
+            if not channel_cell.startswith('FB-FB-FB-DEERPROMO'):
+                continue
+
+            # Parse data
+            cost = parse_numeric(row[cols['cost']])
+            registrations = parse_numeric(row[cols['registrations']])
+            first_recharge = parse_numeric(row[cols['first_recharge']])
+            total_amount = parse_numeric(row[cols['total_amount']])
+            arppu = parse_numeric(row[cols['arppu']])
+
+            # Only add rows with some actual data
+            if cost > 0 or registrations > 0 or first_recharge > 0:
+                if in_daily_section and current_date is not None:
+                    # Daily data (no team)
+                    daily_records.append({
+                        'date': current_date,
+                        'team': team_cell if team_cell else 'All',
+                        'channel': channel_cell,
+                        'cost': cost,
+                        'registrations': int(registrations),
+                        'first_recharge': int(first_recharge),
+                        'total_amount': total_amount,
+                        'arppu': arppu,
+                    })
+                elif not in_daily_section and team_cell:
+                    # Overall section (has team)
+                    overall_records.append({
+                        'team': team_cell,
+                        'channel': channel_cell,
+                        'cost': cost,
+                        'registrations': int(registrations),
+                        'first_recharge': int(first_recharge),
+                        'total_amount': total_amount,
+                        'arppu': arppu,
+                    })
+
+        overall_df = pd.DataFrame(overall_records)
+        daily_df = pd.DataFrame(daily_records)
+
+        if not daily_df.empty:
+            daily_df['date'] = pd.to_datetime(daily_df['date'])
+            daily_df['cost_per_recharge'] = daily_df.apply(
+                lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+            daily_df['roas'] = daily_df.apply(
+                lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+
+        if not overall_df.empty:
+            overall_df['cost_per_recharge'] = overall_df.apply(
+                lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+            overall_df['roas'] = overall_df.apply(
+                lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+
+        print(f"[OK] Loaded {len(overall_records)} Team Channel overall records")
+        print(f"[OK] Loaded {len(daily_records)} Team Channel daily records")
+
+        return {'overall': overall_df, 'daily': daily_df}
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load Team Channel data: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'overall': pd.DataFrame(), 'daily': pd.DataFrame()}
+
+
+def refresh_team_channel_data():
+    """Clear Team Channel data cache."""
+    load_team_channel_data.clear()
 
 
 def refresh_counterpart_data():
