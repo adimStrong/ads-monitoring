@@ -42,10 +42,17 @@ st.markdown("""
 
 
 def format_currency(value):
-    """Format value as currency."""
+    """Format value as USD currency."""
     if pd.isna(value) or value == 0:
         return "$0.00"
     return f"${value:,.2f}"
+
+
+def format_php(value):
+    """Format value as PHP peso currency."""
+    if pd.isna(value) or value == 0:
+        return "₱0.00"
+    return f"₱{value:,.2f}"
 
 
 def format_number(value):
@@ -208,9 +215,9 @@ def render_overall_summary(overall_df, channel_name):
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Total First Recharge", format_number(totals['first_recharge']))
-        st.metric("Total Recharge Amount", format_currency(totals['total_amount']))
+        st.metric("Total Recharge Amount", format_php(totals['total_amount']))
     with col2:
-        st.metric("Avg ARPPU", format_currency(totals['arppu']))
+        st.metric("Avg ARPPU", format_php(totals['arppu']))
         st.metric("Total Spending", format_currency(totals['spending']))
     with col3:
         st.metric("Avg Cost/Recharge", format_currency(totals['cost_per_recharge']))
