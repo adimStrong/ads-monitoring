@@ -62,6 +62,34 @@ def format_ratio(value):
     return f"{value:.2f}"
 
 
+def make_pie_chart(labels, values, title, value_format="count"):
+    """Create a formatted pie chart with proper value display.
+
+    Args:
+        labels: Series/list of labels
+        values: Series/list of values
+        title: Chart title
+        value_format: "count" for plain numbers, "usd" for $, "php" for PHP
+    """
+    if value_format == "usd":
+        template = "%{label}<br>%{percent}<br>$%{value:,.2f}"
+    elif value_format == "php":
+        template = "%{label}<br>%{percent}<br>₱%{value:,.0f}"
+    else:
+        template = "%{label}<br>%{percent}<br>%{value:,.0f}"
+
+    fig = go.Figure(data=[go.Pie(
+        labels=labels,
+        values=values,
+        hole=0.3,
+        pull=[0.05] * len(labels),
+        textposition='auto',
+        texttemplate=template,
+    )])
+    fig.update_layout(title=title, height=400, showlegend=False)
+    return fig
+
+
 def aggregate_daily_counterpart(df):
     """Aggregate counterpart data by date."""
     if df.empty or 'date' not in df.columns:
@@ -186,46 +214,25 @@ def render_overall_summary(overall_df, channel_name):
         st.metric("Avg Cost/Recharge", format_currency(totals['cost_per_recharge']))
         st.metric("Overall ROAS", format_ratio(totals['roas']))
 
-    # Pie charts for distribution (3D-like with pull effect)
+    # Pie charts for distribution
     st.markdown("#### Channel Source Distribution")
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=channel_agg['channel'],
-            values=channel_agg['first_recharge'],
-            hole=0.3,
-            pull=[0.05] * len(channel_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='First Recharge by Channel Source', height=400, showlegend=False)
+        fig = make_pie_chart(channel_agg['channel'], channel_agg['first_recharge'],
+                            'First Recharge by Channel Source', 'count')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        fig = go.Figure(data=[go.Pie(
-            labels=channel_agg['channel'],
-            values=channel_agg['total_amount'],
-            hole=0.3,
-            pull=[0.05] * len(channel_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Total Recharge Amount by Channel Source', height=400, showlegend=False)
+        fig = make_pie_chart(channel_agg['channel'], channel_agg['total_amount'],
+                            'Total Recharge Amount by Channel Source', 'php')
         st.plotly_chart(fig, use_container_width=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=channel_agg['channel'],
-            values=channel_agg['spending'],
-            hole=0.3,
-            pull=[0.05] * len(channel_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Spending by Channel Source', height=400, showlegend=False)
+        fig = make_pie_chart(channel_agg['channel'], channel_agg['spending'],
+                            'Spending by Channel Source', 'usd')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -377,45 +384,23 @@ def render_weekly_summary(df, channel_name):
 
     st.markdown(f"#### Week: {selected_week_label}")
 
-    # Pie charts (3D-like with pull effect)
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=weekly_agg['channel'],
-            values=weekly_agg['first_recharge'],
-            hole=0.3,
-            pull=[0.05] * len(weekly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='First Recharge Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['first_recharge'],
+                            'First Recharge Distribution', 'count')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        fig = go.Figure(data=[go.Pie(
-            labels=weekly_agg['channel'],
-            values=weekly_agg['total_amount'],
-            hole=0.3,
-            pull=[0.05] * len(weekly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Total Recharge Amount Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['total_amount'],
+                            'Total Recharge Amount Distribution', 'php')
         st.plotly_chart(fig, use_container_width=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=weekly_agg['channel'],
-            values=weekly_agg['spending'],
-            hole=0.3,
-            pull=[0.05] * len(weekly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Spending Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['spending'],
+                            'Spending Distribution', 'usd')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -465,45 +450,23 @@ def render_monthly_summary(df, channel_name):
 
     st.markdown(f"#### Month: {selected_month}")
 
-    # Pie charts
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=monthly_agg['channel'],
-            values=monthly_agg['first_recharge'],
-            hole=0.3,
-            pull=[0.05] * len(monthly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='First Recharge Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['first_recharge'],
+                            'First Recharge Distribution', 'count')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        fig = go.Figure(data=[go.Pie(
-            labels=monthly_agg['channel'],
-            values=monthly_agg['total_amount'],
-            hole=0.3,
-            pull=[0.05] * len(monthly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Total Recharge Amount Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['total_amount'],
+                            'Total Recharge Amount Distribution', 'php')
         st.plotly_chart(fig, use_container_width=True)
 
     col1, col2 = st.columns(2)
 
     with col1:
-        fig = go.Figure(data=[go.Pie(
-            labels=monthly_agg['channel'],
-            values=monthly_agg['spending'],
-            hole=0.3,
-            pull=[0.05] * len(monthly_agg),
-            textposition='inside',
-            textinfo='percent+label+value'
-        )])
-        fig.update_layout(title='Spending Distribution', height=400, showlegend=False)
+        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['spending'],
+                            'Spending Distribution', 'usd')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
