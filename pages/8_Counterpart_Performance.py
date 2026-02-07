@@ -117,10 +117,11 @@ def aggregate_daily_counterpart(df):
     # Calculate derived metrics
     agg_df['cost_per_recharge'] = agg_df.apply(
         lambda x: x['spending'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    agg_df['roas'] = agg_df.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
     agg_df['arppu'] = agg_df.apply(
         lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    # ROAS = ARPPU / 57.7 / Cost per Recharge
+    agg_df['roas'] = agg_df.apply(
+        lambda x: (x['arppu'] / 57.7 / x['cost_per_recharge']) if x['cost_per_recharge'] > 0 else 0, axis=1)
 
     return agg_df.sort_values('date_only')
 
@@ -153,10 +154,11 @@ def aggregate_weekly_counterpart(df):
 
     agg_df['cost_per_recharge'] = agg_df.apply(
         lambda x: x['spending'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    agg_df['roas'] = agg_df.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
     agg_df['arppu'] = agg_df.apply(
         lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    # ROAS = ARPPU / 57.7 / Cost per Recharge
+    agg_df['roas'] = agg_df.apply(
+        lambda x: (x['arppu'] / 57.7 / x['cost_per_recharge']) if x['cost_per_recharge'] > 0 else 0, axis=1)
 
     return agg_df.sort_values('week_key')
 
@@ -178,10 +180,11 @@ def aggregate_monthly_counterpart(df):
 
     agg_df['cost_per_recharge'] = agg_df.apply(
         lambda x: x['spending'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    agg_df['roas'] = agg_df.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
     agg_df['arppu'] = agg_df.apply(
         lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    # ROAS = ARPPU / 57.7 / Cost per Recharge
+    agg_df['roas'] = agg_df.apply(
+        lambda x: (x['arppu'] / 57.7 / x['cost_per_recharge']) if x['cost_per_recharge'] > 0 else 0, axis=1)
 
     return agg_df.sort_values('month')
 
@@ -200,7 +203,7 @@ def render_overall_summary(overall_df, channel_name):
     # Calculate ROAS if not already present
     if 'roas' not in channel_agg.columns or channel_agg['roas'].isna().all():
         channel_agg['roas'] = channel_agg.apply(
-            lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
+            lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
 
     # Display totals
     totals = {
@@ -210,7 +213,8 @@ def render_overall_summary(overall_df, channel_name):
     }
     totals['arppu'] = totals['total_amount'] / totals['first_recharge'] if totals['first_recharge'] > 0 else 0
     totals['cost_per_recharge'] = totals['spending'] / totals['first_recharge'] if totals['first_recharge'] > 0 else 0
-    totals['roas'] = totals['total_amount'] / totals['spending'] if totals['spending'] > 0 else 0
+    # ROAS = ARPPU / 57.7 / Cost per Recharge
+    totals['roas'] = (totals['arppu'] / 57.7 / totals['cost_per_recharge']) if totals['cost_per_recharge'] > 0 else 0
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -279,7 +283,7 @@ def render_daily_trends(df, channel_name):
     }).reset_index()
 
     daily_by_channel['roas'] = daily_by_channel.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
 
     # Row 1: First Recharge and Total Recharge Amount
     col1, col2 = st.columns(2)
@@ -389,7 +393,7 @@ def render_weekly_summary(df, channel_name):
     }).reset_index()
 
     weekly_agg['roas'] = weekly_agg.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
 
     st.markdown(f"#### Week: {selected_week_label}")
 
@@ -455,7 +459,7 @@ def render_monthly_summary(df, channel_name):
     }).reset_index()
 
     monthly_agg['roas'] = monthly_agg.apply(
-        lambda x: x['total_amount'] / x['spending'] if x['spending'] > 0 else 0, axis=1)
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
 
     st.markdown(f"#### Month: {selected_month}")
 
