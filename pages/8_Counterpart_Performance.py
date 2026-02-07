@@ -197,7 +197,7 @@ def render_overall_summary(overall_df, channel_name):
             hole=0.3,
             pull=[0.05] * len(channel_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='First Recharge by Channel Source', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -209,7 +209,7 @@ def render_overall_summary(overall_df, channel_name):
             hole=0.3,
             pull=[0.05] * len(channel_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Total Recharge Amount by Channel Source', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -223,7 +223,7 @@ def render_overall_summary(overall_df, channel_name):
             hole=0.3,
             pull=[0.05] * len(channel_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Spending by Channel Source', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -387,7 +387,7 @@ def render_weekly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(weekly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='First Recharge Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -399,7 +399,7 @@ def render_weekly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(weekly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Total Recharge Amount Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -413,7 +413,7 @@ def render_weekly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(weekly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Spending Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -475,7 +475,7 @@ def render_monthly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(monthly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='First Recharge Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -487,7 +487,7 @@ def render_monthly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(monthly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Total Recharge Amount Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
@@ -501,7 +501,7 @@ def render_monthly_summary(df, channel_name):
             hole=0.3,
             pull=[0.05] * len(monthly_agg),
             textposition='inside',
-            textinfo='percent+label'
+            textinfo='percent+label+value'
         )])
         fig.update_layout(title='Spending Distribution', height=400, showlegend=False)
         st.plotly_chart(fig, use_container_width=True)
