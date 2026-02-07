@@ -83,10 +83,11 @@ def make_pie_chart(labels, values, title, value_format="count"):
         values=values,
         hole=0.3,
         pull=[0.05] * len(labels),
-        textposition='auto',
+        textposition='inside',
         texttemplate=template,
     )])
-    fig.update_layout(title=title, height=400, showlegend=False)
+    fig.update_layout(title=title, height=400, showlegend=True,
+                     legend=dict(orientation="h", yanchor="bottom", y=-0.2))
     return fig
 
 
