@@ -300,9 +300,34 @@ def render_daily_trends(df, channel_name):
         st.plotly_chart(fig, use_container_width=True)
 
 
+def get_wed_tue_week(date):
+    """Get Wednesday-Tuesday week number and year for a given date.
+    Week starts on Wednesday (weekday=2) and ends on Tuesday (weekday=1)."""
+    # Shift date back by 2 days so Wednesday becomes the start of week
+    # Python weekday: Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6
+    adjusted_date = date - timedelta(days=(date.weekday() - 2) % 7)
+    week_num = adjusted_date.isocalendar()[1]
+    year = adjusted_date.isocalendar()[0]
+    return year, week_num
+
+
+def get_week_date_range(year, week_num):
+    """Get the Wednesday start and Tuesday end dates for a Wed-Tue week."""
+    # Find the first Wednesday of the year
+    jan1 = datetime(year, 1, 1)
+    days_to_wed = (2 - jan1.weekday()) % 7  # Days until Wednesday
+    first_wed = jan1 + timedelta(days=days_to_wed)
+
+    # Calculate the Wednesday of the target week
+    week_start = first_wed + timedelta(weeks=week_num - 1)
+    week_end = week_start + timedelta(days=6)  # Tuesday
+
+    return week_start, week_end
+
+
 def render_weekly_summary(df, channel_name):
-    """Render weekly summary with pie charts comparing channel sources."""
-    st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY BY CHANNEL SOURCE</h3></div>', unsafe_allow_html=True)
+    """Render weekly summary with pie charts comparing channel sources (Wed-Tue weeks)."""
+    st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY BY CHANNEL SOURCE (Wed-Tue)</h3></div>', unsafe_allow_html=True)
 
     if df.empty:
         st.warning("No weekly data available for charts")
@@ -316,8 +341,11 @@ def render_weekly_summary(df, channel_name):
         return
 
     df_filtered['date'] = pd.to_datetime(df_filtered['date'])
-    df_filtered['week'] = df_filtered['date'].dt.isocalendar().week
-    df_filtered['year'] = df_filtered['date'].dt.isocalendar().year
+
+    # Calculate Wed-Tue week
+    df_filtered['week_info'] = df_filtered['date'].apply(get_wed_tue_week)
+    df_filtered['year'] = df_filtered['week_info'].apply(lambda x: x[0])
+    df_filtered['week'] = df_filtered['week_info'].apply(lambda x: x[1])
     df_filtered['week_key'] = df_filtered.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
 
     # Get unique weeks with date ranges
@@ -329,12 +357,24 @@ def render_weekly_summary(df, channel_name):
         lambda x: f"{x['date_start'].strftime('%b %d')} - {x['date_end'].strftime('%b %d')}", axis=1)
     weeks_info = weeks_info.sort_values('week_key')
 
+    # Check if latest week is complete (should have 7 days: Wed to Tue)
+    weeks_info['days_count'] = weeks_info.apply(
+        lambda x: (x['date_end'] - x['date_start']).days + 1, axis=1)
+    weeks_info['is_complete'] = weeks_info['days_count'] >= 7
+
     # Let user select a week
     week_options = weeks_info['week_label'].tolist()
     selected_week_label = st.selectbox("Select Week", week_options, index=len(week_options)-1 if week_options else 0)
 
-    # Get the week_key for selected week
-    selected_week_key = weeks_info[weeks_info['week_label'] == selected_week_label]['week_key'].values[0]
+    # Get the week info for selected week
+    selected_week_row = weeks_info[weeks_info['week_label'] == selected_week_label].iloc[0]
+    selected_week_key = selected_week_row['week_key']
+    is_complete = selected_week_row['is_complete']
+    days_count = selected_week_row['days_count']
+
+    # Show warning if week is not complete
+    if not is_complete:
+        st.warning(f"⚠️ This week is not yet complete ({int(days_count)}/7 days)")
 
     # Filter data for selected week
     week_data = df_filtered[df_filtered['week_key'] == selected_week_key]
