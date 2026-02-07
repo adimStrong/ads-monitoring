@@ -142,7 +142,7 @@ def render_team_comparison(overall_df):
         fig = px.bar(team_agg.sort_values('cost', ascending=True),
                      x='cost', y='team', orientation='h',
                      title='Total Cost by Team ($)', text='cost')
-        fig.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.0f}', textposition='inside')
         fig.update_layout(height=350, xaxis_title="Cost (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -150,7 +150,7 @@ def render_team_comparison(overall_df):
         fig = px.bar(team_agg.sort_values('first_recharge', ascending=True),
                      x='first_recharge', y='team', orientation='h',
                      title='1st Recharge by Team', text='first_recharge')
-        fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+        fig.update_traces(texttemplate='%{text:,}', textposition='inside')
         fig.update_layout(height=350, xaxis_title="First Recharge", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -160,7 +160,7 @@ def render_team_comparison(overall_df):
         fig = px.bar(team_agg.sort_values('cpr', ascending=True),
                      x='cpr', y='team', orientation='h',
                      title='CPR by Team ($)', text='cpr')
-        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='inside')
         fig.update_layout(height=350, xaxis_title="Cost per Registration (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -168,7 +168,7 @@ def render_team_comparison(overall_df):
         fig = px.bar(team_agg.sort_values('cpfd', ascending=True),
                      x='cpfd', y='team', orientation='h',
                      title='CPFD by Team ($)', text='cpfd')
-        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='inside')
         fig.update_layout(height=350, xaxis_title="Cost per 1st Recharge (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -212,7 +212,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('cost', ascending=True)
         fig = px.bar(sorted_df, x='cost', y='channel', orientation='h',
                      title='Cost by Channel ($)', text='cost')
-        fig.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.0f}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="Cost (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -220,7 +220,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('first_recharge', ascending=True)
         fig = px.bar(sorted_df, x='first_recharge', y='channel', orientation='h',
                      title='1st Recharge by Channel', text='first_recharge')
-        fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+        fig.update_traces(texttemplate='%{text:,}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="First Recharge Count", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -230,7 +230,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('cpr', ascending=True)
         fig = px.bar(sorted_df, x='cpr', y='channel', orientation='h',
                      title='CPR by Channel ($)', text='cpr')
-        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="Cost per Registration (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -238,7 +238,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('cpfd', ascending=True)
         fig = px.bar(sorted_df, x='cpfd', y='channel', orientation='h',
                      title='CPFD by Channel ($)', text='cpfd')
-        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='outside')
+        fig.update_traces(texttemplate='$%{text:,.2f}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="Cost per 1st Recharge (USD)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -248,7 +248,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('total_amount', ascending=True)
         fig = px.bar(sorted_df, x='total_amount', y='channel', orientation='h',
                      title='Total Recharge Amount by Channel (₱)', text='total_amount')
-        fig.update_traces(texttemplate='₱%{text:,.0f}', textposition='outside')
+        fig.update_traces(texttemplate='₱%{text:,.0f}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="Amount (PHP)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
@@ -256,7 +256,7 @@ def render_channel_breakdown(overall_df):
         sorted_df = channel_agg.sort_values('arppu', ascending=True)
         fig = px.bar(sorted_df, x='arppu', y='channel', orientation='h',
                      title='Avg ARPPU by Channel (₱)', text='arppu')
-        fig.update_traces(texttemplate='₱%{text:,.0f}', textposition='outside')
+        fig.update_traces(texttemplate='₱%{text:,.0f}', textposition='inside')
         fig.update_layout(height=450, xaxis_title="ARPPU (PHP)", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True)
 
