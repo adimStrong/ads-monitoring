@@ -53,7 +53,7 @@ AGENTS = [
 
 # Excluded from reports (boss accounts)
 # Note: JD is not in INDIVIDUAL KPI sheet, so no filtering needed
-EXCLUDED_PERSONS = ["JD", "JASON"]
+EXCLUDED_PERSONS = ["JD"]
 
 # ============================================================
 # SECTION 1: WITH RUNNING ADS (Columns A-N)
