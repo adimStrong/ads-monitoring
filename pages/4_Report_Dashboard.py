@@ -376,6 +376,9 @@ def main():
                     status = "✅ Active"
 
                 # Calculate efficiency
+                impressions = int(agent['impressions'])
+                clicks = int(agent['clicks'])
+                ctr = (clicks / impressions * 100) if impressions > 0 else 0
                 cpr = spend / reg if reg > 0 else 0
                 cpftd = spend / ftd if ftd > 0 else 0
                 conv_rate = (ftd / reg * 100) if reg > 0 else 0
@@ -389,6 +392,7 @@ def main():
                         <p><strong>Spend:</strong> ${spend:,.2f} <span class="{get_change_class(spend_diff)}">{spend_change}</span></p>
                         <p><strong>Register:</strong> {reg:,}</p>
                         <p><strong>FTD:</strong> {ftd:,} <span class="{get_change_class(ftd_diff)}">{ftd_change}</span></p>
+                        <p><strong>CTR:</strong> {ctr:.2f}%</p>
                         <p><strong>CPR:</strong> ${cpr:.2f}</p>
                         <p><strong>Cost/FTD:</strong> ${cpftd:.2f}</p>
                         <p><strong>Conv:</strong> {conv_rate:.1f}%</p>

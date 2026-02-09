@@ -312,8 +312,14 @@ else:
         # Radar Chart
         st.subheader("🎯 Agent Performance Radar")
 
-        metrics = ['spend', 'impressions', 'clicks', 'register', 'result_ftd']
-        agent_metrics = df.groupby('agent_name')[metrics].sum().reset_index()
+        sum_metrics = ['spend', 'impressions', 'clicks', 'register', 'result_ftd']
+        agent_metrics = df.groupby('agent_name')[sum_metrics].sum().reset_index()
+
+        # Calculate CTR per agent
+        agent_metrics['ctr'] = (agent_metrics['clicks'] / agent_metrics['impressions'] * 100).fillna(0).round(2)
+        agent_metrics.loc[agent_metrics['impressions'] == 0, 'ctr'] = 0
+
+        metrics = ['spend', 'impressions', 'clicks', 'ctr', 'register', 'result_ftd']
 
         # Normalize to 0-100 scale
         for col in metrics:
@@ -326,7 +332,7 @@ else:
         fig = go.Figure()
 
         metric_labels = {'spend': 'Spend', 'impressions': 'Impressions', 'clicks': 'Clicks',
-                         'register': 'Register', 'result_ftd': 'FTD'}
+                         'ctr': 'CTR %', 'register': 'Register', 'result_ftd': 'FTD'}
 
         for agent in agent_metrics['agent_name'].unique():
             agent_data = agent_metrics[agent_metrics['agent_name'] == agent].iloc[0]
@@ -356,8 +362,12 @@ else:
                 'result_ftd': 'sum'
             }).reset_index()
 
-            metric_choice = st.selectbox("Select Metric", ['spend', 'impressions', 'clicks', 'register', 'result_ftd'])
-            metric_labels = {'spend': 'Spend ($)', 'impressions': 'Impressions', 'clicks': 'Clicks', 'register': 'Register', 'result_ftd': 'FTD'}
+            # Calculate daily CTR per agent
+            daily_by_agent['ctr'] = (daily_by_agent['clicks'] / daily_by_agent['impressions'] * 100).fillna(0).round(2)
+            daily_by_agent.loc[daily_by_agent['impressions'] == 0, 'ctr'] = 0
+
+            metric_choice = st.selectbox("Select Metric", ['spend', 'impressions', 'clicks', 'ctr', 'register', 'result_ftd'])
+            metric_labels = {'spend': 'Spend ($)', 'impressions': 'Impressions', 'clicks': 'Clicks', 'ctr': 'CTR (%)', 'register': 'Register', 'result_ftd': 'FTD'}
 
             fig = px.line(
                 daily_by_agent,

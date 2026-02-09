@@ -381,11 +381,14 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df=N
 
         agent_summary = fb_ads_df.groupby('person_name').agg({
             'spend': 'sum',
+            'impressions': 'sum',
+            'clicks': 'sum',
             'register': 'sum',
             'result_ftd': 'sum',
         }).reset_index()
 
         # Calculate derived metrics
+        agent_summary['ctr'] = (agent_summary['clicks'] / agent_summary['impressions'] * 100).round(2)
         agent_summary['cpr'] = (agent_summary['spend'] / agent_summary['register']).round(2)
         agent_summary['cpftd'] = (agent_summary['spend'] / agent_summary['result_ftd']).round(2)
         agent_summary['conv_rate'] = (agent_summary['result_ftd'] / agent_summary['register'] * 100).round(1)
@@ -400,15 +403,20 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df=N
         agent_summary = agent_summary.rename(columns={
             'person_name': 'Agent',
             'spend': 'Spend',
+            'impressions': 'Impressions',
+            'clicks': 'Clicks',
+            'ctr': 'CTR',
             'register': 'Register',
             'result_ftd': 'FTD',
             'cpr': 'CPR',
             'cpftd': 'Cost/FTD',
             'conv_rate': 'Conv %'
         })
-        agent_summary = agent_summary[['Agent', 'Spend', 'Register', 'FTD', 'CPR', 'Cost/FTD', 'Conv %']]
+        agent_summary = agent_summary[['Agent', 'Spend', 'Impressions', 'Clicks', 'CTR', 'Register', 'FTD', 'CPR', 'Cost/FTD', 'Conv %']]
 
         # Convert to proper types
+        agent_summary['Impressions'] = agent_summary['Impressions'].astype(int)
+        agent_summary['Clicks'] = agent_summary['Clicks'].astype(int)
         agent_summary['Register'] = agent_summary['Register'].astype(int)
         agent_summary['FTD'] = agent_summary['FTD'].astype(int)
 
@@ -420,6 +428,9 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, fb_ads_df=N
             column_config={
                 "Agent": st.column_config.TextColumn(width="medium"),
                 "Spend": st.column_config.NumberColumn(format="$ %.2f"),
+                "Impressions": st.column_config.NumberColumn(format="%d"),
+                "Clicks": st.column_config.NumberColumn(format="%d"),
+                "CTR": st.column_config.NumberColumn(format="%.2f%%"),
                 "Register": st.column_config.NumberColumn(format="%d"),
                 "FTD": st.column_config.NumberColumn(format="%d"),
                 "CPR": st.column_config.NumberColumn(format="$ %.2f"),
