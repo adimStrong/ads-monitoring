@@ -656,11 +656,39 @@ def load_facebook_ads_data():
 
         if all_ads_data:
             df = pd.DataFrame(all_ads_data)
-            # Filter out excluded persons if configured
+            # Redistribute excluded persons' metrics across remaining agents
             if EXCLUDED_PERSONS and 'person_name' in df.columns:
                 excluded_upper = [p.upper() for p in EXCLUDED_PERSONS]
-                df = df[~df['person_name'].str.upper().isin(excluded_upper)]
-                print(f"Excluded persons filtered: {EXCLUDED_PERSONS}")
+                excluded_mask = df['person_name'].str.upper().isin(excluded_upper)
+                excluded_df = df[excluded_mask]
+                df = df[~excluded_mask]
+
+                if not excluded_df.empty and not df.empty:
+                    remaining_agents = df['person_name'].unique().tolist()
+                    n_agents = len(remaining_agents)
+                    numeric_cols = ['spend', 'cost_php', 'result_ftd', 'register', 'reach', 'impressions', 'clicks']
+
+                    redistributed_rows = []
+                    for _, row in excluded_df.iterrows():
+                        for agent in remaining_agents:
+                            new_row = row.copy()
+                            new_row['person_name'] = agent
+                            for col in numeric_cols:
+                                if col in new_row.index:
+                                    new_row[col] = new_row[col] / n_agents
+                            # Recalculate derived metrics
+                            new_row['ctr'] = round((new_row['clicks'] / new_row['impressions'] * 100) if new_row['impressions'] > 0 else 0, 2)
+                            new_row['cpc'] = round((new_row['spend'] / new_row['clicks']) if new_row['clicks'] > 0 else 0, 2)
+                            new_row['cpm'] = round((new_row['spend'] / new_row['impressions'] * 1000) if new_row['impressions'] > 0 else 0, 2)
+                            new_row['cost_per_register'] = round((new_row['spend'] / new_row['register']) if new_row['register'] > 0 else 0, 2)
+                            new_row['cost_per_ftd'] = round((new_row['spend'] / new_row['result_ftd']) if new_row['result_ftd'] > 0 else 0, 2)
+                            redistributed_rows.append(new_row)
+
+                    if redistributed_rows:
+                        redistributed_df = pd.DataFrame(redistributed_rows)
+                        df = pd.concat([df, redistributed_df], ignore_index=True)
+
+                print(f"Excluded persons redistributed: {EXCLUDED_PERSONS}")
             return df
         return pd.DataFrame()
 
