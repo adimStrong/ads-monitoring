@@ -947,20 +947,22 @@ def load_updated_accounts_data():
                 return '********'
             return val
 
-        def is_sample(name):
-            """Check if name is a sample/placeholder/header entry."""
-            n = name.lower().strip()
-            skip = ('sample', 'employee', 'company account', 'link owner',
-                    'updated', 'fb acc record', 'game id', 'gmail',
-                    'juanbingo', 'account information', 'account detail')
-            return any(kw in n for kw in skip)
+        # Whitelist of known employee names (case-insensitive)
+        known_employees = {n.lower() for n in (
+            'Mika', 'Adrian', 'Jomar', 'Shila', 'Krissa',
+            'Jason', 'Ron', 'Sheena', 'Cheska',
+        )}
+
+        def is_employee(name):
+            """Check if name is a known employee."""
+            return name.lower().strip() in known_employees
 
         # --- Group 1: Personal FB Accounts ---
         g1 = UPDATED_ACCOUNTS_GROUP1_COLUMNS
         g1_records = []
         for row in data_rows:
             employee = safe_get(row, g1['employee'])
-            if not employee or is_sample(employee):
+            if not employee or not is_employee(employee):
                 continue
             g1_records.append({
                 'Employee': employee,
@@ -981,7 +983,7 @@ def load_updated_accounts_data():
         g2_records = []
         for row in data_rows:
             employee = safe_get(row, g2['employee'])
-            if not employee or is_sample(employee):
+            if not employee or not is_employee(employee):
                 continue
             g2_records.append({
                 'Employee': employee,
@@ -999,9 +1001,15 @@ def load_updated_accounts_data():
         # --- Group 3: BM Record ---
         g3 = UPDATED_ACCOUNTS_GROUP3_COLUMNS
         g3_records = []
+        # Section headers to skip in Group 3
+        g3_skip = ('link owner', 'fb acc record', 'facebook account', 'updated facebook',
+                   'created facebook', 'new facebook', 'business manager',
+                   'active bm', 'available account', 'our own bm', 'backup bm',
+                   'advertiser', 'facebook user', 'bm name', 'pwa-landing')
+
         for row in data_rows:
             link_owner = safe_get(row, g3['link_owner'])
-            if not link_owner or is_sample(link_owner):
+            if not link_owner or any(kw in link_owner.lower() for kw in g3_skip):
                 continue
             g3_records.append({
                 'Link Owner': link_owner,
