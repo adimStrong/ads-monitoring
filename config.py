@@ -442,11 +442,3 @@ UPDATED_ACCOUNTS_GROUP2_COLUMNS = {
     'email_status': 18,   # S
     'remarks': 21,        # V
 }
-
-# Group 3: BM Record (Columns Y-AD, index 24-29)
-UPDATED_ACCOUNTS_GROUP3_COLUMNS = {
-    'link_owner': 24,       # Y
-    'game_id_code': 25,     # Z
-    'pwa_links': 26,        # AA
-    'fb_page_link': 29,     # AD
-}

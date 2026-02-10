@@ -3,7 +3,6 @@ Updated Accounts Dashboard
 Displays FB account inventory from the UPDATED ACCOUNTS tab:
   Group 1: Personal FB Accounts
   Group 2: Company Accounts
-  Group 3: BM Record
 """
 import streamlit as st
 import pandas as pd
@@ -183,9 +182,8 @@ def main():
         data = load_updated_accounts_data()
         group1_df = data.get('group1', pd.DataFrame())
         group2_df = data.get('group2', pd.DataFrame())
-        group3_df = data.get('group3', pd.DataFrame())
 
-    if group1_df.empty and group2_df.empty and group3_df.empty:
+    if group1_df.empty and group2_df.empty:
         st.error("No Updated Accounts data available.")
         st.info("Check that the 'UPDATED ACCOUNTS' tab exists in the Facebook Ads spreadsheet.")
         return
@@ -207,13 +205,11 @@ def main():
             "All",
             "Group 1: Personal FB",
             "Group 2: Company",
-            "Group 3: BM Record",
         ]
         selected_group = st.selectbox("Group", group_options)
 
     show_g1 = selected_group in ("All", "Group 1: Personal FB")
     show_g2 = selected_group in ("All", "Group 2: Company")
-    show_g3 = selected_group in ("All", "Group 3: BM Record")
 
     # Apply group filter to dataframes passed to all sections
     filtered_g1 = group1_df if show_g1 else pd.DataFrame()
@@ -232,10 +228,6 @@ def main():
     if show_g2:
         st.divider()
         render_data_table(group2_df, "🏢 Group 2: Company Accounts", "g2")
-
-    if show_g3:
-        st.divider()
-        render_data_table(group3_df, "🔗 Group 3: BM Record", "g3")
 
     st.caption("Updated Accounts | Data from UPDATED ACCOUNTS tab")
 

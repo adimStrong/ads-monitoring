@@ -35,7 +35,6 @@ from config import (
     UPDATED_ACCOUNTS_SHEET,
     UPDATED_ACCOUNTS_GROUP1_COLUMNS,
     UPDATED_ACCOUNTS_GROUP2_COLUMNS,
-    UPDATED_ACCOUNTS_GROUP3_COLUMNS,
 )
 
 
@@ -918,7 +917,7 @@ def load_updated_accounts_data():
     Returns:
         dict: {'group1': DataFrame, 'group2': DataFrame, 'group3': DataFrame}
     """
-    empty = {'group1': pd.DataFrame(), 'group2': pd.DataFrame(), 'group3': pd.DataFrame()}
+    empty = {'group1': pd.DataFrame(), 'group2': pd.DataFrame()}
     try:
         client = get_google_client()
         if client is None:
@@ -998,29 +997,7 @@ def load_updated_accounts_data():
         group2_df = pd.DataFrame(g2_records) if g2_records else pd.DataFrame()
         print(f"[OK] Loaded {len(g2_records)} Updated Accounts Group 2 (Company) records")
 
-        # --- Group 3: BM Record ---
-        g3 = UPDATED_ACCOUNTS_GROUP3_COLUMNS
-        g3_records = []
-        # Section headers to skip in Group 3
-        g3_skip = ('link owner', 'fb acc record', 'facebook account', 'updated facebook',
-                   'created facebook', 'new facebook', 'business manager',
-                   'active bm', 'available account', 'our own bm', 'backup bm',
-                   'advertiser', 'facebook user', 'bm name', 'pwa-landing')
-
-        for row in data_rows:
-            link_owner = safe_get(row, g3['link_owner'])
-            if not link_owner or any(kw in link_owner.lower() for kw in g3_skip):
-                continue
-            g3_records.append({
-                'Link Owner': link_owner,
-                'Game ID Code': safe_get(row, g3['game_id_code']),
-                'PWA Links': safe_get(row, g3['pwa_links']),
-                'Facebook Page Link': safe_get(row, g3['fb_page_link']),
-            })
-        group3_df = pd.DataFrame(g3_records) if g3_records else pd.DataFrame()
-        print(f"[OK] Loaded {len(g3_records)} Updated Accounts Group 3 (BM Record) records")
-
-        return {'group1': group1_df, 'group2': group2_df, 'group3': group3_df}
+        return {'group1': group1_df, 'group2': group2_df}
 
     except Exception as e:
         print(f"[ERROR] Failed to load Updated Accounts data: {e}")
