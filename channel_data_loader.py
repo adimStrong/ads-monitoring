@@ -948,8 +948,9 @@ def load_updated_accounts_data():
             return val
 
         def is_sample(name):
-            """Check if name is a sample/placeholder entry."""
-            return name.lower() in ('sample', 'sample1', 'sample2')
+            """Check if name is a sample/placeholder/header entry."""
+            n = name.lower().strip()
+            return n in ('sample', 'sample1', 'sample2') or 'employee' in n
 
         # --- Group 1: Personal FB Accounts ---
         g1 = UPDATED_ACCOUNTS_GROUP1_COLUMNS
