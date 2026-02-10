@@ -926,6 +926,7 @@ def load_updated_accounts_data():
     empty = {
         'personal_fb': pd.DataFrame(), 'company': pd.DataFrame(),
         'juanbingo': pd.DataFrame(), 'own_created': pd.DataFrame(),
+        'pages': pd.DataFrame(), 'bm_created': pd.DataFrame(),
         'bm_record': pd.DataFrame(),
     }
     try:
@@ -1041,6 +1042,26 @@ def load_updated_accounts_data():
         print(f"[OK] Loaded {len(juanbingo_records)} Juanbingo records")
         print(f"[OK] Loaded {len(own_created_records)} Own Created records")
 
+        # --- Extract Pages and BM Created from Own Created ---
+        page_records = []
+        bm_created_records = []
+        for rec in own_created_records:
+            if rec.get('Page Name'):
+                page_records.append({
+                    'Employee': rec['Employee'],
+                    'Page Name': rec['Page Name'],
+                    'Status': rec['Status'],
+                    'Date Created': rec['Date Created'],
+                })
+            if rec.get('BM Name'):
+                bm_created_records.append({
+                    'Employee': rec['Employee'],
+                    'BM Name': rec['BM Name'],
+                    'Status': rec['Status'],
+                    'Date Created': rec['Date Created'],
+                })
+        print(f"[OK] Extracted {len(page_records)} Pages, {len(bm_created_records)} BM Created")
+
         # --- Group 3: BM Record (Col Y) ---
         g3 = UPDATED_ACCOUNTS_GROUP3_COLUMNS
         g3_records = []
@@ -1061,11 +1082,28 @@ def load_updated_accounts_data():
             })
         print(f"[OK] Loaded {len(g3_records)} BM Record records")
 
+        # Remove Page Name and BM Name from own_created accounts table
+        own_acct_records = []
+        for rec in own_created_records:
+            own_acct_records.append({
+                'Employee': rec['Employee'],
+                'Mobile': rec['Mobile'],
+                'FB User': rec['FB User'],
+                'Password': rec['Password'],
+                'Status': rec['Status'],
+                'Email': rec['Email'],
+                'Email Password': rec['Email Password'],
+                'Date Created': rec['Date Created'],
+                'Remarks': rec['Remarks'],
+            })
+
         return {
             'personal_fb': pd.DataFrame(g1_records) if g1_records else pd.DataFrame(),
             'company': pd.DataFrame(company_records) if company_records else pd.DataFrame(),
             'juanbingo': pd.DataFrame(juanbingo_records) if juanbingo_records else pd.DataFrame(),
-            'own_created': pd.DataFrame(own_created_records) if own_created_records else pd.DataFrame(),
+            'own_created': pd.DataFrame(own_acct_records) if own_acct_records else pd.DataFrame(),
+            'pages': pd.DataFrame(page_records) if page_records else pd.DataFrame(),
+            'bm_created': pd.DataFrame(bm_created_records) if bm_created_records else pd.DataFrame(),
             'bm_record': pd.DataFrame(g3_records) if g3_records else pd.DataFrame(),
         }
 

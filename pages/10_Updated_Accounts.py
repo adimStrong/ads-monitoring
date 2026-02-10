@@ -194,7 +194,8 @@ def main():
         data = load_updated_accounts_data()
 
     all_empty = all(data.get(k, pd.DataFrame()).empty
-                    for k in ('personal_fb', 'company', 'juanbingo', 'own_created', 'bm_record'))
+                    for k in ('personal_fb', 'company', 'juanbingo', 'own_created',
+                              'pages', 'bm_created', 'bm_record'))
     if all_empty:
         st.error("No Updated Accounts data available.")
         st.info("Check that the 'UPDATED ACCOUNTS' tab exists in the Facebook Ads spreadsheet.")
@@ -218,6 +219,8 @@ def main():
             "Company",
             "Juanbingo",
             "Own Created",
+            "Pages",
+            "BM Created",
             "BM Record",
         ]
         selected_group = st.selectbox("Group", group_options)
@@ -227,10 +230,12 @@ def main():
         'company': selected_group in ("All", "Company"),
         'juanbingo': selected_group in ("All", "Juanbingo"),
         'own_created': selected_group in ("All", "Own Created"),
+        'pages': selected_group in ("All", "Pages"),
+        'bm_created': selected_group in ("All", "BM Created"),
         'bm_record': selected_group in ("All", "BM Record"),
     }
 
-    # Build filtered dict for KPI/charts (only shown groups)
+    # Build filtered dict for KPI/charts (only account groups with Status)
     filtered = {k: data.get(k, pd.DataFrame()) if show[k] else pd.DataFrame()
                 for k in ('personal_fb', 'company', 'juanbingo', 'own_created')}
 
@@ -254,7 +259,15 @@ def main():
 
     if show['own_created']:
         st.divider()
-        render_data_table(data['own_created'], "🆕 Own Created FB Accounts", "own_created")
+        render_data_table(data['own_created'], "🆕 Own Created Accounts", "own_created")
+
+    if show['pages']:
+        st.divider()
+        render_data_table(data['pages'], "📄 Pages", "pages")
+
+    if show['bm_created']:
+        st.divider()
+        render_data_table(data['bm_created'], "🏗️ BM Created", "bm_created")
 
     if show['bm_record']:
         st.divider()
