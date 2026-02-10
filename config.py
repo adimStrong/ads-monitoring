@@ -411,3 +411,42 @@ TEAM_CHANNEL_COLUMNS = {
 TEAM_CHANNEL_SOURCES = [
     f"FB-FB-FB-DEERPROMO{str(i).zfill(2)}" for i in range(1, 14)
 ]
+
+# ============================================================
+# UPDATED ACCOUNTS CONFIGURATION
+# ============================================================
+UPDATED_ACCOUNTS_SHEET = {"name": "UPDATED ACCOUNTS", "gid": 1415492514}
+
+# Group 1: Personal FB Accounts (Columns B-J, index 1-9)
+UPDATED_ACCOUNTS_GROUP1_COLUMNS = {
+    'employee': 1,       # B
+    'fb_name': 2,        # C
+    'phone': 3,          # D
+    'password': 4,       # E
+    'status': 5,         # F
+    'email': 6,          # G
+    'email_password': 7, # H
+    'email_status': 8,   # I
+    'remarks': 9,        # J
+}
+
+# Group 2: Company Accounts (Columns L-V, index 11-21)
+# Note: exact column positions may shift; L=11
+UPDATED_ACCOUNTS_GROUP2_COLUMNS = {
+    'employee': 11,       # L
+    'fb_user': 12,        # M
+    'password': 13,       # N
+    'status': 14,         # O
+    'email': 15,          # P
+    'email_password': 16, # Q
+    'email_status': 17,   # R
+    'remarks': 18,        # S (may extend to V depending on layout)
+}
+
+# Group 3: BM Record (Columns Y-AE, index 24-30)
+UPDATED_ACCOUNTS_GROUP3_COLUMNS = {
+    'link_owner': 24,       # Y
+    'game_id_code': 25,     # Z
+    'pwa_links': 26,        # AA
+    'fb_page_link': 27,     # AB (may extend to AE)
+}

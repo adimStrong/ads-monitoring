@@ -24,6 +24,7 @@ from config import (
     CHANNEL_GOOGLE_VIOLET_COLUMNS,
     CHANNEL_FB_HEADER_ROW, CHANNEL_FB_DATA_START_ROW,
     FACEBOOK_ADS_CREDENTIALS_FILE,
+    FACEBOOK_ADS_SHEET_ID,
     COUNTERPART_SHEET,
     COUNTERPART_FB_COLUMNS,
     COUNTERPART_GOOGLE_COLUMNS,
@@ -31,6 +32,10 @@ from config import (
     TEAM_CHANNEL_SHEET,
     TEAM_CHANNEL_COLUMNS,
     TEAM_CHANNEL_DATA_START_ROW,
+    UPDATED_ACCOUNTS_SHEET,
+    UPDATED_ACCOUNTS_GROUP1_COLUMNS,
+    UPDATED_ACCOUNTS_GROUP2_COLUMNS,
+    UPDATED_ACCOUNTS_GROUP3_COLUMNS,
 )
 
 
@@ -898,6 +903,119 @@ def refresh_team_channel_data():
 def refresh_counterpart_data():
     """Clear counterpart data cache."""
     load_counterpart_data.clear()
+
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def load_updated_accounts_data():
+    """
+    Load Updated Accounts data from the Facebook Ads spreadsheet.
+
+    The "UPDATED ACCOUNTS" tab has 3 groups:
+    - Group 1 (B-J): Personal FB accounts
+    - Group 2 (L-S): Company accounts
+    - Group 3 (Y-AB): BM Record
+
+    Returns:
+        dict: {'group1': DataFrame, 'group2': DataFrame, 'group3': DataFrame}
+    """
+    empty = {'group1': pd.DataFrame(), 'group2': pd.DataFrame(), 'group3': pd.DataFrame()}
+    try:
+        client = get_google_client()
+        if client is None:
+            return empty
+
+        spreadsheet = client.open_by_key(FACEBOOK_ADS_SHEET_ID)
+        worksheet = spreadsheet.get_worksheet_by_id(UPDATED_ACCOUNTS_SHEET['gid'])
+        all_data = worksheet.get_all_values()
+
+        if len(all_data) < 2:
+            print("[WARNING] Updated Accounts sheet has no data")
+            return empty
+
+        # Data starts at row 2 (index 1) - row 1 is headers
+        data_rows = all_data[1:]
+
+        def safe_get(row, idx):
+            """Safely get a cell value by index."""
+            if idx < len(row):
+                return str(row[idx]).strip()
+            return ''
+
+        def mask_password(val):
+            """Mask password values."""
+            if val and val not in ('', '-', 'N/A', 'n/a'):
+                return '********'
+            return val
+
+        # --- Group 1: Personal FB Accounts ---
+        g1 = UPDATED_ACCOUNTS_GROUP1_COLUMNS
+        g1_records = []
+        for row in data_rows:
+            employee = safe_get(row, g1['employee'])
+            if not employee:
+                continue
+            g1_records.append({
+                'Employee': employee,
+                'FB Name': safe_get(row, g1['fb_name']),
+                'Phone': safe_get(row, g1['phone']),
+                'Password': mask_password(safe_get(row, g1['password'])),
+                'Status': safe_get(row, g1['status']),
+                'Email': safe_get(row, g1['email']),
+                'Email Password': mask_password(safe_get(row, g1['email_password'])),
+                'Email Status': safe_get(row, g1['email_status']),
+                'Remarks': safe_get(row, g1['remarks']),
+            })
+        group1_df = pd.DataFrame(g1_records) if g1_records else pd.DataFrame()
+        print(f"[OK] Loaded {len(g1_records)} Updated Accounts Group 1 (Personal FB) records")
+
+        # --- Group 2: Company Accounts ---
+        g2 = UPDATED_ACCOUNTS_GROUP2_COLUMNS
+        g2_records = []
+        for row in data_rows:
+            employee = safe_get(row, g2['employee'])
+            if not employee:
+                continue
+            g2_records.append({
+                'Employee': employee,
+                'FB User': safe_get(row, g2['fb_user']),
+                'Password': mask_password(safe_get(row, g2['password'])),
+                'Status': safe_get(row, g2['status']),
+                'Email': safe_get(row, g2['email']),
+                'Email Password': mask_password(safe_get(row, g2['email_password'])),
+                'Email Status': safe_get(row, g2['email_status']),
+                'Remarks': safe_get(row, g2['remarks']),
+            })
+        group2_df = pd.DataFrame(g2_records) if g2_records else pd.DataFrame()
+        print(f"[OK] Loaded {len(g2_records)} Updated Accounts Group 2 (Company) records")
+
+        # --- Group 3: BM Record ---
+        g3 = UPDATED_ACCOUNTS_GROUP3_COLUMNS
+        g3_records = []
+        for row in data_rows:
+            link_owner = safe_get(row, g3['link_owner'])
+            if not link_owner:
+                continue
+            g3_records.append({
+                'Link Owner': link_owner,
+                'Game ID Code': safe_get(row, g3['game_id_code']),
+                'PWA Links': safe_get(row, g3['pwa_links']),
+                'Facebook Page Link': safe_get(row, g3['fb_page_link']),
+            })
+        group3_df = pd.DataFrame(g3_records) if g3_records else pd.DataFrame()
+        print(f"[OK] Loaded {len(g3_records)} Updated Accounts Group 3 (BM Record) records")
+
+        return {'group1': group1_df, 'group2': group2_df, 'group3': group3_df}
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load Updated Accounts data: {e}")
+        import traceback
+        traceback.print_exc()
+        return empty
+
+
+def refresh_updated_accounts_data():
+    """Clear Updated Accounts data cache."""
+    load_updated_accounts_data.clear()
 
 
 # Test functions
