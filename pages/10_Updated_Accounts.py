@@ -215,11 +215,15 @@ def main():
     show_g2 = selected_group in ("All", "Group 2: Company")
     show_g3 = selected_group in ("All", "Group 3: BM Record")
 
+    # Apply group filter to dataframes passed to all sections
+    filtered_g1 = group1_df if show_g1 else pd.DataFrame()
+    filtered_g2 = group2_df if show_g2 else pd.DataFrame()
+
     # --- Render Sections ---
-    render_kpi_cards(group1_df, group2_df)
+    render_kpi_cards(filtered_g1, filtered_g2)
 
     st.divider()
-    render_status_charts(group1_df, group2_df)
+    render_status_charts(filtered_g1, filtered_g2)
 
     if show_g1:
         st.divider()
