@@ -430,9 +430,9 @@ UPDATED_ACCOUNTS_GROUP1_COLUMNS = {
     'remarks': 9,        # J
 }
 
-# Group 2: Company Accounts (Columns L-V, index 11-21)
+# Group 2a: Company Account Details (Columns L-V, rows 5-28)
 # Column M (12) is empty/spacer
-UPDATED_ACCOUNTS_GROUP2_COLUMNS = {
+UPDATED_ACCOUNTS_COMPANY_COLUMNS = {
     'employee': 11,       # L
     'fb_user': 13,        # N
     'password': 14,       # O
@@ -441,6 +441,32 @@ UPDATED_ACCOUNTS_GROUP2_COLUMNS = {
     'email_password': 17, # R
     'email_status': 18,   # S
     'remarks': 21,        # V
+}
+
+# Group 2b: Juanbingo Accounts (same columns, rows 32-45)
+# Uses same column layout as Company
+UPDATED_ACCOUNTS_JUANBINGO_COLUMNS = UPDATED_ACCOUNTS_COMPANY_COLUMNS
+
+# Group 2c: Own Created FB Accounts (rows 48+, extra columns)
+UPDATED_ACCOUNTS_OWN_CREATED_COLUMNS = {
+    'employee': 11,        # L
+    'mobile': 12,          # M
+    'fb_user': 13,         # N
+    'password': 14,        # O
+    'status': 15,          # P
+    'email': 16,           # Q
+    'email_password': 17,  # R
+    'date_created': 18,    # S
+    'page_name': 19,       # T
+    'bm_name': 20,         # U
+    'remarks': 21,         # V
+}
+
+# Group 2 section headers (used to detect sub-section boundaries in col L)
+UPDATED_ACCOUNTS_G2_SECTIONS = {
+    'company': 'COMPANY ACCOUNT DETAILS',
+    'juanbingo': 'Gmail and FB account information',
+    'own_created': 'FB accounts own create started',
 }
 
 # Group 3: BM Record (Columns Y-AD, index 24-29)

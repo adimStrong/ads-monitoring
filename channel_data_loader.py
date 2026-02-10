@@ -34,7 +34,10 @@ from config import (
     TEAM_CHANNEL_DATA_START_ROW,
     UPDATED_ACCOUNTS_SHEET,
     UPDATED_ACCOUNTS_GROUP1_COLUMNS,
-    UPDATED_ACCOUNTS_GROUP2_COLUMNS,
+    UPDATED_ACCOUNTS_COMPANY_COLUMNS,
+    UPDATED_ACCOUNTS_JUANBINGO_COLUMNS,
+    UPDATED_ACCOUNTS_OWN_CREATED_COLUMNS,
+    UPDATED_ACCOUNTS_G2_SECTIONS,
     UPDATED_ACCOUNTS_GROUP3_COLUMNS,
 )
 
@@ -910,15 +913,21 @@ def load_updated_accounts_data():
     """
     Load Updated Accounts data from the Facebook Ads spreadsheet.
 
-    The "UPDATED ACCOUNTS" tab has 3 groups:
-    - Group 1 (B-J): Personal FB accounts
-    - Group 2 (L-S): Company accounts
-    - Group 3 (Y-AB): BM Record
+    The "UPDATED ACCOUNTS" tab has 5 sections:
+    - Group 1 (Col B): Personal FB accounts
+    - Company (Col L, section 1): Company Account Details
+    - Juanbingo (Col L, section 2): Juanbingo accounts
+    - Own Created (Col L, section 3): Own created FB accounts (+ Page Name, BM Name)
+    - BM Record (Col Y): PWA links and BM info
 
     Returns:
-        dict: {'group1': DataFrame, 'group2': DataFrame, 'group3': DataFrame}
+        dict with 5 DataFrames: personal_fb, company, juanbingo, own_created, bm_record
     """
-    empty = {'group1': pd.DataFrame(), 'group2': pd.DataFrame(), 'group3': pd.DataFrame()}
+    empty = {
+        'personal_fb': pd.DataFrame(), 'company': pd.DataFrame(),
+        'juanbingo': pd.DataFrame(), 'own_created': pd.DataFrame(),
+        'bm_record': pd.DataFrame(),
+    }
     try:
         client = get_google_client()
         if client is None:
@@ -932,35 +941,28 @@ def load_updated_accounts_data():
             print("[WARNING] Updated Accounts sheet has no data")
             return empty
 
-        # Data starts at row 2 (index 1) - row 1 is headers
-        data_rows = all_data[1:]
-
         def safe_get(row, idx):
-            """Safely get a cell value by index."""
             if idx < len(row):
                 return str(row[idx]).strip()
             return ''
 
         def mask_password(val):
-            """Mask password values."""
             if val and val not in ('', '-', 'N/A', 'n/a'):
                 return '********'
             return val
 
-        # Whitelist of known employee names (case-insensitive)
         known_employees = {n.lower() for n in (
             'Mika', 'Adrian', 'Jomar', 'Shila', 'Krissa',
             'Jason', 'Ron', 'Sheena', 'Cheska',
         )}
 
         def is_employee(name):
-            """Check if name is a known employee."""
             return name.lower().strip() in known_employees
 
-        # --- Group 1: Personal FB Accounts ---
+        # --- Group 1: Personal FB Accounts (Col B) ---
         g1 = UPDATED_ACCOUNTS_GROUP1_COLUMNS
         g1_records = []
-        for row in data_rows:
+        for row in all_data[1:]:
             employee = safe_get(row, g1['employee'])
             if not employee or not is_employee(employee):
                 continue
@@ -975,30 +977,71 @@ def load_updated_accounts_data():
                 'Email Status': safe_get(row, g1['email_status']),
                 'Remarks': safe_get(row, g1['remarks']),
             })
-        group1_df = pd.DataFrame(g1_records) if g1_records else pd.DataFrame()
-        print(f"[OK] Loaded {len(g1_records)} Updated Accounts Group 1 (Personal FB) records")
+        print(f"[OK] Loaded {len(g1_records)} Personal FB records")
 
-        # --- Group 2: Company Accounts ---
-        g2 = UPDATED_ACCOUNTS_GROUP2_COLUMNS
-        g2_records = []
-        for row in data_rows:
-            employee = safe_get(row, g2['employee'])
-            if not employee or not is_employee(employee):
+        # --- Col L: Split into 3 sub-sections by detecting section headers ---
+        sections = UPDATED_ACCOUNTS_G2_SECTIONS
+        company_records = []
+        juanbingo_records = []
+        own_created_records = []
+        current_section = None
+
+        for row in all_data[1:]:
+            cell_l = safe_get(row, 11)  # Col L
+
+            # Detect section headers
+            if sections['company'].lower() in cell_l.lower():
+                current_section = 'company'
                 continue
-            g2_records.append({
-                'Employee': employee,
-                'FB User': safe_get(row, g2['fb_user']),
-                'Password': mask_password(safe_get(row, g2['password'])),
-                'Status': safe_get(row, g2['status']),
-                'Email': safe_get(row, g2['email']),
-                'Email Password': mask_password(safe_get(row, g2['email_password'])),
-                'Email Status': safe_get(row, g2['email_status']),
-                'Remarks': safe_get(row, g2['remarks']),
-            })
-        group2_df = pd.DataFrame(g2_records) if g2_records else pd.DataFrame()
-        print(f"[OK] Loaded {len(g2_records)} Updated Accounts Group 2 (Company) records")
+            elif sections['juanbingo'].lower() in cell_l.lower():
+                current_section = 'juanbingo'
+                continue
+            elif sections['own_created'].lower() in cell_l.lower():
+                current_section = 'own_created'
+                continue
 
-        # --- Group 3: BM Record ---
+            # Skip non-employee rows
+            if not is_employee(cell_l):
+                continue
+
+            if current_section in ('company', 'juanbingo'):
+                cols = UPDATED_ACCOUNTS_COMPANY_COLUMNS
+                record = {
+                    'Employee': cell_l,
+                    'FB User': safe_get(row, cols['fb_user']),
+                    'Password': mask_password(safe_get(row, cols['password'])),
+                    'Status': safe_get(row, cols['status']),
+                    'Email': safe_get(row, cols['email']),
+                    'Email Password': mask_password(safe_get(row, cols['email_password'])),
+                    'Email Status': safe_get(row, cols['email_status']),
+                    'Remarks': safe_get(row, cols['remarks']),
+                }
+                if current_section == 'company':
+                    company_records.append(record)
+                else:
+                    juanbingo_records.append(record)
+
+            elif current_section == 'own_created':
+                cols = UPDATED_ACCOUNTS_OWN_CREATED_COLUMNS
+                own_created_records.append({
+                    'Employee': cell_l,
+                    'Mobile': safe_get(row, cols['mobile']),
+                    'FB User': safe_get(row, cols['fb_user']),
+                    'Password': mask_password(safe_get(row, cols['password'])),
+                    'Status': safe_get(row, cols['status']),
+                    'Email': safe_get(row, cols['email']),
+                    'Email Password': mask_password(safe_get(row, cols['email_password'])),
+                    'Date Created': safe_get(row, cols['date_created']),
+                    'Page Name': safe_get(row, cols['page_name']),
+                    'BM Name': safe_get(row, cols['bm_name']),
+                    'Remarks': safe_get(row, cols['remarks']),
+                })
+
+        print(f"[OK] Loaded {len(company_records)} Company records")
+        print(f"[OK] Loaded {len(juanbingo_records)} Juanbingo records")
+        print(f"[OK] Loaded {len(own_created_records)} Own Created records")
+
+        # --- Group 3: BM Record (Col Y) ---
         g3 = UPDATED_ACCOUNTS_GROUP3_COLUMNS
         g3_records = []
         g3_skip = ('link owner', 'fb acc record', 'facebook account', 'updated facebook',
@@ -1006,7 +1049,7 @@ def load_updated_accounts_data():
                    'active bm', 'available account', 'our own bm', 'backup bm',
                    'advertiser', 'facebook user', 'bm name', 'pwa-landing')
 
-        for row in data_rows:
+        for row in all_data[1:]:
             link_owner = safe_get(row, g3['link_owner'])
             if not link_owner or any(kw in link_owner.lower() for kw in g3_skip):
                 continue
@@ -1016,10 +1059,15 @@ def load_updated_accounts_data():
                 'PWA Links': safe_get(row, g3['pwa_links']),
                 'Facebook Page Link': safe_get(row, g3['fb_page_link']),
             })
-        group3_df = pd.DataFrame(g3_records) if g3_records else pd.DataFrame()
-        print(f"[OK] Loaded {len(g3_records)} Updated Accounts Group 3 (BM Record) records")
+        print(f"[OK] Loaded {len(g3_records)} BM Record records")
 
-        return {'group1': group1_df, 'group2': group2_df, 'group3': group3_df}
+        return {
+            'personal_fb': pd.DataFrame(g1_records) if g1_records else pd.DataFrame(),
+            'company': pd.DataFrame(company_records) if company_records else pd.DataFrame(),
+            'juanbingo': pd.DataFrame(juanbingo_records) if juanbingo_records else pd.DataFrame(),
+            'own_created': pd.DataFrame(own_created_records) if own_created_records else pd.DataFrame(),
+            'bm_record': pd.DataFrame(g3_records) if g3_records else pd.DataFrame(),
+        }
 
     except Exception as e:
         print(f"[ERROR] Failed to load Updated Accounts data: {e}")

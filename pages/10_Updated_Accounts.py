@@ -1,9 +1,11 @@
 """
 Updated Accounts Dashboard
 Displays FB account inventory from the UPDATED ACCOUNTS tab:
-  Group 1: Personal FB Accounts
-  Group 2: Company Accounts
-  Group 3: BM Record
+  1. Personal FB Accounts (Col B)
+  2. Company Account Details (Col L, section 1)
+  3. Juanbingo Accounts (Col L, section 2)
+  4. Own Created FB Accounts (Col L, section 3) - with Page Name & BM Name
+  5. BM Record (Col Y)
 """
 import streamlit as st
 import pandas as pd
@@ -24,135 +26,145 @@ st.markdown("""
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: white; padding: 15px; border-radius: 10px; margin: 20px 0 10px 0;
     }
-    .kpi-card {
-        background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
-        color: white; padding: 20px; border-radius: 12px; text-align: center;
-    }
-    .kpi-card h2 { margin: 0; font-size: 2rem; }
-    .kpi-card p { margin: 4px 0 0 0; opacity: 0.8; font-size: 0.9rem; }
 </style>
 """, unsafe_allow_html=True)
 
 
-def render_kpi_cards(group1_df, group2_df):
-    """Render KPI summary cards for Groups 1 and 2."""
+STATUS_COLORS = {'Active': '#2ecc71', 'Disabled': '#e74c3c', 'Other': '#f39c12', 'Unknown': '#95a5a6'}
+
+
+def get_status_category(status_val):
+    s = str(status_val).strip().upper()
+    if s in ('ACTIVE', 'ALIVE', 'OK', 'GOOD'):
+        return 'Active'
+    elif s in ('DISABLED', 'BANNED', 'DEAD', 'LOCKED', 'RESTRICTED'):
+        return 'Disabled'
+    elif s == '' or s == 'NAN':
+        return 'Unknown'
+    return 'Other'
+
+
+def count_status(df, status_col='Status'):
+    if df.empty or status_col not in df.columns:
+        return 0, 0, 0
+    total = len(df)
+    cats = df[status_col].apply(get_status_category)
+    active = (cats == 'Active').sum()
+    disabled = (cats == 'Disabled').sum()
+    return total, active, disabled
+
+
+def render_kpi_cards(dfs):
+    """Render KPI summary cards across all account DataFrames."""
     st.markdown('<div class="section-header"><h3>📊 ACCOUNT OVERVIEW</h3></div>', unsafe_allow_html=True)
 
-    def count_status(df, status_col='Status'):
-        if df.empty or status_col not in df.columns:
-            return 0, 0, 0
-        total = len(df)
-        active = len(df[df[status_col].str.upper().isin(['ACTIVE', 'ALIVE', 'OK', 'GOOD'])])
-        disabled = len(df[df[status_col].str.upper().isin(['DISABLED', 'BANNED', 'DEAD', 'LOCKED', 'RESTRICTED'])])
-        return total, active, disabled
+    totals = {'total': 0, 'active': 0, 'disabled': 0}
+    group_stats = []
 
-    g1_total, g1_active, g1_disabled = count_status(group1_df)
-    g2_total, g2_active, g2_disabled = count_status(group2_df)
+    labels = {
+        'personal_fb': 'Personal FB',
+        'company': 'Company',
+        'juanbingo': 'Juanbingo',
+        'own_created': 'Own Created',
+    }
 
-    combined_total = g1_total + g2_total
-    combined_active = g1_active + g2_active
-    combined_disabled = g1_disabled + g2_disabled
-    active_pct = (combined_active / combined_total * 100) if combined_total > 0 else 0
+    for key in ('personal_fb', 'company', 'juanbingo', 'own_created'):
+        df = dfs.get(key, pd.DataFrame())
+        t, a, d = count_status(df)
+        totals['total'] += t
+        totals['active'] += a
+        totals['disabled'] += d
+        if t > 0:
+            group_stats.append((labels[key], t, a))
+
+    active_pct = (totals['active'] / totals['total'] * 100) if totals['total'] > 0 else 0
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Accounts", f"{combined_total:,}")
+        st.metric("Total Accounts", f"{totals['total']:,}")
     with col2:
-        st.metric("Active", f"{combined_active:,}")
+        st.metric("Active", f"{totals['active']:,}")
     with col3:
-        st.metric("Disabled", f"{combined_disabled:,}")
+        st.metric("Disabled", f"{totals['disabled']:,}")
     with col4:
         st.metric("Active %", f"{active_pct:.1f}%")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Personal FB (Group 1)", f"{g1_total:,}",
-                   delta=f"{g1_active} active")
-    with col2:
-        st.metric("Company Accounts (Group 2)", f"{g2_total:,}",
-                   delta=f"{g2_active} active")
+    # Per-group metrics
+    cols = st.columns(len(group_stats)) if group_stats else []
+    for col, (label, total, active) in zip(cols, group_stats):
+        with col:
+            st.metric(label, f"{total:,}", delta=f"{active} active")
 
 
-def render_status_charts(group1_df, group2_df):
-    """Render per-employee stacked bar and status pie charts."""
+def render_status_charts(dfs):
+    """Render stacked bar + pie charts for account groups that have Status."""
     st.markdown('<div class="section-header"><h3>📈 STATUS BREAKDOWN</h3></div>', unsafe_allow_html=True)
 
-    def get_status_category(status_val):
-        s = str(status_val).strip().upper()
-        if s in ('ACTIVE', 'ALIVE', 'OK', 'GOOD'):
-            return 'Active'
-        elif s in ('DISABLED', 'BANNED', 'DEAD', 'LOCKED', 'RESTRICTED'):
-            return 'Disabled'
-        elif s == '' or s == 'NAN':
-            return 'Unknown'
-        else:
-            return 'Other'
+    chart_groups = [
+        ('personal_fb', 'Personal FB'),
+        ('company', 'Company'),
+        ('juanbingo', 'Juanbingo'),
+        ('own_created', 'Own Created'),
+    ]
 
-    # --- Per-Employee Stacked Bar (Group 1) ---
-    col1, col2 = st.columns(2)
+    # Filter to groups with data
+    active_groups = [(k, l) for k, l in chart_groups
+                     if not dfs.get(k, pd.DataFrame()).empty
+                     and 'Status' in dfs.get(k, pd.DataFrame()).columns]
 
-    with col1:
-        if not group1_df.empty and 'Status' in group1_df.columns:
-            df = group1_df.copy()
+    if not active_groups:
+        st.info("No status data available")
+        return
+
+    # Stacked bar charts (2 per row)
+    for i in range(0, len(active_groups), 2):
+        cols = st.columns(2)
+        for j, col in enumerate(cols):
+            idx = i + j
+            if idx >= len(active_groups):
+                break
+            key, label = active_groups[idx]
+            df = dfs[key].copy()
             df['Status Category'] = df['Status'].apply(get_status_category)
             emp_status = df.groupby(['Employee', 'Status Category']).size().reset_index(name='Count')
 
             fig = px.bar(emp_status, x='Employee', y='Count', color='Status Category',
-                         barmode='stack', title='Personal FB Accounts by Employee',
-                         color_discrete_map={'Active': '#2ecc71', 'Disabled': '#e74c3c',
-                                             'Other': '#f39c12', 'Unknown': '#95a5a6'})
+                         barmode='stack', title=f'{label} by Employee',
+                         color_discrete_map=STATUS_COLORS)
             fig.update_layout(height=400, xaxis_title="", yaxis_title="Accounts",
                               legend=dict(orientation="h", yanchor="bottom", y=-0.3))
+            with col:
+                st.plotly_chart(fig, use_container_width=True)
+
+    # Pie charts (2 per row)
+    cols = st.columns(min(len(active_groups), 2))
+    for idx, (key, label) in enumerate(active_groups[:2]):
+        df = dfs[key].copy()
+        df['Status Category'] = df['Status'].apply(get_status_category)
+        counts = df['Status Category'].value_counts()
+        fig = go.Figure(data=[go.Pie(
+            labels=counts.index, values=counts.values, hole=0.3,
+            marker_colors=[STATUS_COLORS.get(l, '#95a5a6') for l in counts.index],
+        )])
+        fig.update_layout(title=dict(text=f'{label} Status', x=0.5, xanchor='center'),
+                          height=350, legend=dict(orientation="h", yanchor="bottom", y=-0.2))
+        with cols[idx]:
             st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No Group 1 status data")
 
-    with col2:
-        if not group2_df.empty and 'Status' in group2_df.columns:
-            df = group2_df.copy()
-            df['Status Category'] = df['Status'].apply(get_status_category)
-            emp_status = df.groupby(['Employee', 'Status Category']).size().reset_index(name='Count')
-
-            fig = px.bar(emp_status, x='Employee', y='Count', color='Status Category',
-                         barmode='stack', title='Company Accounts by Employee',
-                         color_discrete_map={'Active': '#2ecc71', 'Disabled': '#e74c3c',
-                                             'Other': '#f39c12', 'Unknown': '#95a5a6'})
-            fig.update_layout(height=400, xaxis_title="", yaxis_title="Accounts",
-                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No Group 2 status data")
-
-    # --- Status Distribution Pie Charts ---
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if not group1_df.empty and 'Status' in group1_df.columns:
-            df = group1_df.copy()
+    if len(active_groups) > 2:
+        cols = st.columns(min(len(active_groups) - 2, 2))
+        for idx, (key, label) in enumerate(active_groups[2:4]):
+            df = dfs[key].copy()
             df['Status Category'] = df['Status'].apply(get_status_category)
             counts = df['Status Category'].value_counts()
             fig = go.Figure(data=[go.Pie(
                 labels=counts.index, values=counts.values, hole=0.3,
-                marker_colors=['#2ecc71' if l == 'Active' else '#e74c3c' if l == 'Disabled'
-                               else '#f39c12' if l == 'Other' else '#95a5a6' for l in counts.index],
+                marker_colors=[STATUS_COLORS.get(l, '#95a5a6') for l in counts.index],
             )])
-            fig.update_layout(title=dict(text='Personal FB Status Distribution', x=0.5, xanchor='center'),
+            fig.update_layout(title=dict(text=f'{label} Status', x=0.5, xanchor='center'),
                               height=350, legend=dict(orientation="h", yanchor="bottom", y=-0.2))
-            st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        if not group2_df.empty and 'Status' in group2_df.columns:
-            df = group2_df.copy()
-            df['Status Category'] = df['Status'].apply(get_status_category)
-            counts = df['Status Category'].value_counts()
-            fig = go.Figure(data=[go.Pie(
-                labels=counts.index, values=counts.values, hole=0.3,
-                marker_colors=['#2ecc71' if l == 'Active' else '#e74c3c' if l == 'Disabled'
-                               else '#f39c12' if l == 'Other' else '#95a5a6' for l in counts.index],
-            )])
-            fig.update_layout(title=dict(text='Company Acct Status Distribution', x=0.5, xanchor='center'),
-                              height=350, legend=dict(orientation="h", yanchor="bottom", y=-0.2))
-            st.plotly_chart(fig, use_container_width=True)
+            with cols[idx]:
+                st.plotly_chart(fig, use_container_width=True)
 
 
 def render_data_table(df, title, key_prefix):
@@ -178,14 +190,12 @@ def render_data_table(df, title, key_prefix):
 def main():
     st.title("👤 Updated Accounts")
 
-    # Load data
     with st.spinner("Loading Updated Accounts data..."):
         data = load_updated_accounts_data()
-        group1_df = data.get('group1', pd.DataFrame())
-        group2_df = data.get('group2', pd.DataFrame())
-        group3_df = data.get('group3', pd.DataFrame())
 
-    if group1_df.empty and group2_df.empty and group3_df.empty:
+    all_empty = all(data.get(k, pd.DataFrame()).empty
+                    for k in ('personal_fb', 'company', 'juanbingo', 'own_created', 'bm_record'))
+    if all_empty:
         st.error("No Updated Accounts data available.")
         st.info("Check that the 'UPDATED ACCOUNTS' tab exists in the Facebook Ads spreadsheet.")
         return
@@ -201,41 +211,54 @@ def main():
 
         st.markdown("---")
 
-        # Group filter
         st.subheader("📋 Group Filter")
         group_options = [
             "All",
-            "Group 1: Personal FB",
-            "Group 2: Company",
-            "Group 3: BM Record",
+            "Personal FB",
+            "Company",
+            "Juanbingo",
+            "Own Created",
+            "BM Record",
         ]
         selected_group = st.selectbox("Group", group_options)
 
-    show_g1 = selected_group in ("All", "Group 1: Personal FB")
-    show_g2 = selected_group in ("All", "Group 2: Company")
-    show_g3 = selected_group in ("All", "Group 3: BM Record")
+    show = {
+        'personal_fb': selected_group in ("All", "Personal FB"),
+        'company': selected_group in ("All", "Company"),
+        'juanbingo': selected_group in ("All", "Juanbingo"),
+        'own_created': selected_group in ("All", "Own Created"),
+        'bm_record': selected_group in ("All", "BM Record"),
+    }
 
-    # Apply group filter to dataframes passed to all sections
-    filtered_g1 = group1_df if show_g1 else pd.DataFrame()
-    filtered_g2 = group2_df if show_g2 else pd.DataFrame()
+    # Build filtered dict for KPI/charts (only shown groups)
+    filtered = {k: data.get(k, pd.DataFrame()) if show[k] else pd.DataFrame()
+                for k in ('personal_fb', 'company', 'juanbingo', 'own_created')}
 
     # --- Render Sections ---
-    render_kpi_cards(filtered_g1, filtered_g2)
+    render_kpi_cards(filtered)
 
     st.divider()
-    render_status_charts(filtered_g1, filtered_g2)
+    render_status_charts(filtered)
 
-    if show_g1:
+    if show['personal_fb']:
         st.divider()
-        render_data_table(group1_df, "📱 Group 1: Personal FB Accounts", "g1")
+        render_data_table(data['personal_fb'], "📱 Personal FB Accounts", "personal_fb")
 
-    if show_g2:
+    if show['company']:
         st.divider()
-        render_data_table(group2_df, "🏢 Group 2: Company Accounts", "g2")
+        render_data_table(data['company'], "🏢 Company Account Details", "company")
 
-    if show_g3:
+    if show['juanbingo']:
         st.divider()
-        render_data_table(group3_df, "🔗 Group 3: BM Record", "g3")
+        render_data_table(data['juanbingo'], "🎰 Juanbingo Accounts", "juanbingo")
+
+    if show['own_created']:
+        st.divider()
+        render_data_table(data['own_created'], "🆕 Own Created FB Accounts", "own_created")
+
+    if show['bm_record']:
+        st.divider()
+        render_data_table(data['bm_record'], "🔗 BM Record", "bm_record")
 
     st.caption("Updated Accounts | Data from UPDATED ACCOUNTS tab")
 
