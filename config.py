@@ -431,22 +431,22 @@ UPDATED_ACCOUNTS_GROUP1_COLUMNS = {
 }
 
 # Group 2: Company Accounts (Columns L-V, index 11-21)
-# Note: exact column positions may shift; L=11
+# Column M (12) is empty/spacer
 UPDATED_ACCOUNTS_GROUP2_COLUMNS = {
     'employee': 11,       # L
-    'fb_user': 12,        # M
-    'password': 13,       # N
-    'status': 14,         # O
-    'email': 15,          # P
-    'email_password': 16, # Q
-    'email_status': 17,   # R
-    'remarks': 18,        # S (may extend to V depending on layout)
+    'fb_user': 13,        # N
+    'password': 14,       # O
+    'status': 15,         # P
+    'email': 16,          # Q
+    'email_password': 17, # R
+    'email_status': 18,   # S
+    'remarks': 21,        # V
 }
 
-# Group 3: BM Record (Columns Y-AE, index 24-30)
+# Group 3: BM Record (Columns Y-AD, index 24-29)
 UPDATED_ACCOUNTS_GROUP3_COLUMNS = {
     'link_owner': 24,       # Y
     'game_id_code': 25,     # Z
     'pwa_links': 26,        # AA
-    'fb_page_link': 27,     # AB (may extend to AE)
+    'fb_page_link': 29,     # AD
 }
