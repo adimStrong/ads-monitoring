@@ -205,6 +205,14 @@ FACEBOOK_ADS_NAMES_ROW = 1
 REALTIME_REPORT_ENABLED = True
 DAILY_REPORT_ENABLED = True
 
+# Daily T+1 report schedule (Asia/Manila)
+DAILY_REPORT_SEND_TIME = {"hour": 14, "minute": 0, "label": "2:00 PM"}
+DAILY_REPORT_REMINDERS = [
+    {"minutes_before": 60, "label": "1 hour"},
+    {"minutes_before": 30, "label": "30 minutes"},
+    {"minutes_before": 15, "label": "15 minutes"},
+]
+
 # Send times for real-time reports (7 times daily)
 REALTIME_SEND_TIMES = [
     {"hour": 6, "minute": 0, "label": "6:00 AM"},
