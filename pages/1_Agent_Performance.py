@@ -359,20 +359,26 @@ with tab5:
         # Daily data table
         st.subheader("Daily Data")
         d_display = agent_daily[['date', 'spend', 'register', 'cost_per_register', 'ftd', 'cost_per_ftd', 'conv_rate', 'reach', 'impressions', 'clicks', 'ctr', 'cpm']].copy()
+        d_display = d_display.sort_values('date', ascending=False)
         d_display['date'] = d_display['date'].dt.strftime('%m/%d/%Y')
+        # Format numbers with commas for display
+        d_display['spend'] = d_display['spend'].apply(lambda x: f"${x:,.2f}")
+        d_display['cost_per_register'] = d_display['cost_per_register'].apply(lambda x: f"${x:,.2f}")
+        d_display['cost_per_ftd'] = d_display['cost_per_ftd'].apply(lambda x: f"${x:,.2f}")
+        d_display['cpm'] = d_display['cpm'].apply(lambda x: f"${x:,.2f}")
+        d_display['reach'] = d_display['reach'].apply(lambda x: f"{int(x):,}")
+        d_display['impressions'] = d_display['impressions'].apply(lambda x: f"{int(x):,}")
+        d_display['clicks'] = d_display['clicks'].apply(lambda x: f"{int(x):,}")
+        d_display['conv_rate'] = d_display['conv_rate'].apply(lambda x: f"{x:.2f}%")
+        d_display['ctr'] = d_display['ctr'].apply(lambda x: f"{x:.2f}%")
         st.dataframe(
-            d_display.sort_values('date', ascending=False),
+            d_display,
             use_container_width=True, hide_index=True,
             column_config={
-                "spend": st.column_config.NumberColumn("Spend", format="$%.2f"),
-                "cost_per_register": st.column_config.NumberColumn("CPR", format="$%.2f"),
-                "cost_per_ftd": st.column_config.NumberColumn("Cost/FTD", format="$%.2f"),
-                "conv_rate": st.column_config.NumberColumn("Conv %", format="%.2f%%"),
-                "reach": st.column_config.NumberColumn("Reach", format="%d"),
-                "impressions": st.column_config.NumberColumn("Impressions", format="%d"),
-                "clicks": st.column_config.NumberColumn("Clicks", format="%d"),
-                "ctr": st.column_config.NumberColumn("CTR", format="%.2f%%"),
-                "cpm": st.column_config.NumberColumn("CPM", format="$%.2f"),
+                "spend": "Spend", "cost_per_register": "CPR",
+                "cost_per_ftd": "Cost/FTD", "conv_rate": "Conv %",
+                "reach": "Reach", "impressions": "Impressions",
+                "clicks": "Clicks", "ctr": "CTR", "cpm": "CPM",
             },
         )
     elif is_excluded:
@@ -427,32 +433,32 @@ with tab6:
 
         # Ad account summary table
         st.subheader("Ad Account Summary")
-        acct_display = acct_summary.rename(columns={
+        acct_display = acct_summary.copy()
+        acct_display['cost'] = acct_display['cost'].apply(lambda x: f"${x:,.2f}")
+        acct_display['impressions'] = acct_display['impressions'].apply(lambda x: f"{int(x):,}")
+        acct_display['clicks'] = acct_display['clicks'].apply(lambda x: f"{int(x):,}")
+        acct_display['ctr'] = acct_display['ctr'].apply(lambda x: f"{x:.2f}%")
+        acct_display = acct_display.rename(columns={
             'ad_account': 'Ad Account', 'cost': 'Cost',
             'impressions': 'Impressions', 'clicks': 'Clicks', 'ctr': 'CTR',
         })
-        st.dataframe(
-            acct_display, use_container_width=True, hide_index=True,
-            column_config={
-                "Cost": st.column_config.NumberColumn(format="$%.2f"),
-                "Impressions": st.column_config.NumberColumn(format="%d"),
-                "Clicks": st.column_config.NumberColumn(format="%d"),
-                "CTR": st.column_config.NumberColumn(format="%.2f%%"),
-            },
-        )
+        st.dataframe(acct_display, use_container_width=True, hide_index=True)
 
         # Per-account daily detail
         st.subheader("Daily Breakdown by Ad Account")
         acct_daily = agent_ad.copy()
         acct_daily['date'] = acct_daily['date'].dt.strftime('%m/%d/%Y')
+        acct_daily_disp = acct_daily[['date', 'ad_account', 'cost', 'impressions', 'clicks', 'ctr']].sort_values(['date', 'ad_account'], ascending=[False, True]).copy()
+        acct_daily_disp['cost'] = acct_daily_disp['cost'].apply(lambda x: f"${x:,.2f}")
+        acct_daily_disp['impressions'] = acct_daily_disp['impressions'].apply(lambda x: f"{int(x):,}")
+        acct_daily_disp['clicks'] = acct_daily_disp['clicks'].apply(lambda x: f"{int(x):,}")
+        acct_daily_disp['ctr'] = acct_daily_disp['ctr'].apply(lambda x: f"{x:.2f}%")
         st.dataframe(
-            acct_daily[['date', 'ad_account', 'cost', 'impressions', 'clicks', 'ctr']].sort_values(['date', 'ad_account'], ascending=[False, True]),
+            acct_daily_disp,
             use_container_width=True, hide_index=True,
             column_config={
-                "cost": st.column_config.NumberColumn("Cost", format="$%.2f"),
-                "impressions": st.column_config.NumberColumn("Impressions", format="%d"),
-                "clicks": st.column_config.NumberColumn("Clicks", format="%d"),
-                "ctr": st.column_config.NumberColumn("CTR", format="%.2f%%"),
+                "cost": "Cost", "impressions": "Impressions",
+                "clicks": "Clicks", "ctr": "CTR",
             },
         )
     elif ptab_agent:
