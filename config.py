@@ -426,64 +426,29 @@ TEAM_CHANNEL_SOURCES = [
 # ============================================================
 # UPDATED ACCOUNTS CONFIGURATION
 # ============================================================
-UPDATED_ACCOUNTS_SHEET = {"name": "UPDATED ACCOUNTS", "gid": 1415492514}
+# Separate spreadsheet with 3 tabs: FB accounts, BM, Pages
+UPDATED_ACCOUNTS_SHEET_ID = "1qleF_WSSq7IIcloTfSrYa-DzHlCOvwJzObeqO0UefLo"
 
-# Group 1: Personal FB Accounts (Columns B-J, index 1-9)
-UPDATED_ACCOUNTS_GROUP1_COLUMNS = {
-    'employee': 1,       # B
-    'fb_name': 2,        # C
-    'phone': 3,          # D
-    'password': 4,       # E
-    'status': 5,         # F
-    'email': 6,          # G
-    'email_password': 7, # H
-    'email_status': 8,   # I
-    'remarks': 9,        # J
+UPDATED_ACCOUNTS_FB_TAB = {"name": "FB accounts", "gid": 0}
+UPDATED_ACCOUNTS_BM_TAB = {"name": "BM", "gid": 732202932}
+UPDATED_ACCOUNTS_PAGES_TAB = {"name": "Pages", "gid": 725463917}
+
+# FB accounts tab columns (A-D)
+UPDATED_ACCOUNTS_FB_COLUMNS = {
+    'employee': 0,    # A - Employee's Name
+    'fb_name': 1,     # B - FB NAME
+    'fb_user': 2,     # C - Facebook User
+    'password': 3,    # D - Password
 }
 
-# Group 2a: Company Account Details (Columns L-V, rows 5-28)
-# Column M (12) is empty/spacer
-UPDATED_ACCOUNTS_COMPANY_COLUMNS = {
-    'employee': 11,       # L
-    'fb_user': 13,        # N
-    'password': 14,       # O
-    'status': 15,         # P
-    'email': 16,          # Q
-    'email_password': 17, # R
-    'email_status': 18,   # S
-    'remarks': 21,        # V
+# BM tab columns (A-B)
+UPDATED_ACCOUNTS_BM_COLUMNS = {
+    'employee': 0,    # A - Employee's Name
+    'bm_name': 1,     # B - BM NAME
 }
 
-# Group 2b: Juanbingo Accounts (same columns, rows 32-45)
-# Uses same column layout as Company
-UPDATED_ACCOUNTS_JUANBINGO_COLUMNS = UPDATED_ACCOUNTS_COMPANY_COLUMNS
-
-# Group 2c: Own Created FB Accounts (rows 48+, extra columns)
-UPDATED_ACCOUNTS_OWN_CREATED_COLUMNS = {
-    'employee': 11,        # L
-    'mobile': 12,          # M
-    'fb_user': 13,         # N
-    'password': 14,        # O
-    'status': 15,          # P
-    'email': 16,           # Q
-    'email_password': 17,  # R
-    'date_created': 18,    # S
-    'page_name': 19,       # T
-    'bm_name': 20,         # U
-    'remarks': 21,         # V
-}
-
-# Group 2 section headers (used to detect sub-section boundaries in col L)
-UPDATED_ACCOUNTS_G2_SECTIONS = {
-    'company': 'COMPANY ACCOUNT DETAILS',
-    'juanbingo': 'Gmail and FB account information',
-    'own_created': 'FB accounts own create started',
-}
-
-# Group 3: BM Record (Columns Y-AD, index 24-29)
-UPDATED_ACCOUNTS_GROUP3_COLUMNS = {
-    'link_owner': 24,       # Y
-    'game_id_code': 25,     # Z
-    'pwa_links': 26,        # AA
-    'fb_page_link': 29,     # AD
+# Pages tab columns (A-B)
+UPDATED_ACCOUNTS_PAGES_COLUMNS = {
+    'employee': 0,    # A - Employee's Name
+    'page_name': 1,   # B - PAGE NAME
 }

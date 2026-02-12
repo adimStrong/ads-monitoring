@@ -1,11 +1,9 @@
 """
-Updated Accounts - Account inventory
-Personal FB, Company, Juanbingo, Own Created accounts
+Updated Accounts - FB Account inventory
 """
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import sys
 import os
 
@@ -24,38 +22,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-STATUS_COLORS = {'Active': '#2ecc71', 'Disabled': '#e74c3c', 'Other': '#f39c12', 'Unknown': '#95a5a6'}
-
-
-def get_status_category(status_val):
-    s = str(status_val).strip().upper()
-    if s in ('ACTIVE', 'ALIVE', 'OK', 'GOOD'):
-        return 'Active'
-    elif s in ('DISABLED', 'BANNED', 'DEAD', 'LOCKED', 'RESTRICTED'):
-        return 'Disabled'
-    elif s == '' or s == 'NAN':
-        return 'Unknown'
-    return 'Other'
-
-
-def count_status(df):
-    if df.empty or 'Status' not in df.columns:
-        return 0, 0, 0
-    cats = df['Status'].apply(get_status_category)
-    return len(df), (cats == 'Active').sum(), (cats == 'Disabled').sum()
-
-
-def render_data_table(df, title, key_prefix):
-    st.markdown(f'<div class="section-header"><h3>{title}</h3></div>', unsafe_allow_html=True)
-    if df.empty:
-        st.info(f"No data available")
-        return
-    search = st.text_input(f"Search", key=f"{key_prefix}_search",
-                           placeholder="Type to search across all columns...")
-    display_df = df[df.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)] if search else df
-    st.dataframe(display_df, use_container_width=True, hide_index=True, height=400)
-    st.caption(f"Showing {len(display_df)} of {len(df)} rows")
-
 
 def main():
     st.title("👤 Updated Accounts")
@@ -63,15 +29,10 @@ def main():
     with st.spinner("Loading data..."):
         data = load_updated_accounts_data()
 
-    personal_fb = data.get('personal_fb', pd.DataFrame())
-    filter_groups = {
-        'company': ('Company', data.get('company', pd.DataFrame())),
-        'juanbingo': ('Juanbingo', data.get('juanbingo', pd.DataFrame())),
-        'own_created': ('Own Created', data.get('own_created', pd.DataFrame())),
-    }
+    fb_df = data.get('fb_accounts', pd.DataFrame())
 
-    if personal_fb.empty and all(df.empty for _, df in filter_groups.values()):
-        st.error("No account data available.")
+    if fb_df.empty:
+        st.error("No FB account data available.")
         return
 
     # Sidebar
@@ -82,94 +43,41 @@ def main():
             st.cache_data.clear()
             st.rerun()
         st.markdown("---")
-        st.subheader("📋 Filter")
-        options = ["All"] + [label for label, df in filter_groups.values() if not df.empty]
-        selected = st.selectbox("Group", options)
+        st.subheader("👤 Employee Filter")
+        employees = sorted(fb_df['Employee'].unique())
+        selected = st.selectbox("Employee", ["All"] + employees)
 
-    # Filter - Personal FB always shows, filter applies to the 3 groups
-    show = {k: selected in ("All", label) for k, (label, _) in filter_groups.items()}
-    # Include personal_fb always
-    groups = {'personal_fb': ('Personal FB', personal_fb)}
-    groups.update(filter_groups)
-    filtered = {'personal_fb': personal_fb}
-    filtered.update({k: df if show[k] else pd.DataFrame() for k, (_, df) in filter_groups.items()})
+    if selected != "All":
+        fb_df = fb_df[fb_df['Employee'] == selected]
 
     # KPI Cards
-    st.markdown('<div class="section-header"><h3>📊 ACCOUNT OVERVIEW</h3></div>', unsafe_allow_html=True)
-    totals = {'total': 0, 'active': 0, 'disabled': 0}
-    group_stats = []
-    for key, (label, _) in groups.items():
-        df = filtered[key]
-        t, a, d = count_status(df)
-        totals['total'] += t
-        totals['active'] += a
-        totals['disabled'] += d
-        if t > 0:
-            group_stats.append((label, t, a))
+    st.markdown('<div class="section-header"><h3>📊 FB ACCOUNTS OVERVIEW</h3></div>', unsafe_allow_html=True)
+    total = len(fb_df)
+    unique_employees = fb_df['Employee'].nunique()
 
-    active_pct = (totals['active'] / totals['total'] * 100) if totals['total'] > 0 else 0
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Accounts", f"{totals['total']:,}")
-    c2.metric("Active", f"{totals['active']:,}")
-    c3.metric("Disabled", f"{totals['disabled']:,}")
-    c4.metric("Active %", f"{active_pct:.1f}%")
+    c1, c2 = st.columns(2)
+    c1.metric("Total FB Accounts", f"{total:,}")
+    c2.metric("Employees", f"{unique_employees:,}")
 
-    if group_stats:
-        cols = st.columns(len(group_stats))
-        for col, (label, total, active) in zip(cols, group_stats):
-            col.metric(label, f"{total:,}", delta=f"{active} active")
-
-    # Status Charts
+    # Accounts per employee bar chart
     st.divider()
-    st.markdown('<div class="section-header"><h3>📈 STATUS BREAKDOWN</h3></div>', unsafe_allow_html=True)
-    active_groups = [(k, l, filtered[k]) for k, (l, _) in groups.items()
-                     if not filtered[k].empty and 'Status' in filtered[k].columns]
+    st.markdown('<div class="section-header"><h3>📈 ACCOUNTS PER EMPLOYEE</h3></div>', unsafe_allow_html=True)
+    emp_counts = fb_df['Employee'].value_counts().reset_index()
+    emp_counts.columns = ['Employee', 'Accounts']
+    fig = px.bar(emp_counts.sort_values('Accounts', ascending=True),
+                 x='Accounts', y='Employee', orientation='h',
+                 title='FB Accounts per Employee', text='Accounts')
+    fig.update_traces(textposition='inside')
+    fig.update_layout(height=400, xaxis_title="Number of Accounts", yaxis_title="")
+    st.plotly_chart(fig, use_container_width=True)
 
-    # Stacked bars (2 per row)
-    for i in range(0, len(active_groups), 2):
-        cols = st.columns(2)
-        for j in range(2):
-            if i + j >= len(active_groups):
-                break
-            key, label, df = active_groups[i + j]
-            df = df.copy()
-            df['Status Category'] = df['Status'].apply(get_status_category)
-            emp = df.groupby(['Employee', 'Status Category']).size().reset_index(name='Count')
-            fig = px.bar(emp, x='Employee', y='Count', color='Status Category',
-                         barmode='stack', title=f'{label} by Employee',
-                         color_discrete_map=STATUS_COLORS)
-            fig.update_layout(height=400, xaxis_title="", yaxis_title="Accounts",
-                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
-            with cols[j]:
-                st.plotly_chart(fig, use_container_width=True)
-
-    # Pie charts (2 per row)
-    for i in range(0, len(active_groups), 2):
-        cols = st.columns(min(2, len(active_groups) - i))
-        for j in range(len(cols)):
-            if i + j >= len(active_groups):
-                break
-            key, label, df = active_groups[i + j]
-            df = df.copy()
-            df['Status Category'] = df['Status'].apply(get_status_category)
-            counts = df['Status Category'].value_counts()
-            fig = go.Figure(data=[go.Pie(
-                labels=counts.index, values=counts.values, hole=0.3,
-                marker_colors=[STATUS_COLORS.get(l, '#95a5a6') for l in counts.index],
-            )])
-            fig.update_layout(title=dict(text=f'{label} Status', x=0.5, xanchor='center'),
-                              height=350, legend=dict(orientation="h", yanchor="bottom", y=-0.2))
-            with cols[j]:
-                st.plotly_chart(fig, use_container_width=True)
-
-    # Data Tables
-    icons = {'personal_fb': '📱', 'company': '🏢', 'juanbingo': '🎰', 'own_created': '🆕'}
-    for key, (label, _) in groups.items():
-        if show[key] and not filtered[key].empty:
-            st.divider()
-            render_data_table(filtered[key], f"{icons[key]} {label} Accounts", key)
-
-    st.caption("Updated Accounts | Data from UPDATED ACCOUNTS tab")
+    # Data table
+    st.divider()
+    st.markdown('<div class="section-header"><h3>📋 FB ACCOUNTS</h3></div>', unsafe_allow_html=True)
+    search = st.text_input("Search", placeholder="Type to search across all columns...")
+    display_df = fb_df[fb_df.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)] if search else fb_df
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
+    st.caption(f"Showing {len(display_df)} of {len(fb_df)} accounts")
 
 
 if __name__ == "__main__":

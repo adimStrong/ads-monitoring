@@ -1,5 +1,5 @@
 """
-Facebook Pages - Page inventory from Own Created accounts
+Facebook Pages - Page inventory
 """
 import streamlit as st
 import pandas as pd
@@ -51,12 +51,9 @@ def main():
 
     # KPIs
     st.markdown('<div class="section-header"><h3>📊 PAGES OVERVIEW</h3></div>', unsafe_allow_html=True)
-    total = len(pages_df)
-    unique_employees = pages_df['Employee'].nunique()
-
     c1, c2 = st.columns(2)
-    c1.metric("Total Pages", f"{total:,}")
-    c2.metric("Employees with Pages", f"{unique_employees:,}")
+    c1.metric("Total Pages", f"{len(pages_df):,}")
+    c2.metric("Employees with Pages", f"{pages_df['Employee'].nunique():,}")
 
     # Pages per employee bar chart
     st.divider()

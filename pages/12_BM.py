@@ -1,5 +1,5 @@
 """
-Business Manager - BM Created + BM Record (PWA Links)
+Business Manager - BM inventory
 """
 import streamlit as st
 import pandas as pd
@@ -28,10 +28,9 @@ def main():
 
     with st.spinner("Loading data..."):
         data = load_updated_accounts_data()
-        bm_created_df = data.get('bm_created', pd.DataFrame())
-        bm_record_df = data.get('bm_record', pd.DataFrame())
+        bm_df = data.get('bm', pd.DataFrame())
 
-    if bm_created_df.empty and bm_record_df.empty:
+    if bm_df.empty:
         st.warning("No BM data available.")
         return
 
@@ -43,57 +42,38 @@ def main():
             st.cache_data.clear()
             st.rerun()
         st.markdown("---")
-        st.subheader("📋 Section")
-        section = st.selectbox("View", ["All", "BM Created", "BM Record"])
+        st.subheader("👤 Employee Filter")
+        employees = sorted(bm_df['Employee'].unique())
+        selected = st.selectbox("Employee", ["All"] + employees)
 
-    show_created = section in ("All", "BM Created")
-    show_record = section in ("All", "BM Record")
+    if selected != "All":
+        bm_df = bm_df[bm_df['Employee'] == selected]
 
     # KPIs
     st.markdown('<div class="section-header"><h3>📊 BM OVERVIEW</h3></div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
-    c1.metric("BM Created", f"{len(bm_created_df):,}")
-    c2.metric("BM Records (PWA)", f"{len(bm_record_df):,}")
+    c1.metric("Total BMs", f"{len(bm_df):,}")
+    c2.metric("Employees with BMs", f"{bm_df['Employee'].nunique():,}")
 
-    # BM Created section
-    if show_created and not bm_created_df.empty:
-        st.divider()
-        st.markdown('<div class="section-header"><h3>🏗️ BM CREATED</h3></div>', unsafe_allow_html=True)
+    # BMs per employee bar chart
+    st.divider()
+    st.markdown('<div class="section-header"><h3>📈 BMs PER EMPLOYEE</h3></div>', unsafe_allow_html=True)
+    emp_counts = bm_df['Employee'].value_counts().reset_index()
+    emp_counts.columns = ['Employee', 'BMs']
+    fig = px.bar(emp_counts.sort_values('BMs', ascending=True),
+                 x='BMs', y='Employee', orientation='h',
+                 title='BMs per Employee', text='BMs')
+    fig.update_traces(textposition='inside')
+    fig.update_layout(height=400, xaxis_title="Number of BMs", yaxis_title="")
+    st.plotly_chart(fig, use_container_width=True)
 
-        # Per employee chart
-        emp_counts = bm_created_df['Employee'].value_counts().reset_index()
-        emp_counts.columns = ['Employee', 'BMs']
-        fig = px.bar(emp_counts.sort_values('BMs', ascending=True),
-                     x='BMs', y='Employee', orientation='h',
-                     title='BMs per Employee', text='BMs')
-        fig.update_traces(textposition='inside')
-        fig.update_layout(height=350, xaxis_title="Number of BMs", yaxis_title="")
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Table
-        search = st.text_input("Search BM Created", key="bm_created_search",
-                               placeholder="Type to search...")
-        display = bm_created_df[bm_created_df.apply(
-            lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1
-        )] if search else bm_created_df
-        st.dataframe(display, use_container_width=True, hide_index=True, height=400)
-        st.caption(f"Showing {len(display)} of {len(bm_created_df)} rows")
-
-    # BM Record section
-    if show_record and not bm_record_df.empty:
-        st.divider()
-        st.markdown('<div class="section-header"><h3>🔗 BM RECORD (PWA Links)</h3></div>', unsafe_allow_html=True)
-
-        # Table
-        search2 = st.text_input("Search BM Record", key="bm_record_search",
-                                placeholder="Type to search...")
-        display2 = bm_record_df[bm_record_df.apply(
-            lambda row: row.astype(str).str.contains(search2, case=False).any(), axis=1
-        )] if search2 else bm_record_df
-        st.dataframe(display2, use_container_width=True, hide_index=True, height=500)
-        st.caption(f"Showing {len(display2)} of {len(bm_record_df)} rows")
-
-    st.caption("Business Manager | Data from UPDATED ACCOUNTS tab")
+    # Data table
+    st.divider()
+    st.markdown('<div class="section-header"><h3>📋 ALL BMs</h3></div>', unsafe_allow_html=True)
+    search = st.text_input("Search", placeholder="Type to search...")
+    display_df = bm_df[bm_df.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)] if search else bm_df
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=500)
+    st.caption(f"Showing {len(display_df)} of {len(bm_df)} BMs")
 
 
 if __name__ == "__main__":
