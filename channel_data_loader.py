@@ -39,6 +39,14 @@ from config import (
     UPDATED_ACCOUNTS_FB_COLUMNS,
     UPDATED_ACCOUNTS_BM_COLUMNS,
     UPDATED_ACCOUNTS_PAGES_COLUMNS,
+    AGENT_PERFORMANCE_TABS,
+    AGENT_PERF_OVERALL_COLUMNS,
+    AGENT_PERF_MONTHLY_DATA_START,
+    AGENT_PERF_MONTHLY_DATA_END,
+    AGENT_PERF_DAILY_LABEL_ROW,
+    AGENT_PERF_DAILY_DATA_START,
+    AGENT_PERF_AD_ACCOUNT_START_COL,
+    AGENT_PERF_AD_ACCOUNT_STRIDE,
 )
 
 
@@ -1000,6 +1008,168 @@ def load_updated_accounts_data():
 def refresh_updated_accounts_data():
     """Clear Updated Accounts data cache."""
     load_updated_accounts_data.clear()
+
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def load_agent_performance_data():
+    """
+    Load Agent Performance data from P-tabs (P6-P13) in Channel ROI sheet.
+
+    Each tab has:
+    - Monthly summary (rows 3-6, cols 0-12)
+    - Daily overall data (rows 10+, cols 0-12)
+    - Ad account data (row 8 has names, rows 10+ cols 14+ with stride 5)
+
+    Returns:
+        dict: {'monthly': DataFrame, 'daily': DataFrame, 'ad_accounts': DataFrame}
+    """
+    empty = {'monthly': pd.DataFrame(), 'daily': pd.DataFrame(), 'ad_accounts': pd.DataFrame()}
+    try:
+        client = get_google_client()
+        if client is None:
+            return empty
+
+        spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
+        cols = AGENT_PERF_OVERALL_COLUMNS
+
+        monthly_records = []
+        daily_records = []
+        ad_account_records = []
+
+        for tab_info in AGENT_PERFORMANCE_TABS:
+            agent = tab_info['agent']
+            try:
+                worksheet = spreadsheet.get_worksheet_by_id(tab_info['gid'])
+                all_data = worksheet.get_all_values()
+            except Exception as e:
+                print(f"[WARNING] Could not load tab {tab_info['name']}: {e}")
+                continue
+
+            if len(all_data) < AGENT_PERF_DAILY_DATA_START + 1:
+                print(f"[WARNING] Tab {tab_info['name']} has insufficient rows")
+                continue
+
+            # --- Parse monthly summary (rows 3-6, 0-indexed) ---
+            for row_idx in range(AGENT_PERF_MONTHLY_DATA_START, min(AGENT_PERF_MONTHLY_DATA_END, len(all_data))):
+                row = all_data[row_idx]
+                if len(row) <= cols['roas']:
+                    continue
+                month_val = str(row[cols['date']]).strip() if len(row) > cols['date'] else ''
+                if not month_val:
+                    continue
+                cost = parse_numeric(row[cols['cost']])
+                register = parse_numeric(row[cols['register']])
+                # Skip empty months
+                if cost == 0 and register == 0:
+                    continue
+                monthly_records.append({
+                    'agent': agent,
+                    'month': month_val,
+                    'channel': str(row[cols['channel']]).strip() if len(row) > cols['channel'] else '',
+                    'cost': cost,
+                    'register': int(register),
+                    'cpr': parse_numeric(row[cols['cpr']]),
+                    'ftd': int(parse_numeric(row[cols['ftd']])),
+                    'cpd': parse_numeric(row[cols['cpd']]),
+                    'conv_rate': parse_numeric(row[cols['conv_rate']]),
+                    'impressions': int(parse_numeric(row[cols['impressions']])),
+                    'clicks': int(parse_numeric(row[cols['clicks']])),
+                    'ctr': parse_numeric(row[cols['ctr']]),
+                    'arppu': parse_numeric(row[cols['arppu']]),
+                    'roas': parse_numeric(row[cols['roas']]),
+                })
+
+            # --- Parse ad account names from label row ---
+            label_row = all_data[AGENT_PERF_DAILY_LABEL_ROW] if len(all_data) > AGENT_PERF_DAILY_LABEL_ROW else []
+            ad_accounts = []
+            col_idx = AGENT_PERF_AD_ACCOUNT_START_COL
+            while col_idx < len(label_row):
+                acct_name = str(label_row[col_idx]).strip()
+                if acct_name and 'AD ACCOUNT 4' not in acct_name.upper():
+                    ad_accounts.append({'name': acct_name, 'col': col_idx})
+                elif not acct_name:
+                    pass  # skip blank
+                col_idx += AGENT_PERF_AD_ACCOUNT_STRIDE
+
+            # --- Parse daily data ---
+            for row_idx in range(AGENT_PERF_DAILY_DATA_START, len(all_data)):
+                row = all_data[row_idx]
+                if len(row) <= cols['roas']:
+                    continue
+
+                date_val = parse_date(str(row[cols['date']]).strip())
+                if not date_val:
+                    continue
+
+                cost = parse_numeric(row[cols['cost']])
+                register = parse_numeric(row[cols['register']])
+                # Skip future rows with no data
+                if cost == 0 and register == 0:
+                    continue
+
+                daily_records.append({
+                    'agent': agent,
+                    'date': date_val,
+                    'channel': str(row[cols['channel']]).strip() if len(row) > cols['channel'] else '',
+                    'cost': cost,
+                    'register': int(register),
+                    'cpr': parse_numeric(row[cols['cpr']]),
+                    'ftd': int(parse_numeric(row[cols['ftd']])),
+                    'cpd': parse_numeric(row[cols['cpd']]),
+                    'conv_rate': parse_numeric(row[cols['conv_rate']]),
+                    'impressions': int(parse_numeric(row[cols['impressions']])),
+                    'clicks': int(parse_numeric(row[cols['clicks']])),
+                    'ctr': parse_numeric(row[cols['ctr']]),
+                    'arppu': parse_numeric(row[cols['arppu']]),
+                    'roas': parse_numeric(row[cols['roas']]),
+                })
+
+                # Parse per-ad-account data for this row
+                for acct in ad_accounts:
+                    ac = acct['col']
+                    if ac + 3 >= len(row):
+                        continue
+                    acct_cost = parse_numeric(row[ac])
+                    acct_impressions = parse_numeric(row[ac + 1])
+                    acct_clicks = parse_numeric(row[ac + 2])
+                    acct_ctr = parse_numeric(row[ac + 3])
+                    if acct_cost == 0 and acct_impressions == 0:
+                        continue
+                    ad_account_records.append({
+                        'agent': agent,
+                        'date': date_val,
+                        'ad_account': acct['name'],
+                        'cost': acct_cost,
+                        'impressions': int(acct_impressions),
+                        'clicks': int(acct_clicks),
+                        'ctr': acct_ctr,
+                    })
+
+            print(f"[OK] Loaded P-tab {tab_info['name']}: {len([r for r in daily_records if r['agent'] == agent])} daily rows, {len(ad_accounts)} ad accounts")
+
+        monthly_df = pd.DataFrame(monthly_records) if monthly_records else pd.DataFrame()
+        daily_df = pd.DataFrame(daily_records) if daily_records else pd.DataFrame()
+        ad_accounts_df = pd.DataFrame(ad_account_records) if ad_account_records else pd.DataFrame()
+
+        if not daily_df.empty:
+            daily_df['date'] = pd.to_datetime(daily_df['date'])
+
+        if not ad_accounts_df.empty:
+            ad_accounts_df['date'] = pd.to_datetime(ad_accounts_df['date'])
+
+        print(f"[OK] Agent Performance totals: {len(monthly_records)} monthly, {len(daily_records)} daily, {len(ad_account_records)} ad-account rows")
+        return {'monthly': monthly_df, 'daily': daily_df, 'ad_accounts': ad_accounts_df}
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load Agent Performance data: {e}")
+        import traceback
+        traceback.print_exc()
+        return empty
+
+
+def refresh_agent_performance_data():
+    """Clear Agent Performance data cache."""
+    load_agent_performance_data.clear()
 
 
 # Test functions

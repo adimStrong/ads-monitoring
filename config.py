@@ -452,3 +452,37 @@ UPDATED_ACCOUNTS_PAGES_COLUMNS = {
     'employee': 0,    # A - Employee's Name
     'page_name': 1,   # B - PAGE NAME
 }
+
+# ============================================================
+# AGENT PERFORMANCE (P-TABS) CONFIGURATION
+# ============================================================
+# Each P-tab has one agent's FB advertising data (monthly + daily + ad accounts)
+AGENT_PERFORMANCE_TABS = [
+    {"name": "P6-Mika", "gid": 1053167165, "agent": "Mika"},
+    {"name": "P7-Adrian", "gid": 1573312887, "agent": "Adrian"},
+    {"name": "P8-Jomar", "gid": 1484269300, "agent": "Jomar"},
+    {"name": "P9-Derr", "gid": 1922385711, "agent": "Derr"},
+    {"name": "P10-Ron", "gid": 39183526, "agent": "Ron"},
+    {"name": "P11-Krissa", "gid": 30378048, "agent": "Krissa"},
+    {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
+    {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
+]
+
+# Overall daily columns (1-indexed within the row)
+AGENT_PERF_OVERALL_COLUMNS = {
+    'channel': 0, 'date': 1, 'cost': 2, 'register': 3, 'cpr': 4,
+    'ftd': 5, 'cpd': 6, 'conv_rate': 7, 'impressions': 8,
+    'clicks': 9, 'ctr': 10, 'arppu': 11, 'roas': 12,
+}
+
+# Monthly summary section
+AGENT_PERF_MONTHLY_HEADERS_ROW = 2   # 0-indexed row with monthly headers
+AGENT_PERF_MONTHLY_DATA_START = 3    # 0-indexed row where monthly data starts
+AGENT_PERF_MONTHLY_DATA_END = 7      # 0-indexed row (exclusive) for monthly data
+
+# Daily section
+AGENT_PERF_DAILY_LABEL_ROW = 7       # 0-indexed: row 8 has ad account names
+AGENT_PERF_DAILY_HEADERS_ROW = 8     # 0-indexed: row 9 has column headers
+AGENT_PERF_DAILY_DATA_START = 9      # 0-indexed: row 10 is first data row
+AGENT_PERF_AD_ACCOUNT_START_COL = 14 # 0-indexed: col 15 (column O)
+AGENT_PERF_AD_ACCOUNT_STRIDE = 5    # Every 5 columns per ad account
