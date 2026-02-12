@@ -993,6 +993,7 @@ def load_updated_accounts_data():
         print(f"[ERROR] Failed to load Updated Accounts data: {e}")
         import traceback
         traceback.print_exc()
+        st.error(f"Failed to load Updated Accounts: {e}")
         return empty
 
 
