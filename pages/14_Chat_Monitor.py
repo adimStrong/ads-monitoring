@@ -61,7 +61,9 @@ def render_message(row):
     name = row.get('first_name') or row.get('username') or 'Unknown'
     username = row.get('username', '')
     date_ph = row.get('date_ph', '')
-    text = row.get('text', '') or ''
+    text = row.get('text', '')
+    if not isinstance(text, str):
+        text = ''
     msg_type = row.get('message_type', 'text')
 
     text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')
@@ -234,6 +236,7 @@ def main():
     with tab3:
         if not messages_df.empty:
             display_df = messages_df[['date_ph', 'first_name', 'username', 'text', 'message_type']].copy()
+            display_df['text'] = display_df['text'].fillna('')
             display_df.columns = ['Date (PH)', 'Name', 'Username', 'Message', 'Type']
             st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
 
