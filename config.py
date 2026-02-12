@@ -243,8 +243,8 @@ FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "KRISSA", "M
 
 # Telegram mentions for alerts (username without @)
 TELEGRAM_MENTIONS = {
-    "JASON": "xxxadsron",
-    "RON": "Adsbasty",
+    "JASON": "Adsbasty",
+    "RON": "xxxadsron",
     "DER": "Derr_Juan365",
     "SHILA": "yakis0va",
     "ADRIAN": "cutie0717",
