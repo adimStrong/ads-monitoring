@@ -1035,6 +1035,7 @@ def load_agent_performance_data():
         monthly_records = []
         daily_records = []
         ad_account_records = []
+        errors = []
 
         for tab_info in AGENT_PERFORMANCE_TABS:
             agent = tab_info['agent']
@@ -1042,7 +1043,9 @@ def load_agent_performance_data():
                 worksheet = spreadsheet.get_worksheet_by_id(tab_info['gid'])
                 all_data = worksheet.get_all_values()
             except Exception as e:
-                print(f"[WARNING] Could not load tab {tab_info['name']}: {e}")
+                msg = f"Could not load tab {tab_info['name']}: {e}"
+                print(f"[WARNING] {msg}")
+                errors.append(msg)
                 continue
 
             if len(all_data) < AGENT_PERF_DAILY_DATA_START + 1:
@@ -1158,12 +1161,14 @@ def load_agent_performance_data():
             ad_accounts_df['date'] = pd.to_datetime(ad_accounts_df['date'])
 
         print(f"[OK] Agent Performance totals: {len(monthly_records)} monthly, {len(daily_records)} daily, {len(ad_account_records)} ad-account rows")
-        return {'monthly': monthly_df, 'daily': daily_df, 'ad_accounts': ad_accounts_df}
+        return {'monthly': monthly_df, 'daily': daily_df, 'ad_accounts': ad_accounts_df, 'errors': errors}
 
     except Exception as e:
-        print(f"[ERROR] Failed to load Agent Performance data: {e}")
+        msg = f"Failed to load Agent Performance data: {e}"
+        print(f"[ERROR] {msg}")
         import traceback
         traceback.print_exc()
+        empty['errors'] = [msg]
         return empty
 
 

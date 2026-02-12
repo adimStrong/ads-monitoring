@@ -1,5 +1,6 @@
 """
-Agent Performance Page - Individual agent detailed view with all 3 sections
+Agent Performance Page - Individual agent detailed view
+Tabs: Overview, Individual Overall (P-tabs), By Campaign (P-tabs), Creative Work, SMS
 """
 import streamlit as st
 import pandas as pd
@@ -9,6 +10,7 @@ from datetime import datetime, timedelta
 import random
 import sys
 import os
+import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import AGENTS, SMS_TYPES, FACEBOOK_ADS_PERSONS
@@ -38,8 +40,25 @@ def get_agent_data(agent_name, sheet_name):
     """Load data for selected agent from Google Sheets"""
     return load_agent_performance_data(agent_name, sheet_name)
 
+# Load P-tab data early (shared across tabs)
+try:
+    ptab_all = load_ptab_data()
+    # Show any per-tab errors from the loader
+    ptab_errors = ptab_all.get('errors', [])
+    if ptab_errors:
+        for err in ptab_errors:
+            st.sidebar.warning(f"P-tab: {err}")
+except Exception as e:
+    st.sidebar.error(f"P-tab load error: {e}")
+    ptab_all = {'monthly': pd.DataFrame(), 'daily': pd.DataFrame(), 'ad_accounts': pd.DataFrame(), 'errors': [str(e)]}
+
 # Sidebar filters
 st.sidebar.header("Filters")
+
+if st.sidebar.button("🔄 Refresh P-tab Data", use_container_width=True):
+    refresh_agent_performance_data()
+    st.cache_data.clear()
+    st.rerun()
 
 # Agent selector - use all Facebook Ads persons
 selected_agent = st.sidebar.selectbox(
@@ -58,63 +77,44 @@ use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True, key="a
 running_ads_df = None
 creative_df = None
 sms_df = None
-fb_ads_df = None
 
 if use_real_data and agent_config:
     with st.spinner(f"Loading data for {selected_agent}..."):
-        # Load legacy performance data (for creative and SMS)
         running_ads_df, creative_df, sms_df = get_agent_data(
             selected_agent,
             agent_config['sheet_performance']
         )
 
-        # Load Facebook Ads data for this agent
-        all_fb_ads = load_facebook_ads_data()
-        if all_fb_ads is not None and not all_fb_ads.empty:
-            fb_ads_df = all_fb_ads[all_fb_ads['person_name'] == selected_agent].copy()
-            if not fb_ads_df.empty:
-                st.sidebar.success(f"Loaded {len(fb_ads_df)} Facebook Ads records")
-
-    if (running_ads_df is None or running_ads_df.empty) and (fb_ads_df is None or fb_ads_df.empty):
-        st.warning(f"Could not load data for {selected_agent}. Using sample data.")
+    if running_ads_df is None or running_ads_df.empty:
         use_real_data = False
 
-# Date range - constrained to available data (prefer Facebook Ads data)
-if fb_ads_df is not None and not fb_ads_df.empty:
-    min_date, max_date = get_date_range(fb_ads_df)
+# P-tab data for this agent
+ptab_agent = PTAB_AGENT_MAP.get(selected_agent)
+ptab_daily = ptab_all.get('daily', pd.DataFrame())
+ptab_monthly = ptab_all.get('monthly', pd.DataFrame())
+ptab_ad = ptab_all.get('ad_accounts', pd.DataFrame())
+
+has_ptab = ptab_agent and not ptab_daily.empty and ptab_agent in ptab_daily['agent'].values
+
+# Date range from P-tab data or legacy
+if has_ptab:
+    agent_ptab_daily = ptab_daily[ptab_daily['agent'] == ptab_agent]
+    min_date = agent_ptab_daily['date'].min().date()
+    max_date = agent_ptab_daily['date'].max().date()
 elif running_ads_df is not None and not running_ads_df.empty:
-    min_date, max_date = get_date_range(running_ads_df)
+    _min, _max = get_date_range(running_ads_df)
+    min_date = _min.date() if hasattr(_min, 'date') else _min
+    max_date = _max.date() if hasattr(_max, 'date') else _max
 else:
     min_date, max_date = None, None
 
-# Convert to date objects
-if hasattr(min_date, 'date'):
-    min_date = min_date.date()
-if hasattr(max_date, 'date'):
-    max_date = max_date.date()
-
-has_data = min_date is not None and max_date is not None and (
-    (fb_ads_df is not None and not fb_ads_df.empty) or
-    (running_ads_df is not None and not running_ads_df.empty)
-)
-
-if has_data:
+if min_date and max_date:
     col1, col2 = st.sidebar.columns(2)
     with col1:
         default_start = max(min_date, max_date - timedelta(days=7))
-        start_date = st.date_input(
-            "From",
-            value=default_start,
-            min_value=min_date,
-            max_value=max_date
-        )
+        start_date = st.date_input("From", value=default_start, min_value=min_date, max_value=max_date)
     with col2:
-        end_date = st.date_input(
-            "To",
-            value=max_date,
-            min_value=min_date,
-            max_value=max_date
-        )
+        end_date = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date)
     st.sidebar.caption(f"Data: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
 else:
     col1, col2 = st.sidebar.columns(2)
@@ -123,11 +123,18 @@ else:
     with col2:
         end_date = st.date_input("To", datetime.now())
 
+# P-tab sidebar info
+if has_ptab:
+    n_daily = len(ptab_daily[ptab_daily['agent'] == ptab_agent])
+    n_accts = ptab_ad[ptab_ad['agent'] == ptab_agent]['ad_account'].nunique() if not ptab_ad.empty and ptab_agent in ptab_ad['agent'].values else 0
+    st.sidebar.success(f"P-tab: {n_daily} days, {n_accts} ad accounts")
+elif ptab_daily.empty:
+    st.sidebar.warning(f"P-tab: no data loaded ({len(ptab_all.get('daily', []))} rows)")
+
+# Fallback sample data for creative/SMS
 if not use_real_data or running_ads_df is None or running_ads_df.empty:
-    # Fall back to sample data
     random.seed(hash(selected_agent + "ads"))
     dates = pd.date_range(start=start_date, end=end_date, freq='D')
-
     running_ads_data = []
     for date in dates:
         running_ads_data.append({
@@ -165,8 +172,6 @@ if not use_real_data or running_ads_df is None or running_ads_df.empty:
                 'sms_total': random.randint(50, 300),
             })
     sms_df = pd.DataFrame(sms_data)
-else:
-    st.sidebar.success(f"Loaded {len(running_ads_df)} records")
 
 # ============================================================
 # AGENT HEADER
@@ -183,8 +188,8 @@ st.markdown(f"""
 # SECTION TABS
 # ============================================================
 
-tab1, tab2, tab5, tab6, tab3, tab4 = st.tabs([
-    "📊 Overview", "💰 Facebook Ads",
+tab1, tab5, tab6, tab3, tab4 = st.tabs([
+    "📊 Overview",
     "📈 Individual Overall", "🎯 By Campaign",
     "🎨 Creative Work", "📱 SMS",
 ])
@@ -194,7 +199,6 @@ tab1, tab2, tab5, tab6, tab3, tab4 = st.tabs([
 # ============================================================
 
 with tab1:
-    # Quick summary of all sections
     st.subheader("Quick Summary")
 
     col1, col2, col3 = st.columns(3)
@@ -202,18 +206,16 @@ with tab1:
     with col1:
         st.markdown("""
         <div style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); padding: 1.5rem; border-radius: 12px; color: white;">
-            <h4 style="margin: 0; opacity: 0.9;">FACEBOOK ADS</h4>
+            <h4 style="margin: 0; opacity: 0.9;">CHANNEL ROI</h4>
         </div>
         """, unsafe_allow_html=True)
-        if fb_ads_df is not None and not fb_ads_df.empty:
-            total_spend = fb_ads_df['spend'].sum()
-            total_reg = int(fb_ads_df['register'].sum())
-            total_ftd = int(fb_ads_df['result_ftd'].sum())
-            st.metric("Total Spend", f"${total_spend:,.2f}")
-            st.metric("Register", f"{total_reg:,}")
-            st.metric("FTD", f"{total_ftd:,}")
+        if has_ptab:
+            a_daily = ptab_daily[ptab_daily['agent'] == ptab_agent]
+            st.metric("Total Cost", f"${a_daily['cost'].sum():,.2f}")
+            st.metric("Register", f"{int(a_daily['register'].sum()):,}")
+            st.metric("FTD", f"{int(a_daily['ftd'].sum()):,}")
         else:
-            st.metric("Total Spend", "$0")
+            st.metric("Total Cost", "$0")
             st.metric("Register", "0")
             st.metric("FTD", "0")
 
@@ -233,7 +235,6 @@ with tab1:
             <h4 style="margin: 0; opacity: 0.9;">SMS</h4>
         </div>
         """, unsafe_allow_html=True)
-        # Group by date first to avoid double-counting (sms_total is daily total)
         if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
             sms_daily_totals = sms_df.groupby(sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date'])['sms_total'].first()
             total_sms = int(sms_daily_totals.sum())
@@ -247,358 +248,27 @@ with tab1:
 
     st.divider()
 
-    # Combined daily trend
+    # Daily trend from P-tab data
     st.subheader("📈 Daily Activity Trend")
 
-    # Aggregate daily data from Facebook Ads
-    if fb_ads_df is not None and not fb_ads_df.empty:
-        fb_ads_df['date_only'] = pd.to_datetime(fb_ads_df['date']).dt.date
-        daily_spend = fb_ads_df.groupby('date_only')['spend'].sum().reset_index()
-        daily_spend.columns = ['date', 'spend']
-    else:
-        daily_spend = pd.DataFrame({'date': [], 'spend': []})
-
-    daily_creative = creative_df.groupby('date').size().reset_index(name='creative_count') if not creative_df.empty else pd.DataFrame({'date': [], 'creative_count': []})
-    # Take first per date to avoid double-counting (sms_total is daily total)
-    daily_sms = sms_df.groupby('date')['sms_total'].first().reset_index() if not sms_df.empty and 'sms_total' in sms_df.columns else pd.DataFrame({'date': [], 'sms_total': []})
-
     fig = go.Figure()
-
-    if not daily_spend.empty:
-        fig.add_trace(go.Scatter(
-            x=daily_spend['date'],
-            y=daily_spend['spend'],
-            name='Ad Spend ($)',
-            line=dict(color='#3498db', width=3),
-            mode='lines+markers'
-        ))
-
-    fig.add_trace(go.Scatter(
-        x=daily_creative['date'],
-        y=daily_creative['creative_count'],
-        name='Creatives',
-        line=dict(color='#9b59b6', width=3),
-        mode='lines+markers'
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=daily_sms['date'],
-        y=daily_sms['sms_total'] / 50,  # Scale down for visibility
-        name='SMS (÷50)',
-        line=dict(color='#27ae60', width=3),
-        mode='lines+markers'
-    ))
-
-    fig.update_layout(
-        height=350,
-        legend=dict(orientation='h', yanchor='bottom', y=1.02),
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-# ============================================================
-# TAB 2: RUNNING ADS
-# ============================================================
-
-with tab2:
-    st.subheader("📢 Facebook Ads Performance")
-
-    if fb_ads_df is not None and not fb_ads_df.empty:
-        # Key metrics from Facebook Ads
-        total_spend = fb_ads_df['spend'].sum()
-        total_impressions = int(fb_ads_df['impressions'].sum())
-        total_clicks = int(fb_ads_df['clicks'].sum())
-        total_register = int(fb_ads_df['register'].sum())
-        total_ftd = int(fb_ads_df['result_ftd'].sum())
-        avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-        avg_cpc = (total_spend / total_clicks) if total_clicks > 0 else 0
-        avg_cpm = (total_spend / total_impressions * 1000) if total_impressions > 0 else 0
-
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-
-        with col1:
-            st.metric("💵 Spend", f"${total_spend:,.2f}")
-        with col2:
-            st.metric("👁️ Impressions", f"{total_impressions:,}")
-        with col3:
-            st.metric("👆 Clicks", f"{total_clicks:,}")
-        with col4:
-            st.metric("📊 CTR", f"{avg_ctr:.2f}%")
-        with col5:
-            st.metric("📝 Register", f"{total_register:,}")
-        with col6:
-            st.metric("💰 FTD", f"{total_ftd:,}")
-
-        st.divider()
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.subheader("📈 Performance Trend")
-            fb_ads_df['date_only'] = pd.to_datetime(fb_ads_df['date']).dt.date
-            daily_fb = fb_ads_df.groupby('date_only').agg({
-                'spend': 'sum',
-                'impressions': 'sum',
-                'clicks': 'sum'
-            }).reset_index()
-
-            fig = go.Figure()
-
-            fig.add_trace(go.Scatter(
-                x=daily_fb['date_only'],
-                y=daily_fb['impressions'],
-                name='Impressions',
-                fill='tozeroy',
-                line=dict(color='#3498db', width=2)
-            ))
-
-            fig.add_trace(go.Scatter(
-                x=daily_fb['date_only'],
-                y=daily_fb['clicks'],
-                name='Clicks',
-                fill='tozeroy',
-                line=dict(color='#e74c3c', width=2),
-                yaxis='y2'
-            ))
-
-            fig.update_layout(
-                height=350,
-                yaxis=dict(title='Impressions', side='left'),
-                yaxis2=dict(title='Clicks', side='right', overlaying='y'),
-                legend=dict(orientation='h', yanchor='bottom', y=1.02),
-                margin=dict(l=20, r=20, t=40, b=20)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            st.subheader("📊 Spend vs Register/FTD")
-            daily_reg = fb_ads_df.groupby('date_only').agg({
-                'spend': 'sum',
-                'register': 'sum',
-                'result_ftd': 'sum'
-            }).reset_index()
-
-            fig = go.Figure()
-            fig.add_trace(go.Bar(x=daily_reg['date_only'], y=daily_reg['register'], name='Register', marker_color='#3498db'))
-            fig.add_trace(go.Bar(x=daily_reg['date_only'], y=daily_reg['result_ftd'], name='FTD', marker_color='#27ae60'))
-            fig.update_layout(height=350, barmode='group', margin=dict(l=20, r=20, t=20, b=20))
-            st.plotly_chart(fig, use_container_width=True)
-
-        # Cost metrics
-        st.subheader("💰 Cost Metrics")
-        col1, col2, col3, col4, col5 = st.columns(5)
-        with col1:
-            st.metric("CPC", f"${avg_cpc:.2f}")
-        with col2:
-            st.metric("CPM", f"${avg_cpm:.2f}")
-        with col3:
-            cpr = (total_spend / total_register) if total_register > 0 else 0
-            st.metric("Cost/Register", f"${cpr:.2f}")
-        with col4:
-            cpftd = (total_spend / total_ftd) if total_ftd > 0 else 0
-            st.metric("Cost/FTD", f"${cpftd:.2f}")
-        with col5:
-            conv_rate = (total_ftd / total_register * 100) if total_register > 0 else 0
-            st.metric("Conv Rate", f"{conv_rate:.1f}%")
-
-        # Data table
-        st.subheader("📋 Facebook Ads Data")
-        # Select columns that exist in the dataframe
-        display_cols = ['date', 'spend', 'impressions', 'clicks', 'register', 'result_ftd', 'ctr', 'cpc', 'cpm']
-        available_cols = [col for col in display_cols if col in fb_ads_df.columns]
-        display_fb = fb_ads_df[available_cols].copy()
-        display_fb['date'] = pd.to_datetime(display_fb['date']).dt.strftime('%Y-%m-%d')
-        # Add conversion rate column
-        display_fb['conv_rate'] = (display_fb['result_ftd'] / display_fb['register'] * 100).round(1)
-        display_fb['conv_rate'] = display_fb['conv_rate'].fillna(0).replace([float('inf')], 0)
-        # Rename for display
-        display_fb = display_fb.rename(columns={'conv_rate': 'Conv %'})
-        st.dataframe(display_fb, use_container_width=True, hide_index=True)
-    else:
-        st.info(f"No Facebook Ads data available for {selected_agent}.")
-
-# ============================================================
-# TAB 3: CREATIVE WORK
-# ============================================================
-
-with tab3:
-    st.subheader("🎨 WITHOUT (Creative Work)")
-
-    # Key metrics
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("📁 Total Creatives", f"{len(creative_df):,}")
-    with col2:
-        st.metric("🎬 Unique Types", f"{creative_df['creative_type'].nunique() if not creative_df.empty and 'creative_type' in creative_df.columns else 0}")
-    with col3:
-        st.metric("📂 Folders Used", f"{creative_df['creative_folder'].nunique() if not creative_df.empty and 'creative_folder' in creative_df.columns else 0}")
-    with col4:
-        unique_content = creative_df['creative_content'].nunique() if not creative_df.empty and 'creative_content' in creative_df.columns else 0
-        freshness = (unique_content / len(creative_df) * 100) if len(creative_df) > 0 else 0
-        st.metric("✨ Freshness", f"{freshness:.1f}%")
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("🎬 Creative Type Distribution")
-        if not creative_df.empty and 'creative_type' in creative_df.columns:
-            type_counts = creative_df['creative_type'].value_counts().reset_index()
-            type_counts.columns = ['type', 'count']
-
-            fig = px.pie(
-                type_counts,
-                values='count',
-                names='type',
-                hole=0.4,
-                color_discrete_sequence=px.colors.qualitative.Set2
-            )
-            fig.update_layout(height=350)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No creative data available")
-
-    with col2:
-        st.subheader("📂 Content by Folder")
-        if not creative_df.empty and 'creative_folder' in creative_df.columns:
-            folder_counts = creative_df['creative_folder'].value_counts().reset_index()
-            folder_counts.columns = ['folder', 'count']
-
-            fig = px.bar(
-                folder_counts,
-                x='folder',
-                y='count',
-                color='count',
-                color_continuous_scale='Purples'
-            )
-            fig.update_layout(height=350, showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No creative data available")
-
-    # Daily creative output
-    st.subheader("📅 Daily Creative Output")
-    if not creative_df.empty and 'creative_type' in creative_df.columns:
-        daily_creative = creative_df.groupby(['date', 'creative_type']).size().reset_index(name='count')
-
-        fig = px.bar(
-            daily_creative,
-            x='date',
-            y='count',
-            color='creative_type',
-            barmode='stack'
+    if has_ptab:
+        a_daily = ptab_daily[ptab_daily['agent'] == ptab_agent].sort_values('date')
+        fig.add_trace(go.Scatter(x=a_daily['date'], y=a_daily['cost'], name='Cost ($)', line=dict(color='#3498db', width=3), mode='lines+markers'))
+        fig.add_trace(go.Scatter(x=a_daily['date'], y=a_daily['ftd'], name='FTD', line=dict(color='#27ae60', width=3), mode='lines+markers', yaxis='y2'))
+        fig.update_layout(
+            height=350,
+            yaxis=dict(title='Cost ($)', side='left'),
+            yaxis2=dict(title='FTD', side='right', overlaying='y'),
+            legend=dict(orientation='h', yanchor='bottom', y=1.02),
+            margin=dict(l=20, r=20, t=40, b=20),
         )
-        fig.update_layout(height=300)
-        st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No daily creative data available")
+        daily_creative_chart = creative_df.groupby('date').size().reset_index(name='creative_count') if not creative_df.empty else pd.DataFrame({'date': [], 'creative_count': []})
+        fig.add_trace(go.Scatter(x=daily_creative_chart['date'], y=daily_creative_chart['creative_count'], name='Creatives', line=dict(color='#9b59b6', width=3), mode='lines+markers'))
+        fig.update_layout(height=350, legend=dict(orientation='h', yanchor='bottom', y=1.02), margin=dict(l=20, r=20, t=40, b=20))
 
-    # Data table
-    st.subheader("📋 Creative Work Data")
-    if not creative_df.empty:
-        display_creative = creative_df.copy()
-        display_creative['date'] = display_creative['date'].dt.strftime('%Y-%m-%d')
-        st.dataframe(display_creative, use_container_width=True, hide_index=True)
-    else:
-        st.info("No creative work data available")
-
-# ============================================================
-# TAB 4: SMS
-# ============================================================
-
-with tab4:
-    st.subheader("📱 SMS Performance")
-
-    # Key metrics - group by date first to avoid double-counting (sms_total is daily total)
-    if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
-        sms_daily = sms_df.groupby(sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date'])['sms_total'].first()
-        total_sms_tab4 = int(sms_daily.sum())
-        avg_daily_tab4 = sms_daily.mean()
-    else:
-        total_sms_tab4 = 0
-        avg_daily_tab4 = 0
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric("📨 Total SMS Sent", f"{total_sms_tab4:,}")
-    with col2:
-        st.metric("📋 SMS Types", f"{sms_df['sms_type'].nunique()}" if not sms_df.empty and 'sms_type' in sms_df.columns else "0")
-    with col3:
-        st.metric("📅 Days Active", f"{sms_df['date'].nunique()}" if not sms_df.empty and 'date' in sms_df.columns else "0")
-    with col4:
-        st.metric("📊 Avg Daily", f"{avg_daily_tab4:.0f}")
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("📊 SMS by Type")
-        if not sms_df.empty and 'sms_type' in sms_df.columns and 'sms_total' in sms_df.columns:
-            # Group by type and date first, take first per date, then sum per type
-            if 'date' in sms_df.columns:
-                type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
-                sms_by_type = type_date_df.groupby('sms_type')['sms_total'].sum().reset_index()
-            else:
-                sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
-            sms_by_type = sms_by_type.sort_values('sms_total', ascending=True)
-
-            fig = px.bar(
-                sms_by_type,
-                x='sms_total',
-                y='sms_type',
-                orientation='h',
-                color='sms_total',
-                color_continuous_scale='Greens'
-            )
-            fig.update_layout(height=400, showlegend=False, yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No SMS data available")
-
-    with col2:
-        st.subheader("📈 Daily SMS Volume")
-        if not sms_df.empty and 'sms_total' in sms_df.columns:
-            # Take first per date to avoid double-counting (sms_total is daily total)
-            daily_sms = sms_df.groupby('date')['sms_total'].first().reset_index()
-
-            fig = px.area(
-                daily_sms,
-                x='date',
-                y='sms_total',
-                color_discrete_sequence=['#27ae60']
-            )
-            fig.update_layout(height=400)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No SMS data available")
-
-    # Top SMS types table
-    st.subheader("🏆 Top SMS Types")
-    if not sms_df.empty and 'sms_type' in sms_df.columns:
-        # Group by type and date first, take first per date, then aggregate per type
-        if 'date' in sms_df.columns:
-            type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
-            top_sms = type_date_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
-        else:
-            top_sms = sms_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
-        top_sms.columns = ['SMS Type', 'Total Sent', 'Days Used', 'Avg per Day']
-        top_sms = top_sms.sort_values('Total Sent', ascending=False)
-        st.dataframe(top_sms, use_container_width=True, hide_index=True)
-    else:
-        st.info("No SMS types data available")
-
-    # Data table
-    st.subheader("📋 SMS Data")
-    if not sms_df.empty:
-        display_sms = sms_df.copy()
-        display_sms['date'] = display_sms['date'].dt.strftime('%Y-%m-%d')
-        st.dataframe(display_sms, use_container_width=True, hide_index=True)
-    else:
-        st.info("No SMS data available")
+    st.plotly_chart(fig, use_container_width=True)
 
 # ============================================================
 # TAB 5: INDIVIDUAL OVERALL (P-tab data)
@@ -607,16 +277,11 @@ with tab4:
 with tab5:
     st.subheader("📈 Individual Overall (Channel ROI)")
 
-    ptab_agent = PTAB_AGENT_MAP.get(selected_agent)
-    ptab_data = load_ptab_data()
-    ptab_daily = ptab_data.get('daily', pd.DataFrame())
-    ptab_monthly = ptab_data.get('monthly', pd.DataFrame())
-
-    if ptab_agent and not ptab_daily.empty and ptab_agent in ptab_daily['agent'].values:
+    if has_ptab:
         agent_daily = ptab_daily[ptab_daily['agent'] == ptab_agent].copy()
         agent_monthly = ptab_monthly[ptab_monthly['agent'] == ptab_agent] if not ptab_monthly.empty else pd.DataFrame()
 
-        # KPI cards - totals for this agent
+        # KPI cards
         total_cost = agent_daily['cost'].sum()
         total_reg = int(agent_daily['register'].sum())
         total_ftd = int(agent_daily['ftd'].sum())
@@ -634,7 +299,7 @@ with tab5:
 
         st.divider()
 
-        # Monthly summary (if available)
+        # Monthly summary
         if not agent_monthly.empty:
             st.subheader("Monthly Summary")
             m_display = agent_monthly[['month', 'cost', 'register', 'cpr', 'ftd', 'cpd', 'conv_rate', 'impressions', 'clicks', 'ctr', 'roas']].copy()
@@ -665,7 +330,7 @@ with tab5:
             fig.update_layout(height=300, title='Register vs FTD', xaxis_tickformat='%m/%d', barmode='group', margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig, use_container_width=True)
 
-        # Daily data table (report format)
+        # Daily data table
         st.subheader("Daily Data")
         d_display = agent_daily[['date', 'cost', 'register', 'cpr', 'ftd', 'cpd', 'conv_rate', 'impressions', 'clicks', 'ctr', 'arppu', 'roas']].copy()
         d_display['date'] = d_display['date'].dt.strftime('%m/%d/%Y')
@@ -683,7 +348,9 @@ with tab5:
             },
         )
     elif ptab_agent:
-        st.info(f"No Channel ROI data available for {selected_agent} ({ptab_agent}).")
+        st.warning(f"No Channel ROI data available for {selected_agent} ({ptab_agent}).")
+        if ptab_daily.empty:
+            st.error(f"P-tab loader returned 0 daily rows. Check credentials and sheet access.")
     else:
         st.info(f"{selected_agent} does not have a P-tab in Channel ROI.")
 
@@ -694,12 +361,10 @@ with tab5:
 with tab6:
     st.subheader("🎯 By Campaign (Ad Accounts)")
 
-    ptab_agent_c = PTAB_AGENT_MAP.get(selected_agent)
-    ptab_data_c = load_ptab_data()
-    ptab_ad = ptab_data_c.get('ad_accounts', pd.DataFrame())
+    has_ad = ptab_agent and not ptab_ad.empty and ptab_agent in ptab_ad['agent'].values
 
-    if ptab_agent_c and not ptab_ad.empty and ptab_agent_c in ptab_ad['agent'].values:
-        agent_ad = ptab_ad[ptab_ad['agent'] == ptab_agent_c].copy()
+    if has_ad:
+        agent_ad = ptab_ad[ptab_ad['agent'] == ptab_agent].copy()
 
         # Aggregate by ad account
         acct_summary = agent_ad.groupby('ad_account').agg({
@@ -709,7 +374,7 @@ with tab6:
             lambda x: (x['clicks'] / x['impressions'] * 100) if x['impressions'] > 0 else 0, axis=1)
         acct_summary = acct_summary.sort_values('cost', ascending=False)
 
-        # KPI - total across all ad accounts
+        # KPI
         total_cost = acct_summary['cost'].sum()
         total_impr = int(acct_summary['impressions'].sum())
         total_clicks = int(acct_summary['clicks'].sum())
@@ -723,7 +388,7 @@ with tab6:
 
         st.divider()
 
-        # Cost by ad account - horizontal bar
+        # Cost by ad account
         fig = px.bar(
             acct_summary.sort_values('cost', ascending=True),
             y='ad_account', x='cost', orientation='h',
@@ -764,10 +429,137 @@ with tab6:
                 "ctr": st.column_config.NumberColumn("CTR", format="%.2f%%"),
             },
         )
-    elif ptab_agent_c:
-        st.info(f"No ad account data available for {selected_agent} ({ptab_agent_c}).")
+    elif ptab_agent:
+        st.warning(f"No ad account data available for {selected_agent} ({ptab_agent}).")
     else:
         st.info(f"{selected_agent} does not have a P-tab in Channel ROI.")
+
+# ============================================================
+# TAB 3: CREATIVE WORK
+# ============================================================
+
+with tab3:
+    st.subheader("🎨 WITHOUT (Creative Work)")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📁 Total Creatives", f"{len(creative_df):,}")
+    with col2:
+        st.metric("🎬 Unique Types", f"{creative_df['creative_type'].nunique() if not creative_df.empty and 'creative_type' in creative_df.columns else 0}")
+    with col3:
+        st.metric("📂 Folders Used", f"{creative_df['creative_folder'].nunique() if not creative_df.empty and 'creative_folder' in creative_df.columns else 0}")
+    with col4:
+        unique_content = creative_df['creative_content'].nunique() if not creative_df.empty and 'creative_content' in creative_df.columns else 0
+        freshness = (unique_content / len(creative_df) * 100) if len(creative_df) > 0 else 0
+        st.metric("✨ Freshness", f"{freshness:.1f}%")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("🎬 Creative Type Distribution")
+        if not creative_df.empty and 'creative_type' in creative_df.columns:
+            type_counts = creative_df['creative_type'].value_counts().reset_index()
+            type_counts.columns = ['type', 'count']
+            fig = px.pie(type_counts, values='count', names='type', hole=0.4, color_discrete_sequence=px.colors.qualitative.Set2)
+            fig.update_layout(height=350)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No creative data available")
+
+    with col2:
+        st.subheader("📂 Content by Folder")
+        if not creative_df.empty and 'creative_folder' in creative_df.columns:
+            folder_counts = creative_df['creative_folder'].value_counts().reset_index()
+            folder_counts.columns = ['folder', 'count']
+            fig = px.bar(folder_counts, x='folder', y='count', color='count', color_continuous_scale='Purples')
+            fig.update_layout(height=350, showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No creative data available")
+
+    st.subheader("📅 Daily Creative Output")
+    if not creative_df.empty and 'creative_type' in creative_df.columns:
+        daily_creative = creative_df.groupby(['date', 'creative_type']).size().reset_index(name='count')
+        fig = px.bar(daily_creative, x='date', y='count', color='creative_type', barmode='stack')
+        fig.update_layout(height=300)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No daily creative data available")
+
+    st.subheader("📋 Creative Work Data")
+    if not creative_df.empty:
+        display_creative = creative_df.copy()
+        display_creative['date'] = display_creative['date'].dt.strftime('%Y-%m-%d')
+        st.dataframe(display_creative, use_container_width=True, hide_index=True)
+    else:
+        st.info("No creative work data available")
+
+# ============================================================
+# TAB 4: SMS
+# ============================================================
+
+with tab4:
+    st.subheader("📱 SMS Performance")
+
+    if not sms_df.empty and 'sms_total' in sms_df.columns and 'date' in sms_df.columns:
+        sms_daily = sms_df.groupby(sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date'])['sms_total'].first()
+        total_sms_tab4 = int(sms_daily.sum())
+        avg_daily_tab4 = sms_daily.mean()
+    else:
+        total_sms_tab4 = 0
+        avg_daily_tab4 = 0
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📨 Total SMS Sent", f"{total_sms_tab4:,}")
+    with col2:
+        st.metric("📋 SMS Types", f"{sms_df['sms_type'].nunique()}" if not sms_df.empty and 'sms_type' in sms_df.columns else "0")
+    with col3:
+        st.metric("📅 Days Active", f"{sms_df['date'].nunique()}" if not sms_df.empty and 'date' in sms_df.columns else "0")
+    with col4:
+        st.metric("📊 Avg Daily", f"{avg_daily_tab4:.0f}")
+
+    st.divider()
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📊 SMS by Type")
+        if not sms_df.empty and 'sms_type' in sms_df.columns and 'sms_total' in sms_df.columns:
+            if 'date' in sms_df.columns:
+                type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
+                sms_by_type = type_date_df.groupby('sms_type')['sms_total'].sum().reset_index()
+            else:
+                sms_by_type = sms_df.groupby('sms_type')['sms_total'].sum().reset_index()
+            sms_by_type = sms_by_type.sort_values('sms_total', ascending=True)
+            fig = px.bar(sms_by_type, x='sms_total', y='sms_type', orientation='h', color='sms_total', color_continuous_scale='Greens')
+            fig.update_layout(height=400, showlegend=False, yaxis={'categoryorder': 'total ascending'})
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No SMS data available")
+
+    with col2:
+        st.subheader("📈 Daily SMS Volume")
+        if not sms_df.empty and 'sms_total' in sms_df.columns:
+            daily_sms = sms_df.groupby('date')['sms_total'].first().reset_index()
+            fig = px.area(daily_sms, x='date', y='sms_total', color_discrete_sequence=['#27ae60'])
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No SMS data available")
+
+    st.subheader("🏆 Top SMS Types")
+    if not sms_df.empty and 'sms_type' in sms_df.columns:
+        if 'date' in sms_df.columns:
+            type_date_df = sms_df.groupby(['sms_type', sms_df['date'].dt.date if hasattr(sms_df['date'], 'dt') else sms_df['date']])['sms_total'].first().reset_index()
+            top_sms = type_date_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
+        else:
+            top_sms = sms_df.groupby('sms_type')['sms_total'].agg(['sum', 'count', 'mean']).reset_index()
+        top_sms.columns = ['SMS Type', 'Total Sent', 'Days Used', 'Avg per Day']
+        top_sms = top_sms.sort_values('Total Sent', ascending=False)
+        st.dataframe(top_sms, use_container_width=True, hide_index=True)
+    else:
+        st.info("No SMS types data available")
 
 # ============================================================
 # DOWNLOAD SECTION
@@ -776,18 +568,9 @@ with tab6:
 st.divider()
 st.subheader("📥 Export Data")
 
-col1, col2, col3 = st.columns(3)
+col1, col2 = st.columns(2)
 
 with col1:
-    csv_ads = running_ads_df.to_csv(index=False)
-    st.download_button(
-        label="📥 Download Running Ads",
-        data=csv_ads,
-        file_name=f"{selected_agent}_running_ads_{start_date}_{end_date}.csv",
-        mime="text/csv"
-    )
-
-with col2:
     csv_creative = creative_df.to_csv(index=False)
     st.download_button(
         label="📥 Download Creative Work",
@@ -796,7 +579,7 @@ with col2:
         mime="text/csv"
     )
 
-with col3:
+with col2:
     csv_sms = sms_df.to_csv(index=False)
     st.download_button(
         label="📥 Download SMS Data",
