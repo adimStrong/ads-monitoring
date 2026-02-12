@@ -1,6 +1,6 @@
 """
 Reporting Accuracy - Track agent report submissions via Telegram chat
-Scores agents based on how quickly they send reports each hour.
+Fetches data from Railway Chat Listener API.
 
 Rubric:
   4: < 15 minutes
@@ -12,7 +12,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import sqlite3
+import requests
 import os
 import sys
 from datetime import datetime, timedelta, timezone
@@ -20,7 +20,6 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import (
-    CHAT_LISTENER_DB,
     TELEGRAM_MENTIONS,
     REPORTING_ACCURACY_SCORING,
     REPORT_KEYWORDS,
@@ -29,17 +28,27 @@ from config import (
 
 st.set_page_config(page_title="Reporting Accuracy", page_icon="📝", layout="wide")
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), CHAT_LISTENER_DB)
+# Railway API config
+CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production-713f.up.railway.app")
+CHAT_API_KEY = os.getenv("CHAT_API_KEY", "juan365chat")
 PH_TZ = timezone(timedelta(hours=8))
 
 # Reverse mapping: TG username -> Agent name
 USERNAME_TO_AGENT = {v.lower(): k.title() for k, v in TELEGRAM_MENTIONS.items()}
 
 
-def get_db():
-    if not os.path.exists(DB_PATH):
+def api_get(endpoint, params=None):
+    """Fetch data from Railway Chat Listener API."""
+    if params is None:
+        params = {}
+    params['key'] = CHAT_API_KEY
+    try:
+        resp = requests.get(f"{CHAT_API_URL}{endpoint}", params=params, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        st.error(f"API error: {e}")
         return None
-    return sqlite3.connect(DB_PATH)
 
 
 def score_minutes(minutes):
@@ -51,67 +60,33 @@ def score_minutes(minutes):
 
 
 @st.cache_data(ttl=60)
-def load_agent_messages(date_from=None, date_to=None):
-    """Load all messages from known agents, filtered by date."""
-    conn = get_db()
-    if not conn:
-        return pd.DataFrame()
-
-    # Get all agent usernames
-    agent_usernames = [u.lower() for u in TELEGRAM_MENTIONS.values()]
-
-    query = """
-        SELECT message_id, user_id, LOWER(username) as username, first_name,
-               date, date_ph, text, message_type
-        FROM messages
-        WHERE LOWER(username) IN ({})
-    """.format(','.join(['?' for _ in agent_usernames]))
-    params = agent_usernames
-
-    if date_from:
-        query += " AND date_ph >= ?"
-        params.append(f"{date_from} 00:00:00")
-    if date_to:
-        query += " AND date_ph <= ?"
-        params.append(f"{date_to} 23:59:59")
-
-    query += " ORDER BY date ASC"
-
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-
-    if not df.empty:
-        df['agent'] = df['username'].map(USERNAME_TO_AGENT).fillna(df['first_name'])
-        df['datetime_ph'] = pd.to_datetime(df['date_ph'])
-        df['date_only'] = df['datetime_ph'].dt.date
-        df['hour'] = df['datetime_ph'].dt.hour
-        df['minute'] = df['datetime_ph'].dt.minute
-
-    return df
+def load_stats():
+    return api_get('/api/stats') or {}
 
 
 @st.cache_data(ttl=60)
-def load_all_messages(date_from=None, date_to=None):
-    """Load ALL messages for overview."""
-    conn = get_db()
-    if not conn:
-        return pd.DataFrame()
-
-    query = "SELECT * FROM messages WHERE 1=1"
-    params = []
-
+def load_agent_messages(date_from=None, date_to=None):
+    """Load agent messages from Railway API."""
+    params = {}
     if date_from:
-        query += " AND date_ph >= ?"
-        params.append(f"{date_from} 00:00:00")
+        params['date_from'] = str(date_from)
     if date_to:
-        query += " AND date_ph <= ?"
-        params.append(f"{date_to} 23:59:59")
+        params['date_to'] = str(date_to)
 
-    query += " ORDER BY date DESC"
+    data = api_get('/api/agents', params)
+    if data and data.get('agents'):
+        df = pd.DataFrame(data['agents'])
+        if not df.empty:
+            df['datetime_ph'] = pd.to_datetime(df['date_ph'])
+            df['date_only'] = df['datetime_ph'].dt.date
+        return df
+    return pd.DataFrame()
 
-    df = pd.read_sql_query(query, conn, params=params)
-    conn.close()
-    return df
+
+@st.cache_data(ttl=60)
+def load_reporting_scores():
+    """Load reporting accuracy scores from Railway API."""
+    return api_get('/api/reporting') or {}
 
 
 def is_report_message(text):
@@ -160,27 +135,16 @@ def main():
     st.title("📝 Reporting Accuracy")
     st.markdown("Track agent report submissions via Telegram chat data")
 
-    if not os.path.exists(DB_PATH):
-        st.error("No chat database found. Run `python chat_listener.py` to start collecting messages.")
+    stats = load_stats()
+
+    if not stats or stats.get('total', 0) == 0:
+        st.warning("No messages yet. The listener bot is running on Railway and collecting new messages.")
+        st.info(f"API: `{CHAT_API_URL}`")
         return
 
-    # Check if DB has data
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT COUNT(*) FROM messages")
-    total = c.fetchone()[0]
-    c.execute("SELECT MIN(date_ph), MAX(date_ph) FROM messages")
-    date_range = c.fetchone()
-    conn.close()
-
-    if total == 0:
-        st.warning("No messages in database yet. Make sure:")
-        st.markdown("""
-        1. Bot @chatdetector_juan365_bot is added to the group
-        2. Privacy mode is **disabled** via @BotFather (`/setprivacy` -> Disable)
-        3. `python chat_listener.py` is running
-        """)
-        return
+    total = stats['total']
+    first_date = stats.get('first_date')
+    last_date = stats.get('last_date')
 
     # Sidebar
     with st.sidebar:
@@ -193,9 +157,9 @@ def main():
         st.markdown("---")
         st.subheader("📅 Date Range")
 
-        if date_range[0] and date_range[1]:
-            min_date = datetime.strptime(date_range[0][:10], '%Y-%m-%d').date()
-            max_date = datetime.strptime(date_range[1][:10], '%Y-%m-%d').date()
+        if first_date and last_date:
+            min_date = datetime.strptime(first_date[:10], '%Y-%m-%d').date()
+            max_date = datetime.strptime(last_date[:10], '%Y-%m-%d').date()
             date_from = st.date_input("From", value=min_date, min_value=min_date, max_value=max_date)
             date_to = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date)
         else:
@@ -220,22 +184,21 @@ def main():
         st.markdown("---")
         st.subheader("📋 Info")
         st.metric("Total Messages", f"{total:,}")
-        st.caption(f"First: {date_range[0][:10] if date_range[0] else 'N/A'}")
-        st.caption(f"Last: {date_range[1][:10] if date_range[1] else 'N/A'}")
+        st.caption(f"First: {first_date[:10] if first_date else 'N/A'}")
+        st.caption(f"Last: {last_date[:10] if last_date else 'N/A'}")
 
     # Load data
     str_from = str(date_from) if date_from else None
     str_to = str(date_to) if date_to else None
 
     agent_msgs = load_agent_messages(str_from, str_to)
-    all_msgs = load_all_messages(str_from, str_to)
 
     # Overview stats
     st.markdown("### 📊 Overview")
 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Messages", f"{len(all_msgs):,}")
+        st.metric("Total Messages", f"{total:,}")
     with col2:
         agent_count = len(agent_msgs['agent'].unique()) if not agent_msgs.empty else 0
         st.metric("Active Agents", agent_count)
@@ -407,7 +370,7 @@ def main():
             if agent_filter != "All":
                 filtered = agent_msgs[agent_msgs['agent'] == agent_filter]
 
-            display = filtered[['date_ph', 'agent', 'username', 'text', 'message_type']].copy()
+            display = filtered[['date_ph', 'agent', 'username', 'text', 'type']].copy()
             display = display.sort_values('date_ph', ascending=False)
             display.columns = ['Date (PH)', 'Agent', 'Username', 'Message', 'Type']
             st.dataframe(display, use_container_width=True, hide_index=True, height=500)
@@ -419,7 +382,7 @@ def main():
             st.info("No agent messages found.")
 
     st.markdown("---")
-    st.caption(f"Reporting Accuracy | Source: Telegram Chat ({total:,} messages) | {CHAT_LISTENER_DB}")
+    st.caption(f"Reporting Accuracy | Source: Railway Chat API ({total:,} messages) | {CHAT_API_URL}")
 
 
 if __name__ == "__main__":

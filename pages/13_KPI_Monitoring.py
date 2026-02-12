@@ -11,6 +11,8 @@ from channel_data_loader import (
     refresh_agent_performance_data,
     calculate_kpi_scores,
 )
+import os
+import requests as http_requests
 from config import (
     AGENT_PERFORMANCE_TABS,
     KPI_SCORING,
@@ -18,7 +20,10 @@ from config import (
     KPI_ORDER,
     KPI_PHP_USD_RATE,
 )
-from chat_listener import get_agent_reporting_scores
+
+# Railway Chat Listener API config
+CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production-713f.up.railway.app")
+CHAT_API_KEY = os.getenv("CHAT_API_KEY", "juan365chat")
 
 st.set_page_config(page_title="KPI Monitoring", page_icon="📊", layout="wide")
 st.title("📊 KPI Monitoring")
@@ -27,9 +32,11 @@ st.title("📊 KPI Monitoring")
 if 'manual_scores' not in st.session_state:
     st.session_state.manual_scores = {}
 
-# Auto-fill reporting scores from Telegram chat data
+# Auto-fill reporting scores from Railway Chat Listener API
 try:
-    chat_reporting = get_agent_reporting_scores()
+    resp = http_requests.get(f"{CHAT_API_URL}/api/reporting", params={'key': CHAT_API_KEY}, timeout=10)
+    resp.raise_for_status()
+    chat_reporting = resp.json()
     for agent_name, data in chat_reporting.items():
         key = f"{agent_name}_reporting"
         if key not in st.session_state.manual_scores or st.session_state.manual_scores[key] == 0:
