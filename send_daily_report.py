@@ -16,8 +16,8 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 
-from data_loader import load_facebook_ads_data
-from daily_report import generate_facebook_ads_section
+from channel_data_loader import load_individual_kpi_data, load_agent_performance_data as load_ptab_data
+from daily_report import generate_facebook_ads_section, generate_monthly_overview, generate_by_campaign_section
 from config import (
     DAILY_REPORT_ENABLED,
     DAILY_REPORT_SEND_TIME,
@@ -61,16 +61,19 @@ def send_reminder(minutes_before, label):
 
 
 def send_report():
-    """Load data from INDIVIDUAL KPI sheet, generate report, and send to Telegram."""
+    """Load data from INDIVIDUAL KPI sheet + P-tabs, generate report, and send to Telegram."""
     if not DAILY_REPORT_ENABLED:
         logger.warning("Daily report sending is disabled in config.py")
         return False
 
-    logger.info("Loading Facebook Ads data from INDIVIDUAL KPI sheet...")
-    fb_ads_df = load_facebook_ads_data()
+    logger.info("Loading INDIVIDUAL KPI data...")
+    kpi_df = load_individual_kpi_data()
 
-    if fb_ads_df is None or fb_ads_df.empty:
-        logger.error("No Facebook Ads data loaded!")
+    logger.info("Loading P-tab data for By Campaign...")
+    ptab_data = load_ptab_data()
+
+    if (kpi_df is None or kpi_df.empty):
+        logger.error("No INDIVIDUAL KPI data loaded!")
         return False
 
     # T+1 reporting: yesterday's data
@@ -79,7 +82,19 @@ def send_report():
     logger.info(f"Generating T+1 report for {yesterday}...")
     report = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}\n"
     report += f"<i>vs Last 7 Days Average</i>\n\n"
-    report += generate_facebook_ads_section(fb_ads_df, yesterday)
+
+    # Monthly overview
+    report += generate_monthly_overview(kpi_df)
+
+    # Daily T+1 performance
+    report += generate_facebook_ads_section(kpi_df, yesterday)
+
+    # By Campaign section
+    import pandas as pd
+    ad_accounts_df = ptab_data.get('ad_accounts', pd.DataFrame()) if ptab_data else pd.DataFrame()
+    if not ad_accounts_df.empty:
+        report += generate_by_campaign_section(ad_accounts_df, yesterday)
+
     report += '\n@xxxadsron @Adsbasty'
 
     logger.info("Sending to Telegram...")
