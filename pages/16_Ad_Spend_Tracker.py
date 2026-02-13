@@ -218,17 +218,16 @@ def parse_meta_ads(text):
     if 'yesterday report' in text_lower:
         return None
 
-    # Extract hour
+    # Extract hour - if not found in text, return None (caller will use msg timestamp)
     hour_match = re.search(r'(\d{1,2})\s*(am|pm)', text_lower)
-    if not hour_match:
-        return None
-
-    hour_num = int(hour_match.group(1))
-    ampm = hour_match.group(2)
-    if ampm == 'pm' and hour_num != 12:
-        hour_num += 12
-    elif ampm == 'am' and hour_num == 12:
-        hour_num = 0
+    hour_num = None
+    if hour_match:
+        hour_num = int(hour_match.group(1))
+        ampm = hour_match.group(2)
+        if ampm == 'pm' and hour_num != 12:
+            hour_num += 12
+        elif ampm == 'am' and hour_num == 12:
+            hour_num = 0
 
     # Extract date
     date_match = re.search(r'(\d{2})/(\d{2})', text)
@@ -259,15 +258,26 @@ def parse_meta_ads(text):
         agent_match = re.search(r'\((\w+)\)', section)
         agent = agent_match.group(1).upper() if agent_match else ""
 
-        # Extract Cost (the standalone "Cost:" line, not "Cost per FTD")
+        # Extract Cost (standalone "Cost:" not "Cost per FTD")
         cost = 0.0
+        # Try line-by-line first (multi-line format)
+        found_cost = False
         for line in section.split('\n'):
             line_stripped = line.strip().lower()
             if line_stripped.startswith('cost:') or line_stripped.startswith('cost :'):
                 cm = re.search(r'([0-9,]+\.?\d*)', line)
                 if cm:
                     cost = float(cm.group(1).replace(',', ''))
+                found_cost = True
                 break
+        # Fallback: single-line format - find "Cost:" that's NOT followed by "per"
+        if not found_cost:
+            for cm in re.finditer(r'cost[:\s]+([0-9,]+\.?\d*)', section.lower()):
+                # Check if this is "cost per ftd"
+                after_cost = section.lower()[cm.start():cm.start()+15]
+                if 'per' not in after_cost:
+                    cost = float(cm.group(1).replace(',', ''))
+                    break
 
         # Extract Cost per FTD Before
         ftd_before_match = re.search(r'cost\s*per\s*ftd\s*before[:\s]*([0-9,]+\.?\d*)', section.lower())
@@ -335,6 +345,8 @@ def extract_all_reports(agent_msgs):
         if meta:
             meta['agent'] = agent
             meta['sent_at'] = date_ph
+            if meta['hour'] is None:
+                meta['hour'] = hour
             if not meta['date'] and date_only:
                 meta['date'] = str(date_only)
             meta_reports.append(meta)
