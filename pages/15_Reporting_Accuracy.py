@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import (
     TELEGRAM_MENTIONS,
+    TELEGRAM_ALT_USERNAMES,
     REPORTING_ACCURACY_SCORING,
     REPORT_KEYWORDS,
     FACEBOOK_ADS_PERSONS,
@@ -33,8 +34,11 @@ CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "juan365chat")
 PH_TZ = timezone(timedelta(hours=8))
 
-# Reverse mapping: TG username -> Agent name
+# Reverse mapping: TG username -> Agent name (primary + alts)
 USERNAME_TO_AGENT = {v.lower(): k.title() for k, v in TELEGRAM_MENTIONS.items()}
+for agent, alts in TELEGRAM_ALT_USERNAMES.items():
+    for alt in alts:
+        USERNAME_TO_AGENT[alt.lower()] = agent.title()
 
 
 def api_get(endpoint, params=None):

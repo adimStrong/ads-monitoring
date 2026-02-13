@@ -247,10 +247,20 @@ TELEGRAM_MENTIONS = {
     "RON": "xxxadsron",
     "DER": "Derr_Juan365",
     "SHILA": "cutie0717",
-    "ADRIAN": "ecrwn365",
+    "ADRIAN": "CrWn365",
     "KRISSA": "Ads_Krissa",
     "MIKA": "yakisOva",
     "JOMAR": "HappyA11Daze",
+}
+
+# Alternate TG usernames (agents with multiple accounts)
+TELEGRAM_ALT_USERNAMES = {
+    "JASON": ["Dyazon"],
+    "RON": ["xxxghstt"],
+    "SHILA": ["Layy_071710"],
+    "ADRIAN": ["ecrwn365"],
+    "MIKA": ["cocomew0n"],
+    "JOMAR": ["Jomarskii"],
 }
 
 # ============================================================
