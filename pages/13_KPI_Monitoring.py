@@ -19,6 +19,7 @@ from config import (
     KPI_MANUAL,
     KPI_ORDER,
     KPI_PHP_USD_RATE,
+    EXCLUDED_FROM_REPORTING,
 )
 
 # Railway Chat Listener API config
@@ -109,7 +110,9 @@ def calc_auto_weighted(agent_scores):
 # Sidebar
 st.sidebar.header("KPI Settings")
 
-agent_names = ["All Agents"] + [t['agent'] for t in AGENT_PERFORMANCE_TABS]
+# Exclude boss (Derr) from KPI monitoring
+KPI_AGENTS = [t for t in AGENT_PERFORMANCE_TABS if t['agent'].upper() not in EXCLUDED_FROM_REPORTING]
+agent_names = ["All Agents"] + [t['agent'] for t in KPI_AGENTS]
 selected_agent = st.sidebar.selectbox("Agent", agent_names)
 
 if st.sidebar.button("🔄 Refresh Data"):
@@ -136,9 +139,9 @@ if selected_agent == "All Agents":
     st.markdown(f"**ROAS Formula:** `ARPPU / {KPI_PHP_USD_RATE} / Cost_per_FTD`")
 
     rows = []
-    for tab_info in AGENT_PERFORMANCE_TABS:
+    for tab_info in KPI_AGENTS:
         agent = tab_info['agent']
-        s = live_scores[agent]
+        s = live_scores.get(agent, {})
 
         cpa_s = s.get('cpa', {}).get('score', 0)
         roas_s = s.get('roas', {}).get('score', 0)
@@ -149,6 +152,12 @@ if selected_agent == "All Agents":
         roas_v = s.get('roas', {}).get('value', 0)
         cvr_v = s.get('cvr', {}).get('value', 0)
         ctr_v = s.get('ctr', {}).get('value', 0)
+
+        # Reporting accuracy from TG bot
+        rep_data = chat_reporting.get(agent, {})
+        rep_score = rep_data.get('score', 0)
+        rep_count = rep_data.get('report_count', 0)
+        rep_min = rep_data.get('avg_minute', 0)
 
         auto_wt = calc_auto_weighted(s)
         manual_wt = calc_manual_weighted(agent)
@@ -164,6 +173,8 @@ if selected_agent == "All Agents":
             'CVR Score': cvr_s,
             'CTR': f"{ctr_v:.2f}%" if ctr_v > 0 else "-",
             'CTR Score': ctr_s,
+            'Rep': f"{rep_min:.0f}m ({rep_count})" if rep_count > 0 else "-",
+            'Rep Score': rep_score,
             'Auto': auto_wt,
             'Manual': manual_wt,
             'Total': total_wt,
@@ -171,10 +182,10 @@ if selected_agent == "All Agents":
 
     summary_df = pd.DataFrame(rows)
 
-    # HTML table with all columns
+    # HTML table with all columns including Reporting
     html = '<table style="width:100%;border-collapse:collapse;font-size:14px">'
     html += '<tr style="background:#1e293b;color:#fff">'
-    for col in ['Agent', 'CPA', 'Score', 'ROAS', 'Score', 'CVR', 'Score', 'CTR', 'Score', 'Auto', 'Manual', 'Total']:
+    for col in ['Agent', 'CPA', 'Score', 'ROAS', 'Score', 'CVR', 'Score', 'CTR', 'Score', 'Report', 'Score', 'Auto', 'Manual', 'Total']:
         html += f'<th style="padding:8px;text-align:center;border:1px solid #334155">{col}</th>'
     html += '</tr>'
 
@@ -189,6 +200,8 @@ if selected_agent == "All Agents":
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["CVR Score"])}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["CTR"]}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["CTR Score"])}</td>'
+        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155;font-size:12px">{r["Rep"]}</td>'
+        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["Rep Score"])}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["Auto"]}</td>'
         m = r["Manual"]
         m_color = "#22c55e" if m > 0 else "#64748b"
@@ -243,7 +256,7 @@ if selected_agent == "All Agents":
     st.subheader("Manual KPI Scoring")
     st.caption("Select an agent from sidebar to score individual manual KPIs, or score all agents below.")
 
-    for tab_info in AGENT_PERFORMANCE_TABS:
+    for tab_info in KPI_AGENTS:
         agent = tab_info['agent']
         with st.expander(f"📝 {agent} - Manual Scores"):
             cols = st.columns(4)
