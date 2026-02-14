@@ -210,10 +210,12 @@ def check_low_spend(current_data):
 def generate_dashboard_screenshot(output_path=None, split=False):
     """
     Capture a screenshot of the dashboard using Playwright.
+    Hides sidebar and UI chrome via the Streamlit iframe.
+    Detects "SPEND VS RESULTS" heading position for smart splitting.
 
     Args:
         output_path: Optional path for the screenshot. If None, auto-generated.
-        split: If True, split into top/bottom halves and return list of paths.
+        split: If True, split into top/bottom parts at "SPEND VS RESULTS" heading.
 
     Returns:
         str or list: Path to screenshot (or list of 2 paths if split=True), or None if failed
@@ -234,87 +236,68 @@ def generate_dashboard_screenshot(output_path=None, split=False):
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            # Use tall viewport to capture full page without scrolling
             page = browser.new_page(viewport={'width': 1400, 'height': 3000})
 
-            # Navigate to dashboard
             page.goto(DASHBOARD_URL, wait_until='networkidle', timeout=60000)
+            page.wait_for_timeout(5000)
 
-            # Wait for content to load
-            page.wait_for_timeout(4000)
+            # Access Streamlit's inner iframe (content renders inside iframe)
+            inner_frame = page.frame(url='**/~/+/**')
+            if not inner_frame:
+                for f in page.frames:
+                    if '~/+/' in f.url:
+                        inner_frame = f
+                        break
 
-            # Collapse sidebar by clicking the X button if visible
-            try:
-                close_btn = page.query_selector('[data-testid="stSidebar"] button[aria-label="Close"]')
-                if close_btn:
-                    close_btn.click()
-                    page.wait_for_timeout(500)
-            except Exception:
-                pass
+            split_y_found = 0
 
-            # Hide Streamlit sidebar and UI elements using CSS injection
-            page.add_style_tag(content="""
-                /* Hide sidebar completely */
-                [data-testid="stSidebar"] { display: none !important; }
-                [data-testid="collapsedControl"] { display: none !important; }
-                section[data-testid="stSidebar"] { display: none !important; }
+            if inner_frame:
+                # Hide sidebar, collapse button, header bar, and interactive buttons
+                inner_frame.evaluate('''() => {
+                    const hide = (sel) => {
+                        document.querySelectorAll(sel).forEach(el => el.style.display = 'none');
+                    };
+                    hide('[data-testid="stSidebar"]');
+                    hide('[data-testid="stSidebarCollapsedControl"]');
+                    hide('[data-testid="collapsedControl"]');
+                    hide('[data-testid="stMainMenu"]');
+                    hide('[data-testid="stHeader"]');
+                    hide('[data-testid="stToolbar"]');
+                    hide('.stDeployButton');
+                    hide('button[kind="header"]');
+                }''')
+                print("[INFO] Sidebar and UI chrome hidden via iframe")
 
-                /* Hide header/toolbar */
-                header { display: none !important; }
-                [data-testid="stToolbar"] { display: none !important; }
-                [data-testid="stDecoration"] { display: none !important; }
-                [data-testid="stStatusWidget"] { display: none !important; }
+                # Find "SPEND VS RESULTS" heading Y position
+                split_y_found = inner_frame.evaluate('''() => {
+                    const headings = document.querySelectorAll('h1, h2, h3, h4');
+                    for (const h of headings) {
+                        const text = h.textContent || '';
+                        if (text.includes('SPEND') && text.includes('RESULTS')) {
+                            return Math.round(h.getBoundingClientRect().y);
+                        }
+                    }
+                    return 0;
+                }''')
+                print(f"[INFO] 'SPEND VS RESULTS' heading at Y={split_y_found}")
+            else:
+                print("[WARNING] Could not find Streamlit iframe, screenshot may include sidebar")
 
-                /* Hide menu button */
-                #MainMenu { display: none !important; }
-                button[kind="header"] { display: none !important; }
-
-                /* Hide hamburger menu toggle */
-                [data-testid="stSidebarNavToggle"] { display: none !important; }
-                [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-                button[data-testid="stSidebarNavToggle"] { display: none !important; }
-
-                /* Expand main content to full width */
-                [data-testid="stAppViewContainer"] {
-                    margin-left: 0 !important;
-                }
-                [data-testid="stMain"] {
-                    margin-left: 0 !important;
-                }
-
-                .main .block-container {
-                    max-width: 100% !important;
-                    padding: 1rem 3rem !important;
-                }
-            """)
-
-            # Wait for CSS changes to apply
-            page.wait_for_timeout(1000)
-
-            # Scroll to load all lazy content
+            # Scroll to load all lazy content, then back to top
             page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             page.wait_for_timeout(2000)
             page.evaluate("window.scrollTo(0, 0)")
             page.wait_for_timeout(500)
 
-            # Get actual page dimensions
-            dimensions = page.evaluate("""() => {
-                return {
-                    width: Math.max(document.body.scrollWidth, document.documentElement.scrollWidth),
-                    height: Math.max(document.body.scrollHeight, document.documentElement.scrollHeight)
-                }
-            }""")
-            print(f"[INFO] Page dimensions: {dimensions['width']}x{dimensions['height']}px")
-
             # Take full page screenshot
             page.screenshot(path=output_path, full_page=True, type='png')
-
             browser.close()
 
         print(f"[OK] Screenshot saved: {output_path}")
 
         if split:
-            return _split_screenshot(output_path)
+            split_y = split_y_found if split_y_found > 0 else None
+            return _split_screenshot(output_path, split_y=split_y)
 
         return output_path
 
@@ -328,18 +311,22 @@ def generate_dashboard_screenshot(output_path=None, split=False):
         return None
 
 
-def _split_screenshot(image_path):
-    """Split a screenshot into top and bottom halves.
+def _split_screenshot(image_path, split_y=None):
+    """Split a screenshot at a given Y position (or midpoint if not provided).
+
+    Args:
+        image_path: Path to the full screenshot
+        split_y: Y coordinate to split at (pixels from top). None = midpoint.
 
     Returns:
-        list: [top_path, bottom_path] or None if failed
+        list: [top_path, bottom_path] or [image_path] if failed
     """
     try:
         from PIL import Image
 
         img = Image.open(image_path)
         width, height = img.size
-        mid = height // 2
+        mid = split_y if split_y and 0 < split_y < height else height // 2
 
         base, ext = os.path.splitext(image_path)
         top_path = f"{base}_part1{ext}"
@@ -351,7 +338,7 @@ def _split_screenshot(image_path):
         top_half.save(top_path)
         bottom_half.save(bottom_path)
 
-        print(f"[OK] Split: {top_path} ({width}x{mid}), {bottom_path} ({width}x{height - mid})")
+        print(f"[OK] Split at Y={mid}: part1 ({width}x{mid}), part2 ({width}x{height - mid})")
         return [top_path, bottom_path]
     except Exception as e:
         print(f"[ERROR] Failed to split screenshot: {e}")
