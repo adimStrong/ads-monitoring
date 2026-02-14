@@ -561,6 +561,14 @@ KPI_SCORING = {
         'thresholds': [(4, 3.0, 100.0), (3, 2.0, 2.99), (2, 1.0, 1.99), (1, 0, 0.99)],
         'direction': 'higher_better',
     },
+    'profile_dev': {
+        'name': 'Profile Development',
+        'weight': 0.05,     # 5% (Account Dev 5% + Profile Dev 5% = 10%)
+        'krs': 'Account Management',
+        'auto': True,
+        'thresholds': [(4, 5, float('inf')), (3, 3, 4), (2, 2, 2), (1, 0, 1)],
+        'direction': 'higher_better',
+    },
 }
 
 # Manual KPIs (for display on dashboard - manager scores these)
@@ -569,8 +577,7 @@ KPI_MANUAL = {
     'ab_testing': {'name': 'A/B Testing', 'weight': 0.075, 'krs': 'Campaign Efficiency'},                 # 7.5% (CTR + A/B Testing = 15%)
     'reporting': {'name': 'Reporting Accuracy', 'weight': 0.10, 'krs': 'Data & Reporting'},                # 10%
     'data_insights': {'name': 'Data-Driven Insights', 'weight': 0, 'krs': 'Data & Reporting'},
-    'account_dev': {'name': 'Gmail/FB Account Dev', 'weight': 0.10, 'krs': 'Account Management'},          # 10%
-    'profile_dev': {'name': 'Profile Development', 'weight': 0, 'krs': 'Account Management'},
+    'account_dev': {'name': 'Gmail/FB Account Dev', 'weight': 0.05, 'krs': 'Account Management'},          # 5%
     'collaboration': {'name': 'Collaboration', 'weight': 0.10, 'krs': 'Teamwork'},                         # 10%
     'communication': {'name': 'Communication', 'weight': 0, 'krs': 'Teamwork'},
 }
@@ -579,6 +586,20 @@ KPI_MANUAL = {
 KPI_ORDER = ['cpa', 'roas', 'cvr', 'campaign_setup', 'ctr', 'ab_testing',
              'reporting', 'data_insights', 'account_dev', 'profile_dev',
              'collaboration', 'communication']
+
+# KPI Sheet write-back configuration
+KPI_SHEET_ID = "1p-r-yfofNY3n8TKKWW6GaGNKo3BX6kevYvrWCr3TZdQ"
+KPI_AGENT_TABS = {
+    'Mika': 'KPI-Mika',
+    'Adrian': 'KPI-Adrian',
+    'Jomar': 'KPI-Jomar',
+    'Derr': 'KPI-Derr',
+    'Ron': 'KPI-Ron',
+    'Krissa': 'KPI-Krissa',
+    'Jason': 'KPI-Jason',
+    'Shila': 'KPI-Shila',
+}
+PROFILE_DEV_ROW = 17  # 0-indexed row in KPI sheet where Profile Dev score lives
 
 # ============================================================
 # TELEGRAM CHAT LISTENER CONFIGURATION

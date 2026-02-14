@@ -55,6 +55,9 @@ from config import (
     EXCLUDED_PERSONS,
     KPI_PHP_USD_RATE,
     KPI_SCORING,
+    KPI_SHEET_ID,
+    KPI_AGENT_TABS,
+    PROFILE_DEV_ROW,
 )
 
 
@@ -1353,12 +1356,59 @@ def score_kpi(metric_key, value):
     return (1, value)
 
 
-def calculate_kpi_scores(monthly_df, agent_name, daily_df=None):
+def count_profile_assets(accounts_data):
+    """Count profile assets (FB accounts, BMs, Pages) per agent from Updated Accounts data.
+
+    Args:
+        accounts_data: dict from load_updated_accounts_data() with fb_accounts, bm, pages DataFrames
+
+    Returns:
+        dict: {agent_name_upper: {'fb_accounts': N, 'bm': N, 'pages': N, 'total': N}}
+    """
+    result = {}
+
+    for tab_key, col_name in [('fb_accounts', 'Employee'), ('bm', 'Employee'), ('pages', 'Employee')]:
+        df = accounts_data.get(tab_key, pd.DataFrame())
+        if df.empty or col_name not in df.columns:
+            continue
+        counts = df[col_name].str.strip().str.upper().value_counts().to_dict()
+        asset_key = tab_key  # fb_accounts, bm, or pages
+        for name, count in counts.items():
+            if not name:
+                continue
+            if name not in result:
+                result[name] = {'fb_accounts': 0, 'bm': 0, 'pages': 0, 'total': 0}
+            result[name][asset_key] = count
+
+    # Calculate totals
+    for name in result:
+        r = result[name]
+        r['total'] = r['fb_accounts'] + r['bm'] + r['pages']
+
+    return result
+
+
+def score_profile_dev(total_count):
+    """Score Profile Development based on total BMs + Pages + FB accounts.
+
+    Rubric: 4 if total >= 5, 3 if total >= 3, 2 if total >= 2, 1 if total < 2
+    """
+    if total_count >= 5:
+        return 4
+    elif total_count >= 3:
+        return 3
+    elif total_count >= 2:
+        return 2
+    return 1
+
+
+def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None):
     """Calculate auto KPI scores for an agent from P-tab data.
     ROAS = ARPPU / 57.7 / Cost_per_FTD (IFERROR -> 0)
 
     Uses monthly data for CPA/CVR, calculates CTR from clicks/impressions,
     and gets ARPPU from daily data (latest available) for ROAS.
+    Profile Dev is scored from Updated Accounts data (BMs + Pages + FB accounts).
 
     Returns dict: {metric_key: {'score': int, 'value': float, 'name': str}}
     """
@@ -1367,54 +1417,144 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None):
 
     if agent_data.empty:
         for key in KPI_SCORING:
+            if key == 'profile_dev':
+                continue  # Handle separately below
             scores[key] = {'score': 0, 'value': 0, 'name': KPI_SCORING[key]['name']}
-        return scores
+    else:
+        # Use the most recent month's data
+        row = agent_data.iloc[-1]
 
-    # Use the most recent month's data
-    row = agent_data.iloc[-1]
+        # CPA = cost / ftd
+        cost = float(row.get('cost', 0) or 0)
+        ftd = float(row.get('ftd', 0) or 0)
+        cpa = cost / ftd if ftd > 0 else 0
+        s, v = score_kpi('cpa', cpa)
+        scores['cpa'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cpa']['name']}
 
-    # CPA = cost / ftd
-    cost = float(row.get('cost', 0) or 0)
-    ftd = float(row.get('ftd', 0) or 0)
-    cpa = cost / ftd if ftd > 0 else 0
-    s, v = score_kpi('cpa', cpa)
-    scores['cpa'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cpa']['name']}
+        # ROAS = ARPPU / 57.7 / Cost_per_FTD
+        # Monthly ARPPU is often empty, so get from daily data (latest row with ARPPU)
+        arppu = float(row.get('arppu', 0) or 0)
+        cpd = float(row.get('cpd', 0) or 0)
 
-    # ROAS = ARPPU / 57.7 / Cost_per_FTD
-    # Monthly ARPPU is often empty, so get from daily data (latest row with ARPPU)
-    arppu = float(row.get('arppu', 0) or 0)
-    cpd = float(row.get('cpd', 0) or 0)
+        if arppu == 0 and daily_df is not None and not daily_df.empty:
+            agent_daily = daily_df[daily_df['agent'] == agent_name].copy()
+            if not agent_daily.empty:
+                agent_daily['arppu_num'] = pd.to_numeric(agent_daily['arppu'], errors='coerce').fillna(0)
+                has_arppu = agent_daily[agent_daily['arppu_num'] > 0]
+                if not has_arppu.empty:
+                    arppu = has_arppu.iloc[-1]['arppu_num']
+                    cpd = float(has_arppu.iloc[-1].get('cpd', 0) or 0)
 
-    if arppu == 0 and daily_df is not None and not daily_df.empty:
-        agent_daily = daily_df[daily_df['agent'] == agent_name].copy()
-        if not agent_daily.empty:
-            agent_daily['arppu_num'] = pd.to_numeric(agent_daily['arppu'], errors='coerce').fillna(0)
-            has_arppu = agent_daily[agent_daily['arppu_num'] > 0]
-            if not has_arppu.empty:
-                arppu = has_arppu.iloc[-1]['arppu_num']
-                cpd = float(has_arppu.iloc[-1].get('cpd', 0) or 0)
+        try:
+            roas = arppu / KPI_PHP_USD_RATE / cpd if (cpd > 0 and arppu > 0) else 0
+        except (ZeroDivisionError, TypeError):
+            roas = 0
+        s, v = score_kpi('roas', roas)
+        scores['roas'] = {'score': s, 'value': round(v, 4), 'name': KPI_SCORING['roas']['name']}
 
-    try:
-        roas = arppu / KPI_PHP_USD_RATE / cpd if (cpd > 0 and arppu > 0) else 0
-    except (ZeroDivisionError, TypeError):
-        roas = 0
-    s, v = score_kpi('roas', roas)
-    scores['roas'] = {'score': s, 'value': round(v, 4), 'name': KPI_SCORING['roas']['name']}
+        # CVR = FTD / Register * 100
+        register = float(row.get('register', 0) or 0)
+        cvr = (ftd / register * 100) if register > 0 else 0
+        s, v = score_kpi('cvr', cvr)
+        scores['cvr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cvr']['name']}
 
-    # CVR = FTD / Register * 100
-    register = float(row.get('register', 0) or 0)
-    cvr = (ftd / register * 100) if register > 0 else 0
-    s, v = score_kpi('cvr', cvr)
-    scores['cvr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cvr']['name']}
+        # CTR = calculate from clicks/impressions (monthly CTR formula is broken in sheet)
+        impressions = float(row.get('impressions', 0) or 0)
+        clicks = float(row.get('clicks', 0) or 0)
+        ctr = (clicks / impressions * 100) if impressions > 0 else 0
+        s, v = score_kpi('ctr', ctr)
+        scores['ctr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['ctr']['name']}
 
-    # CTR = calculate from clicks/impressions (monthly CTR formula is broken in sheet)
-    impressions = float(row.get('impressions', 0) or 0)
-    clicks = float(row.get('clicks', 0) or 0)
-    ctr = (clicks / impressions * 100) if impressions > 0 else 0
-    s, v = score_kpi('ctr', ctr)
-    scores['ctr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['ctr']['name']}
+    # Profile Development (from Updated Accounts data)
+    profile_score = 0
+    profile_total = 0
+    if accounts_data is not None:
+        asset_counts = count_profile_assets(accounts_data)
+        # Case-insensitive match: agent_name could be "Mika", assets keys are "MIKA"
+        agent_upper = agent_name.upper()
+        agent_assets = asset_counts.get(agent_upper, {})
+        profile_total = agent_assets.get('total', 0)
+        profile_score = score_profile_dev(profile_total)
+
+    scores['profile_dev'] = {
+        'score': profile_score,
+        'value': profile_total,
+        'name': KPI_SCORING['profile_dev']['name'],
+    }
 
     return scores
+
+
+def get_google_write_client():
+    """Get authenticated Google Sheets client with read+write scope for KPI write-back."""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive',
+        ]
+
+        google_creds_json = os.getenv('GOOGLE_CREDENTIALS')
+        if google_creds_json:
+            creds_dict = json.loads(google_creds_json)
+            creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        else:
+            creds_file = os.path.join(os.path.dirname(__file__), FACEBOOK_ADS_CREDENTIALS_FILE)
+            if not os.path.exists(creds_file):
+                print(f"[WARNING] Credentials file not found: {creds_file}")
+                return None
+            creds = Credentials.from_service_account_file(creds_file, scopes=scopes)
+
+        return gspread.authorize(creds)
+    except Exception as e:
+        print(f"[ERROR] Failed to get Google write client: {e}")
+        return None
+
+
+def write_kpi_scores_to_sheet(agent_name, scores_dict):
+    """Write Profile Dev score to the agent's KPI tab in Google Sheets.
+
+    Args:
+        agent_name: Agent name (e.g. 'Mika')
+        scores_dict: dict from calculate_kpi_scores() with profile_dev entry
+
+    Returns:
+        (success: bool, message: str)
+    """
+    tab_name = KPI_AGENT_TABS.get(agent_name)
+    if not tab_name:
+        return False, f"No KPI tab mapping for {agent_name}"
+
+    profile_info = scores_dict.get('profile_dev', {})
+    score = profile_info.get('score', 0)
+    raw_value = profile_info.get('value', 0)
+    weight = KPI_SCORING.get('profile_dev', {}).get('weight', 0.05)
+    weighted = round(score * weight, 4)
+
+    try:
+        client = get_google_write_client()
+        if client is None:
+            return False, "Could not authenticate Google Sheets write client"
+
+        spreadsheet = client.open_by_key(KPI_SHEET_ID)
+        worksheet = spreadsheet.worksheet(tab_name)
+
+        # Row 17 is 0-indexed, so gspread row = 18 (1-indexed)
+        row_num = PROFILE_DEV_ROW + 1
+
+        # Write score to column that holds the score value (typically col F or similar)
+        # We'll update cells in the Profile Dev row: Score, Weighted, Raw count
+        # Standard KPI sheet layout: col E = Score (5), col F = Weighted (6), col G = Raw (7)
+        worksheet.update_cell(row_num, 5, score)          # Score column (E)
+        worksheet.update_cell(row_num, 6, weighted)        # Weighted column (F)
+        worksheet.update_cell(row_num, 7, int(raw_value))  # Raw asset count (G)
+
+        return True, f"Wrote Profile Dev score={score}, weighted={weighted}, assets={int(raw_value)} to {tab_name}"
+
+    except Exception as e:
+        return False, f"Failed to write to {tab_name}: {e}"
 
 
 # Test functions

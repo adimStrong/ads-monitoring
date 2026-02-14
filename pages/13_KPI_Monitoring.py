@@ -10,6 +10,10 @@ from channel_data_loader import (
     load_agent_performance_data,
     refresh_agent_performance_data,
     calculate_kpi_scores,
+    load_updated_accounts_data,
+    refresh_updated_accounts_data,
+    count_profile_assets,
+    write_kpi_scores_to_sheet,
 )
 import os
 import requests as http_requests
@@ -58,7 +62,7 @@ PARAM_TEXT = {
     'reporting': '4: <15min | 3: 15-24min | 2: 25-34min | 1: 35+min (auto from TG chat)',
     'data_insights': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
     'account_dev': '4: 95-100% | 3: 85-94% | 2: 75-84% | 1: <75%',
-    'profile_dev': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
+    'profile_dev': '4: >=5 assets | 3: 3-4 | 2: 2 | 1: <2 (auto from Updated Accounts)',
     'collaboration': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
     'communication': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
 }
@@ -117,6 +121,7 @@ selected_agent = st.sidebar.selectbox("Agent", agent_names)
 
 if st.sidebar.button("🔄 Refresh Data"):
     refresh_agent_performance_data()
+    refresh_updated_accounts_data()
     st.rerun()
 
 # Load P-tab data
@@ -124,11 +129,14 @@ ptab_data = load_agent_performance_data()
 monthly_df = ptab_data.get('monthly', pd.DataFrame()) if ptab_data else pd.DataFrame()
 daily_df = ptab_data.get('daily', pd.DataFrame()) if ptab_data else pd.DataFrame()
 
-# Calculate live auto scores from P-tab
+# Load Updated Accounts data for Profile Dev scoring
+accounts_data = load_updated_accounts_data()
+
+# Calculate live auto scores from P-tab + Profile Dev from accounts
 live_scores = {}
 for tab_info in AGENT_PERFORMANCE_TABS:
     agent = tab_info['agent']
-    live_scores[agent] = calculate_kpi_scores(monthly_df, agent, daily_df=daily_df)
+    live_scores[agent] = calculate_kpi_scores(monthly_df, agent, daily_df=daily_df, accounts_data=accounts_data)
 
 
 # ============================================================
@@ -147,11 +155,13 @@ if selected_agent == "All Agents":
         roas_s = s.get('roas', {}).get('score', 0)
         cvr_s = s.get('cvr', {}).get('score', 0)
         ctr_s = s.get('ctr', {}).get('score', 0)
+        prof_s = s.get('profile_dev', {}).get('score', 0)
 
         cpa_v = s.get('cpa', {}).get('value', 0)
         roas_v = s.get('roas', {}).get('value', 0)
         cvr_v = s.get('cvr', {}).get('value', 0)
         ctr_v = s.get('ctr', {}).get('value', 0)
+        prof_v = s.get('profile_dev', {}).get('value', 0)
 
         # Reporting accuracy from TG bot
         rep_data = chat_reporting.get(agent, {})
@@ -173,6 +183,8 @@ if selected_agent == "All Agents":
             'CVR Score': cvr_s,
             'CTR': f"{ctr_v:.2f}%" if ctr_v > 0 else "-",
             'CTR Score': ctr_s,
+            'Prof': f"{int(prof_v)}" if prof_v > 0 else "-",
+            'Prof Score': prof_s,
             'Rep': f"{rep_min:.0f}m ({rep_count})" if rep_count > 0 else "-",
             'Rep Score': rep_score,
             'Auto': auto_wt,
@@ -182,38 +194,40 @@ if selected_agent == "All Agents":
 
     summary_df = pd.DataFrame(rows)
 
-    # HTML table with all columns including Reporting
-    html = '<table style="width:100%;border-collapse:collapse;font-size:14px">'
+    # HTML table with all columns including Profile Dev and Reporting
+    html = '<table style="width:100%;border-collapse:collapse;font-size:13px">'
     html += '<tr style="background:#1e293b;color:#fff">'
-    for col in ['Agent', 'CPA', 'Score', 'ROAS', 'Score', 'CVR', 'Score', 'CTR', 'Score', 'Report', 'Score', 'Auto', 'Manual', 'Total']:
-        html += f'<th style="padding:8px;text-align:center;border:1px solid #334155">{col}</th>'
+    for col in ['Agent', 'CPA', 'Score', 'ROAS', 'Score', 'CVR', 'Score', 'CTR', 'Score', 'Prof', 'Score', 'Report', 'Score', 'Auto', 'Manual', 'Total']:
+        html += f'<th style="padding:6px;text-align:center;border:1px solid #334155">{col}</th>'
     html += '</tr>'
 
     for _, r in summary_df.iterrows():
         html += '<tr style="border:1px solid #334155">'
-        html += f'<td style="padding:6px;font-weight:bold;border:1px solid #334155">{r["Agent"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["CPA"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["CPA Score"])}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["ROAS"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["ROAS Score"])}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["CVR"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["CVR Score"])}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["CTR"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["CTR Score"])}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155;font-size:12px">{r["Rep"]}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_badge(r["Rep Score"])}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{r["Auto"]}</td>'
+        html += f'<td style="padding:5px;font-weight:bold;border:1px solid #334155">{r["Agent"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["CPA"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["CPA Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["ROAS"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["ROAS Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["CVR"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["CVR Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["CTR"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["CTR Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155;font-size:12px">{r["Prof"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["Prof Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155;font-size:12px">{r["Rep"]}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["Rep Score"])}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["Auto"]}</td>'
         m = r["Manual"]
         m_color = "#22c55e" if m > 0 else "#64748b"
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155;color:{m_color}">{m}</td>'
+        html += f'<td style="padding:5px;text-align:center;border:1px solid #334155;color:{m_color}">{m}</td>'
         t = r["Total"]
         t_color = "#22c55e" if t >= 2.0 else "#eab308" if t >= 1.5 else "#f97316" if t >= 1.0 else "#ef4444"
-        html += f'<td style="padding:6px;text-align:center;font-weight:bold;border:1px solid #334155;color:{t_color}">{t}</td>'
+        html += f'<td style="padding:5px;text-align:center;font-weight:bold;border:1px solid #334155;color:{t_color}">{t}</td>'
         html += '</tr>'
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
 
-    # Bar chart - all 12 KPIs grouped
+    # Bar chart - all auto KPIs grouped
     st.subheader("Auto Scores by Agent")
     agents = summary_df['Agent'].tolist()
     fig = go.Figure()
@@ -222,6 +236,7 @@ if selected_agent == "All Agents":
         ('ROAS Score', 'ROAS', '#22c55e'),
         ('CVR Score', 'CVR', '#a855f7'),
         ('CTR Score', 'CTR', '#f59e0b'),
+        ('Prof Score', 'Profile Dev', '#06b6d4'),
     ]:
         fig.add_trace(go.Bar(name=label, x=agents, y=summary_df[metric].tolist(), marker_color=color))
     fig.update_layout(
@@ -237,11 +252,11 @@ if selected_agent == "All Agents":
     fig2 = go.Figure()
     fig2.add_trace(go.Bar(
         x=agents, y=summary_df['Auto'].tolist(),
-        name='Auto (CPA 12.5% + ROAS 12.5% + CVR 15% + CTR 7.5%)', marker_color='#3b82f6',
+        name='Auto (CPA 12.5% + ROAS 12.5% + CVR 15% + CTR 7.5% + Profile 5%)', marker_color='#3b82f6',
     ))
     fig2.add_trace(go.Bar(
         x=agents, y=summary_df['Manual'].tolist(),
-        name='Manual (Setup 15% + AB 7.5% + Report 10% + Acct 10% + Team 10%)', marker_color='#a855f7',
+        name='Manual (Setup 15% + AB 7.5% + Report 10% + Acct 5% + Team 10%)', marker_color='#a855f7',
     ))
     fig2.update_layout(
         barmode='stack',
@@ -274,6 +289,22 @@ if selected_agent == "All Agents":
                     )
                     st.session_state.manual_scores[f"{agent}_{key}"] = val
 
+    # Save All button
+    st.divider()
+    st.subheader("Save Profile Dev to Google Sheet")
+    if st.button("Save All Agents to KPI Sheet", key="save_all"):
+        results = []
+        for tab_info in KPI_AGENTS:
+            agent = tab_info['agent']
+            scores = live_scores.get(agent, {})
+            success, msg = write_kpi_scores_to_sheet(agent, scores)
+            results.append((agent, success, msg))
+        for agent, success, msg in results:
+            if success:
+                st.success(f"{agent}: {msg}")
+            else:
+                st.warning(f"{agent}: {msg}")
+
 # ============================================================
 # INDIVIDUAL AGENT VIEW
 # ============================================================
@@ -285,7 +316,7 @@ else:
     st.markdown(f"**ROAS Formula:** `ARPPU / {KPI_PHP_USD_RATE} / Cost_per_FTD`")
 
     # Auto KPI metric cards
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         v = agent_scores.get('cpa', {}).get('value', 0)
         s = agent_scores.get('cpa', {}).get('score', 0)
@@ -302,6 +333,10 @@ else:
         v = agent_scores.get('ctr', {}).get('value', 0)
         s = agent_scores.get('ctr', {}).get('score', 0)
         st.metric("CTR", f"{v:.2f}%", f"Score: {s}/4")
+    with col5:
+        v = agent_scores.get('profile_dev', {}).get('value', 0)
+        s = agent_scores.get('profile_dev', {}).get('score', 0)
+        st.metric("Profile Dev", f"{int(v)} assets", f"Score: {s}/4")
 
     st.divider()
 
@@ -356,6 +391,8 @@ else:
                 raw_display = f"{raw:.1f}%"
             elif key == 'ctr':
                 raw_display = f"{raw:.2f}%"
+            elif key == 'profile_dev':
+                raw_display = f"{int(raw)} assets"
             else:
                 raw_display = str(raw)
             weighted = round(score * weight_val, 2) if weight_val > 0 else ''
@@ -399,11 +436,23 @@ else:
     st.divider()
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"**Auto (47.5%):** {auto_weighted_total} / 1.90")
-        st.progress(min(auto_weighted_total / 1.90, 1.0) if auto_weighted_total > 0 else 0)
+        st.markdown(f"**Auto (52.5%):** {auto_weighted_total} / 2.10")
+        st.progress(min(auto_weighted_total / 2.10, 1.0) if auto_weighted_total > 0 else 0)
     with col2:
-        st.markdown(f"**Manual (52.5%):** {manual_weighted_total} / 2.10")
-        st.progress(min(manual_weighted_total / 2.10, 1.0) if manual_weighted_total > 0 else 0)
+        st.markdown(f"**Manual (47.5%):** {manual_weighted_total} / 1.90")
+        st.progress(min(manual_weighted_total / 1.90, 1.0) if manual_weighted_total > 0 else 0)
     with col3:
         st.markdown(f"**Grand Total (100%):** {grand_total} / 4.00")
         st.progress(min(grand_total / 4.00, 1.0) if grand_total > 0 else 0)
+
+    # Save to Sheet button
+    st.divider()
+    st.subheader("Save to Google Sheet")
+    st.caption("Write Profile Dev scores to individual KPI tabs in the KPI sheet.")
+    if st.button(f"Save {agent_name} KPI to Sheet", key=f"save_{agent_name}"):
+        with st.spinner(f"Writing scores to KPI sheet for {agent_name}..."):
+            success, msg = write_kpi_scores_to_sheet(agent_name, agent_scores)
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
