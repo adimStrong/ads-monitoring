@@ -1,6 +1,7 @@
 """
 Real-Time Reporter Module for BINGO365 Monitoring
 Handles real-time data fetching, change detection, and dashboard screenshots
+Uses P-tab data from Channel ROI sheet.
 """
 import os
 import sys
@@ -11,11 +12,11 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from data_loader import load_facebook_ads_data
+from channel_data_loader import load_agent_performance_data
 from telegram_reporter import TelegramReporter
 from config import (
     LOW_SPEND_THRESHOLD_USD, NO_CHANGE_ALERT, LAST_REPORT_DATA_FILE,
-    DASHBOARD_URL, SCREENSHOT_DIR, FACEBOOK_ADS_PERSONS, TELEGRAM_MENTIONS
+    DASHBOARD_URL, SCREENSHOT_DIR, TELEGRAM_MENTIONS, EXCLUDED_PERSONS
 )
 
 
@@ -26,26 +27,38 @@ def get_project_dir():
 
 def get_latest_date_data():
     """
-    Fetch data for the latest available date (real-time, not T+1).
+    Fetch data for the latest available date from P-tab data.
 
     Returns:
         tuple: (df, latest_date) - DataFrame filtered for latest date and the date itself
     """
     try:
-        fb_ads_df = load_facebook_ads_data()
+        ptab_data = load_agent_performance_data()
 
-        if fb_ads_df is None or fb_ads_df.empty:
-            print("[WARNING] No Facebook Ads data available")
+        if ptab_data is None:
+            print("[WARNING] No P-tab data available")
+            return None, None
+
+        daily_df = ptab_data.get('daily', pd.DataFrame())
+
+        if daily_df is None or daily_df.empty:
+            print("[WARNING] No P-tab daily data available")
             return None, None
 
         # Get latest date
-        fb_ads_df['date_only'] = pd.to_datetime(fb_ads_df['date']).dt.date
-        latest_date = fb_ads_df['date_only'].max()
+        daily_df = daily_df.copy()
+        daily_df['date_only'] = pd.to_datetime(daily_df['date']).dt.date
+        latest_date = daily_df['date_only'].max()
 
         # Filter for latest date
-        latest_data = fb_ads_df[fb_ads_df['date_only'] == latest_date]
+        latest_data = daily_df[daily_df['date_only'] == latest_date]
 
-        print(f"[OK] Loaded data for {latest_date}: {len(latest_data)} rows")
+        # Exclude boss accounts
+        if EXCLUDED_PERSONS:
+            excluded_upper = [p.upper() for p in EXCLUDED_PERSONS]
+            latest_data = latest_data[~latest_data['agent'].str.upper().isin(excluded_upper)]
+
+        print(f"[OK] Loaded P-tab data for {latest_date}: {len(latest_data)} rows")
         return latest_data, latest_date
 
     except Exception as e:
@@ -103,7 +116,7 @@ def compare_with_previous(current_data, previous_data, current_date=None):
     If date changed, returns None to indicate fresh start.
 
     Args:
-        current_data: DataFrame with current period data
+        current_data: DataFrame with current period data (P-tab columns)
         previous_data: Dictionary with previous period data
         current_date: Current data date for comparison
 
@@ -123,19 +136,19 @@ def compare_with_previous(current_data, previous_data, current_date=None):
     changes = {}
     prev_agents = previous_data.get('agents', {})
 
-    # Aggregate current data by agent
-    current_by_agent = current_data.groupby('person_name').agg({
-        'spend': 'sum',
+    # Aggregate current data by agent (P-tab columns: cost, register, ftd)
+    current_by_agent = current_data.groupby('agent').agg({
+        'cost': 'sum',
         'register': 'sum',
-        'result_ftd': 'sum',
+        'ftd': 'sum',
     }).to_dict('index')
 
     for agent_name, current_stats in current_by_agent.items():
         prev_stats = prev_agents.get(agent_name, {})
 
-        spend_diff = current_stats['spend'] - prev_stats.get('spend', 0)
+        spend_diff = current_stats['cost'] - prev_stats.get('spend', 0)
         reg_diff = current_stats['register'] - prev_stats.get('register', 0)
-        ftd_diff = current_stats['result_ftd'] - prev_stats.get('ftd', 0)
+        ftd_diff = current_stats['ftd'] - prev_stats.get('ftd', 0)
 
         has_change = (spend_diff != 0 or reg_diff != 0 or ftd_diff != 0)
 
@@ -177,15 +190,15 @@ def check_low_spend(current_data):
     Check for agents with low daily spend.
 
     Args:
-        current_data: DataFrame with current period data
+        current_data: DataFrame with current period data (P-tab columns)
 
     Returns:
         list: List of tuples (agent_name, spend) for agents with low spend
     """
     low_spend_agents = []
 
-    # Aggregate by agent
-    agent_spend = current_data.groupby('person_name')['spend'].sum()
+    # Aggregate by agent (P-tab uses 'cost' and 'agent')
+    agent_spend = current_data.groupby('agent')['cost'].sum()
 
     for agent_name, spend in agent_spend.items():
         if spend < LOW_SPEND_THRESHOLD_USD:
@@ -293,9 +306,10 @@ def generate_dashboard_screenshot(output_path=None):
 def generate_text_summary(current_data, latest_date, changes=None, low_spend_agents=None, no_change_agents=None):
     """
     Generate a text summary with alerts for Telegram.
+    Uses P-tab columns: agent, cost, register, ftd, impressions, clicks.
 
     Args:
-        current_data: DataFrame with current period data
+        current_data: DataFrame with current period data (P-tab columns)
         latest_date: The date of the data
         changes: Dictionary of changes per agent
         low_spend_agents: List of agents with low spend
@@ -308,53 +322,52 @@ def generate_text_summary(current_data, latest_date, changes=None, low_spend_age
     time_label = now.strftime("%I:%M %p")
     date_label = latest_date.strftime("%b %d, %Y") if latest_date else now.strftime("%b %d, %Y")
 
-    # Calculate team totals
+    # Calculate team totals (P-tab columns)
     team_totals = {
-        'spend': current_data['spend'].sum(),
+        'cost': current_data['cost'].sum(),
         'register': int(current_data['register'].sum()),
-        'ftd': int(current_data['result_ftd'].sum()),
-        'impressions': int(current_data['impressions'].sum()),
-        'clicks': int(current_data['clicks'].sum()),
-        'reach': int(current_data['reach'].sum()),
+        'ftd': int(current_data['ftd'].sum()),
+        'impressions': int(current_data['impressions'].sum()) if 'impressions' in current_data.columns else 0,
+        'clicks': int(current_data['clicks'].sum()) if 'clicks' in current_data.columns else 0,
     }
 
     # Derived metrics
-    cpr = team_totals['spend'] / team_totals['register'] if team_totals['register'] > 0 else 0
-    cpftd = team_totals['spend'] / team_totals['ftd'] if team_totals['ftd'] > 0 else 0
+    cpr = team_totals['cost'] / team_totals['register'] if team_totals['register'] > 0 else 0
+    cpftd = team_totals['cost'] / team_totals['ftd'] if team_totals['ftd'] > 0 else 0
     conv_rate = (team_totals['ftd'] / team_totals['register'] * 100) if team_totals['register'] > 0 else 0
     ctr = (team_totals['clicks'] / team_totals['impressions'] * 100) if team_totals['impressions'] > 0 else 0
 
     # Build report
-    report = f"📊 <b>ADVERTISER KPI REPORT</b>\n"
-    report += f"📅 {date_label} | {time_label}\n\n"
+    report = f"\U0001f4ca <b>ADVERTISER KPI REPORT</b>\n"
+    report += f"\U0001f4c5 {date_label} | {time_label}\n\n"
 
     # Team Totals
-    report += "💰 <b>TEAM TOTALS</b>\n"
-    report += f"├ Spend: <b>${team_totals['spend']:,.2f}</b>\n"
-    report += f"├ Register: <b>{team_totals['register']:,}</b>\n"
-    report += f"├ FTD: <b>{team_totals['ftd']:,}</b>\n"
-    report += f"├ Conv Rate: <b>{conv_rate:.1f}%</b>\n"
-    report += f"├ CPR: <b>${cpr:.2f}</b>\n"
-    report += f"├ Cost/FTD: <b>${cpftd:.2f}</b>\n"
-    report += f"└ CTR: <b>{ctr:.2f}%</b>\n\n"
+    report += "\U0001f4b0 <b>TEAM TOTALS</b>\n"
+    report += f"\u251c Spend: <b>${team_totals['cost']:,.2f}</b>\n"
+    report += f"\u251c Register: <b>{team_totals['register']:,}</b>\n"
+    report += f"\u251c FTD: <b>{team_totals['ftd']:,}</b>\n"
+    report += f"\u251c Conv Rate: <b>{conv_rate:.1f}%</b>\n"
+    report += f"\u251c CPR: <b>${cpr:.2f}</b>\n"
+    report += f"\u251c Cost/FTD: <b>${cpftd:.2f}</b>\n"
+    report += f"\u2514 CTR: <b>{ctr:.2f}%</b>\n\n"
 
     # Agent Summary Table
-    report += "👥 <b>AGENT SUMMARY</b>\n"
+    report += "\U0001f465 <b>AGENT SUMMARY</b>\n"
     report += "<pre>"
     report += f"{'Agent':<8}{'Spend':>10}{'Reg':>6}{'FTD':>6}{'Conv':>6}\n"
     report += "-" * 36 + "\n"
 
-    # Get agent data sorted by spend
-    agent_data = current_data.groupby('person_name').agg({
-        'spend': 'sum',
+    # Get agent data sorted by cost (P-tab columns)
+    agent_data = current_data.groupby('agent').agg({
+        'cost': 'sum',
         'register': 'sum',
-        'result_ftd': 'sum',
-    }).sort_values('spend', ascending=False)
+        'ftd': 'sum',
+    }).sort_values('cost', ascending=False)
 
     for agent_name, row in agent_data.iterrows():
-        spend = row['spend']
+        spend = row['cost']
         reg = int(row['register'])
-        ftd = int(row['result_ftd'])
+        ftd = int(row['ftd'])
         agent_conv = (ftd / reg * 100) if reg > 0 else 0
 
         # Change indicators with actual amounts
@@ -399,15 +412,15 @@ def generate_text_summary(current_data, latest_date, changes=None, low_spend_age
     has_alerts = (low_spend_agents and len(low_spend_agents) > 0) or (no_change_agents and len(no_change_agents) > 0)
 
     if has_alerts:
-        report += "⚠️ <b>ALERTS</b>\n"
+        report += "\u26a0\ufe0f <b>ALERTS</b>\n"
 
         if low_spend_agents:
             for agent_name, spend in low_spend_agents:
-                report += f"• <b>{agent_name}</b>: Low spend (${spend:.2f}) - Focus and work hard!\n"
+                report += f"\u2022 <b>{agent_name}</b>: Low spend (${spend:.2f}) - Focus and work hard!\n"
 
         if NO_CHANGE_ALERT and no_change_agents:
             for agent_name in no_change_agents:
-                report += f"• <b>{agent_name}</b>: No change since last report\n"
+                report += f"\u2022 <b>{agent_name}</b>: No change since last report\n"
 
         report += "\n"
 
@@ -425,6 +438,7 @@ def generate_text_summary(current_data, latest_date, changes=None, low_spend_age
 def prepare_report_data(current_data, latest_date):
     """
     Prepare report data for saving and comparison.
+    Uses P-tab columns: agent, cost, register, ftd.
 
     Args:
         current_data: DataFrame with current period data
@@ -433,27 +447,27 @@ def prepare_report_data(current_data, latest_date):
     Returns:
         dict: Report data structure
     """
-    # Aggregate by agent
-    agent_data = current_data.groupby('person_name').agg({
-        'spend': 'sum',
+    # Aggregate by agent (P-tab columns)
+    agent_data = current_data.groupby('agent').agg({
+        'cost': 'sum',
         'register': 'sum',
-        'result_ftd': 'sum',
+        'ftd': 'sum',
     }).to_dict('index')
 
     # Convert to serializable format
     agents = {}
     for agent_name, stats in agent_data.items():
         agents[agent_name] = {
-            'spend': float(stats['spend']),
+            'spend': float(stats['cost']),
             'register': int(stats['register']),
-            'ftd': int(stats['result_ftd']),
+            'ftd': int(stats['ftd']),
         }
 
     # Team totals
     team_totals = {
-        'spend': float(current_data['spend'].sum()),
+        'spend': float(current_data['cost'].sum()),
         'register': int(current_data['register'].sum()),
-        'ftd': int(current_data['result_ftd'].sum()),
+        'ftd': int(current_data['ftd'].sum()),
     }
 
     return {
@@ -522,7 +536,7 @@ def send_realtime_report(send_screenshot=True, send_text=True, combined=True):
         else:
             # Send separately
             if screenshot_path:
-                reporter.send_photo(screenshot_path, caption=f"📊 Dashboard - {latest_date}")
+                reporter.send_photo(screenshot_path, caption=f"\U0001f4ca Dashboard - {latest_date}")
                 print("[OK] Screenshot sent to Telegram")
             elif send_screenshot:
                 print("[WARNING] Screenshot capture failed, sending text only")
