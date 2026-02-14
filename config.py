@@ -465,6 +465,7 @@ ACCOUNT_DEV_ROW = 16
 # ============================================================
 AB_TESTING_TAB = {"name": "Text/AbTest", "gid": 21055881}
 AB_TESTING_ROW = 13  # 0-indexed row in KPI sheet for A/B Testing write-back (row 14 in 1-indexed)
+REPORTING_ROW = 14   # 0-indexed row in KPI sheet for Reporting Accuracy write-back (row 15 in 1-indexed)
 
 # ============================================================
 # UPDATED ACCOUNTS CONFIGURATION
@@ -610,12 +611,19 @@ KPI_SCORING = {
         'thresholds': [(4, 20, float('inf')), (3, 11, 19), (2, 6, 10), (1, 0, 5)],
         'direction': 'higher_better',
     },
+    'reporting': {
+        'name': 'Reporting Accuracy',
+        'weight': 0.10,     # 10% Data & Reporting
+        'krs': 'Data & Reporting',
+        'auto': True,
+        'thresholds': [(4, 0, 14), (3, 15, 24), (2, 25, 34), (1, 35, 999)],
+        'direction': 'lower_better',
+    },
 }
 
 # Manual KPIs (for display on dashboard - manager scores these)
 KPI_MANUAL = {
-    'campaign_setup': {'name': 'Campaign Setup Accuracy', 'weight': 0.15, 'krs': 'Campaign Efficiency'},  # 15% (CVR + Campaign Setup = 30%)
-    'reporting': {'name': 'Reporting Accuracy', 'weight': 0.10, 'krs': 'Data & Reporting'},                # 10%
+    'campaign_setup': {'name': 'Campaign Setup Accuracy', 'weight': 0.15, 'krs': 'Campaign Efficiency'},  # 15%
     'data_insights': {'name': 'Data-Driven Insights', 'weight': 0, 'krs': 'Data & Reporting'},
     'collaboration': {'name': 'Collaboration', 'weight': 0.10, 'krs': 'Teamwork'},                         # 10%
     'communication': {'name': 'Communication', 'weight': 0, 'krs': 'Teamwork'},

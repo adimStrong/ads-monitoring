@@ -64,6 +64,7 @@ from config import (
     CREATED_ASSETS_DATA_START,
     AB_TESTING_TAB,
     AB_TESTING_ROW,
+    REPORTING_ROW,
 )
 
 
@@ -1782,7 +1783,7 @@ def score_profile_dev(total_count):
     return 1
 
 
-def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None, created_assets_data=None, ab_testing_data=None):
+def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None, created_assets_data=None, ab_testing_data=None, reporting_data=None):
     """Calculate auto KPI scores for an agent from P-tab data.
     ROAS = ARPPU / 57.7 / Cost_per_FTD (IFERROR -> 0)
 
@@ -1881,6 +1882,23 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
         'published_ad': ab_published,
     }
 
+    # Reporting Accuracy (from Telegram Chat Listener API)
+    rep_score = 0
+    rep_avg_min = 0
+    rep_count = 0
+    if reporting_data and agent_name in reporting_data:
+        rep_info = reporting_data[agent_name]
+        rep_score = rep_info.get('score', 0)
+        rep_avg_min = rep_info.get('avg_minute', 0)
+        rep_count = rep_info.get('report_count', 0)
+    scores['reporting'] = {
+        'score': rep_score,
+        'value': rep_avg_min,
+        'name': KPI_SCORING['reporting']['name'],
+        'avg_minute': rep_avg_min,
+        'report_count': rep_count,
+    }
+
     return scores
 
 
@@ -1961,6 +1979,19 @@ def write_kpi_scores_to_sheet(agent_name, scores_dict):
         worksheet.update_cell(ab_row_num, 6, ab_weighted)
         worksheet.update_cell(ab_row_num, 7, int(ab_raw))
         messages.append(f"A/B Testing score={ab_score}, published={int(ab_raw)}")
+
+        # Write Reporting Accuracy (row REPORTING_ROW)
+        rep_info = scores_dict.get('reporting', {})
+        rep_score = rep_info.get('score', 0)
+        rep_raw = rep_info.get('avg_minute', 0)
+        rep_weight = KPI_SCORING.get('reporting', {}).get('weight', 0.10)
+        rep_weighted = round(rep_score * rep_weight, 4)
+
+        rep_row_num = REPORTING_ROW + 1  # 0-indexed to 1-indexed
+        worksheet.update_cell(rep_row_num, 5, rep_score)
+        worksheet.update_cell(rep_row_num, 6, rep_weighted)
+        worksheet.update_cell(rep_row_num, 7, round(rep_raw, 1))
+        messages.append(f"Reporting score={rep_score}, avg_min={rep_raw:.1f}")
 
         return True, f"Wrote to {tab_name}: {'; '.join(messages)}"
 

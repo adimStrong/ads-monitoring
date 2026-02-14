@@ -42,15 +42,11 @@ st.title("📊 KPI Monitoring")
 if 'manual_scores' not in st.session_state:
     st.session_state.manual_scores = {}
 
-# Auto-fill reporting scores from Railway Chat Listener API
+# Fetch reporting scores from Railway Chat Listener API (used by auto-scoring)
 try:
     resp = http_requests.get(f"{CHAT_API_URL}/api/reporting", params={'key': CHAT_API_KEY}, timeout=10)
     resp.raise_for_status()
     chat_reporting = resp.json()
-    for agent_name, data in chat_reporting.items():
-        key = f"{agent_name}_reporting"
-        if key not in st.session_state.manual_scores or st.session_state.manual_scores[key] == 0:
-            st.session_state.manual_scores[key] = data['score']
 except Exception:
     chat_reporting = {}
 
@@ -64,7 +60,7 @@ PARAM_TEXT = {
     'campaign_setup': '4: 95-97% | 3: 90-94% | 2: 85-89% | 1: <85%',
     'ctr': '4: 3-4% | 3: 2-2.9% | 2: 1-1.9% | 1: <0.9%',
     'ab_testing': '4: >=20 published | 3: 11-19 | 2: 6-10 | 1: <6 (auto from Text/AbTest)',
-    'reporting': '4: <15min | 3: 15-24min | 2: 25-34min | 1: 35+min (auto from TG chat)',
+    'reporting': '4: <15min | 3: 15-24min | 2: 25-34min | 1: 35+min (auto from Telegram)',
     'data_insights': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
     'account_dev': '4: >=5 gmail+fb | 3: 3-4 | 2: 2 | 1: <2 (auto from Created Assets)',
     'collaboration': '4: Excellent | 3: Good | 2: Fair | 1: Poor',
@@ -144,7 +140,7 @@ created_assets_data = load_created_assets_data()
 # Load A/B Testing data
 ab_testing_data = load_ab_testing_data()
 
-# Calculate live auto scores from P-tab + Created Assets + AB Testing
+# Calculate live auto scores from P-tab + Created Assets + AB Testing + Reporting
 live_scores = {}
 for tab_info in AGENT_PERFORMANCE_TABS:
     agent = tab_info['agent']
@@ -153,6 +149,7 @@ for tab_info in AGENT_PERFORMANCE_TABS:
         accounts_data=accounts_data,
         created_assets_data=created_assets_data,
         ab_testing_data=ab_testing_data,
+        reporting_data=chat_reporting,
     )
 
 
@@ -174,6 +171,7 @@ if selected_agent == "All Agents":
         ctr_s = s.get('ctr', {}).get('score', 0)
         acct_s = s.get('account_dev', {}).get('score', 0)
         ab_s = s.get('ab_testing', {}).get('score', 0)
+        rep_s = s.get('reporting', {}).get('score', 0)
 
         cpa_v = s.get('cpa', {}).get('value', 0)
         roas_v = s.get('roas', {}).get('value', 0)
@@ -181,12 +179,8 @@ if selected_agent == "All Agents":
         ctr_v = s.get('ctr', {}).get('value', 0)
         acct_v = s.get('account_dev', {}).get('value', 0)
         ab_v = s.get('ab_testing', {}).get('value', 0)
-
-        # Reporting accuracy from TG bot
-        rep_data = chat_reporting.get(agent, {})
-        rep_score = rep_data.get('score', 0)
-        rep_count = rep_data.get('report_count', 0)
-        rep_min = rep_data.get('avg_minute', 0)
+        rep_count = s.get('reporting', {}).get('report_count', 0)
+        rep_min = s.get('reporting', {}).get('avg_minute', 0)
 
         auto_wt = calc_auto_weighted(s)
         manual_wt = calc_manual_weighted(agent)
@@ -207,7 +201,7 @@ if selected_agent == "All Agents":
             'AB': f"{int(ab_v)}" if ab_v > 0 else "-",
             'AB Score': ab_s,
             'Rep': f"{rep_min:.0f}m ({rep_count})" if rep_count > 0 else "-",
-            'Rep Score': rep_score,
+            'Rep Score': rep_s,
             'Auto': auto_wt,
             'Manual': manual_wt,
             'Total': total_wt,
@@ -261,6 +255,7 @@ if selected_agent == "All Agents":
         ('CTR Score', 'CTR', '#f59e0b'),
         ('Acct Score', 'Account Dev', '#ec4899'),
         ('AB Score', 'A/B Testing', '#06b6d4'),
+        ('Rep Score', 'Reporting', '#14b8a6'),
     ]:
         fig.add_trace(go.Bar(name=label, x=agents, y=summary_df[metric].tolist(), marker_color=color))
     fig.update_layout(
@@ -276,11 +271,11 @@ if selected_agent == "All Agents":
     fig2 = go.Figure()
     fig2.add_trace(go.Bar(
         x=agents, y=summary_df['Auto'].tolist(),
-        name='Auto (CPA 12.5% + ROAS 12.5% + CVR 15% + CTR 7.5% + Acct 10% + AB 7.5%)', marker_color='#3b82f6',
+        name='Auto (CPA 12.5% + ROAS 12.5% + CVR 15% + CTR 7.5% + Acct 10% + AB 7.5% + Report 10%)', marker_color='#3b82f6',
     ))
     fig2.add_trace(go.Bar(
         x=agents, y=summary_df['Manual'].tolist(),
-        name='Manual (Setup 15% + Report 10% + Team 10%)', marker_color='#a855f7',
+        name='Manual (Setup 15% + Collab 10%)', marker_color='#a855f7',
     ))
     fig2.update_layout(
         barmode='stack',
@@ -315,7 +310,7 @@ if selected_agent == "All Agents":
 
     # Save All button
     st.divider()
-    st.subheader("Save Account Dev + A/B Testing to Google Sheet")
+    st.subheader("Save Auto Scores to Google Sheet")
     if st.button("Save All Agents to KPI Sheet", key="save_all"):
         results = []
         for tab_info in KPI_AGENTS:
@@ -432,6 +427,9 @@ else:
             elif key == 'ab_testing':
                 ab = agent_scores.get('ab_testing', {})
                 raw_display = f"{int(raw)} published ({ab.get('primary_text', 0)} texts)"
+            elif key == 'reporting':
+                rp = agent_scores.get('reporting', {})
+                raw_display = f"{rp.get('avg_minute', 0):.0f}min avg ({rp.get('report_count', 0)} reports)"
             else:
                 raw_display = str(raw)
             weighted = round(score * weight_val, 2) if weight_val > 0 else ''
@@ -475,11 +473,11 @@ else:
     st.divider()
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.markdown(f"**Auto (65%):** {auto_weighted_total} / 2.60")
-        st.progress(min(auto_weighted_total / 2.60, 1.0) if auto_weighted_total > 0 else 0)
+        st.markdown(f"**Auto (75%):** {auto_weighted_total} / 3.00")
+        st.progress(min(auto_weighted_total / 3.00, 1.0) if auto_weighted_total > 0 else 0)
     with col2:
-        st.markdown(f"**Manual (35%):** {manual_weighted_total} / 1.40")
-        st.progress(min(manual_weighted_total / 1.40, 1.0) if manual_weighted_total > 0 else 0)
+        st.markdown(f"**Manual (25%):** {manual_weighted_total} / 1.00")
+        st.progress(min(manual_weighted_total / 1.00, 1.0) if manual_weighted_total > 0 else 0)
     with col3:
         st.markdown(f"**Grand Total (100%):** {grand_total} / 4.00")
         st.progress(min(grand_total / 4.00, 1.0) if grand_total > 0 else 0)
@@ -487,7 +485,7 @@ else:
     # Save to Sheet button
     st.divider()
     st.subheader("Save to Google Sheet")
-    st.caption("Write Account Dev + A/B Testing scores to individual KPI tabs in the KPI sheet.")
+    st.caption("Write Account Dev, A/B Testing, and Reporting scores to KPI sheet.")
     if st.button(f"Save {agent_name} KPI to Sheet", key=f"save_{agent_name}"):
         with st.spinner(f"Writing scores to KPI sheet for {agent_name}..."):
             success, msg = write_kpi_scores_to_sheet(agent_name, agent_scores)
