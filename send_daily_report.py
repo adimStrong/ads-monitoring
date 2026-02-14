@@ -193,12 +193,17 @@ def send_report():
     try:
         reporter = TelegramReporter()
 
-        # Capture and send dashboard screenshot first
+        # Capture and send dashboard screenshot (split into 2 parts)
         logger.info("Capturing dashboard screenshot...")
-        screenshot_path = generate_dashboard_screenshot()
-        if screenshot_path:
+        screenshot_parts = generate_dashboard_screenshot(split=True)
+        if screenshot_parts and isinstance(screenshot_parts, list):
+            for i, part_path in enumerate(screenshot_parts):
+                caption = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')} (Part {i+1}/{len(screenshot_parts)})"
+                reporter.send_photo(part_path, caption=caption)
+            logger.info(f"Dashboard screenshot sent ({len(screenshot_parts)} parts)!")
+        elif screenshot_parts:
             reporter.send_photo(
-                screenshot_path,
+                screenshot_parts,
                 caption=f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}"
             )
             logger.info("Dashboard screenshot sent!")
