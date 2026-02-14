@@ -58,6 +58,11 @@ from config import (
     KPI_SHEET_ID,
     KPI_AGENT_TABS,
     PROFILE_DEV_ROW,
+    ACCOUNT_DEV_ROW,
+    CREATED_ASSETS_TAB,
+    CREATED_ASSETS_COLUMNS,
+    CREATED_ASSETS_HEADER_ROW,
+    CREATED_ASSETS_DATA_START,
 )
 
 
@@ -1022,6 +1027,138 @@ def refresh_updated_accounts_data():
 
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
+def load_created_assets_data():
+    """
+    Load Created Assets data from Channel ROI sheet.
+
+    Parses the left section (cols B-N) which has a detailed creation log:
+    DATE, CREATOR, GMAIL, FB_USERNAME, FB_PAGE, BM_NAME, etc.
+
+    Returns:
+        DataFrame with all creation records
+    """
+    try:
+        client = get_google_client()
+        if client is None:
+            return pd.DataFrame()
+
+        spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
+        worksheet = spreadsheet.get_worksheet_by_id(CREATED_ASSETS_TAB['gid'])
+        all_data = worksheet.get_all_values()
+
+        if len(all_data) <= CREATED_ASSETS_DATA_START:
+            print("[WARNING] Created Assets tab has no data")
+            return pd.DataFrame()
+
+        cols = CREATED_ASSETS_COLUMNS
+        records = []
+
+        for row_idx in range(CREATED_ASSETS_DATA_START, len(all_data)):
+            row = all_data[row_idx]
+            if len(row) <= cols['creator']:
+                continue
+
+            creator = str(row[cols['creator']]).strip()
+            if not creator:
+                continue
+
+            date_val = parse_date(str(row[cols['date']]).strip()) if cols['date'] < len(row) else None
+
+            def safe_get(idx):
+                return str(row[idx]).strip() if idx < len(row) else ''
+
+            records.append({
+                'date': date_val,
+                'creator': creator,
+                'gmail': safe_get(cols['gmail']),
+                'fb_username': safe_get(cols['fb_username']),
+                'fb_condition': safe_get(cols['fb_condition']),
+                'fb_page': safe_get(cols['fb_page']),
+                'page_condition': safe_get(cols['page_condition']),
+                'bm_name': safe_get(cols['bm_name']),
+                'bm_condition': safe_get(cols['bm_condition']),
+            })
+
+        if not records:
+            print("[WARNING] Created Assets: no data rows found")
+            return pd.DataFrame()
+
+        df = pd.DataFrame(records)
+        print(f"[OK] Created Assets: {len(df)} rows loaded")
+        return df
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load Created Assets: {e}")
+        import traceback
+        traceback.print_exc()
+        return pd.DataFrame()
+
+
+def refresh_created_assets_data():
+    """Clear Created Assets data cache."""
+    load_created_assets_data.clear()
+
+
+def count_created_assets(assets_df):
+    """Count created assets per agent from Created Assets data.
+
+    Args:
+        assets_df: DataFrame from load_created_assets_data()
+
+    Returns:
+        dict: {agent_upper: {'gmail': N, 'fb_accounts': N, 'fb_pages': N, 'bms': N,
+                              'total_accounts': N, 'total_assets': N}}
+    """
+    if assets_df is None or assets_df.empty:
+        return {}
+
+    result = {}
+
+    for _, row in assets_df.iterrows():
+        creator = str(row.get('creator', '')).strip().upper()
+        if not creator:
+            continue
+
+        if creator not in result:
+            result[creator] = {
+                'gmail': 0, 'fb_accounts': 0, 'fb_pages': 0, 'bms': 0,
+                'total_accounts': 0, 'total_assets': 0,
+            }
+
+        # Count non-empty fields
+        if str(row.get('gmail', '')).strip():
+            result[creator]['gmail'] += 1
+        if str(row.get('fb_username', '')).strip():
+            result[creator]['fb_accounts'] += 1
+        if str(row.get('fb_page', '')).strip():
+            result[creator]['fb_pages'] += 1
+        if str(row.get('bm_name', '')).strip():
+            result[creator]['bms'] += 1
+
+    # Calculate totals
+    for name in result:
+        r = result[name]
+        r['total_accounts'] = r['gmail'] + r['fb_accounts']  # for account_dev
+        r['total_assets'] = r['fb_pages'] + r['bms']         # for profile_dev
+
+    return result
+
+
+def score_account_dev(total_accounts):
+    """Score Account Dev based on total Gmail + FB accounts created.
+
+    Rubric: 4 if total >= 5, 3 if total >= 3, 2 if total >= 2, 1 if total < 2
+    """
+    if total_accounts >= 5:
+        return 4
+    elif total_accounts >= 3:
+        return 3
+    elif total_accounts >= 2:
+        return 2
+    return 1
+
+
+@st.cache_data(ttl=600)  # Cache for 10 minutes
 def load_agent_performance_data():
     """
     Load Agent Performance data from P-tabs (P6-P13) in Channel ROI sheet.
@@ -1402,22 +1539,23 @@ def score_profile_dev(total_count):
     return 1
 
 
-def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None):
+def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None, created_assets_data=None):
     """Calculate auto KPI scores for an agent from P-tab data.
     ROAS = ARPPU / 57.7 / Cost_per_FTD (IFERROR -> 0)
 
     Uses monthly data for CPA/CVR, calculates CTR from clicks/impressions,
     and gets ARPPU from daily data (latest available) for ROAS.
-    Profile Dev is scored from Updated Accounts data (BMs + Pages + FB accounts).
+    Account Dev is scored from Created Assets tab (Gmail + FB accounts).
+    Profile Dev is scored from Created Assets tab (FB Pages + BMs).
 
-    Returns dict: {metric_key: {'score': int, 'value': float, 'name': str}}
+    Returns dict: {metric_key: {'score': int, 'value': float, 'name': str, ...}}
     """
     scores = {}
     agent_data = monthly_df[monthly_df['agent'] == agent_name]
 
     if agent_data.empty:
         for key in KPI_SCORING:
-            if key == 'profile_dev':
+            if key in ('profile_dev', 'account_dev'):
                 continue  # Handle separately below
             scores[key] = {'score': 0, 'value': 0, 'name': KPI_SCORING[key]['name']}
     else:
@@ -1465,21 +1603,37 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
         s, v = score_kpi('ctr', ctr)
         scores['ctr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['ctr']['name']}
 
-    # Profile Development (from Updated Accounts data)
-    profile_score = 0
-    profile_total = 0
-    if accounts_data is not None:
-        asset_counts = count_profile_assets(accounts_data)
-        # Case-insensitive match: agent_name could be "Mika", assets keys are "MIKA"
-        agent_upper = agent_name.upper()
-        agent_assets = asset_counts.get(agent_upper, {})
-        profile_total = agent_assets.get('total', 0)
-        profile_score = score_profile_dev(profile_total)
+    # Created Assets scoring (Account Dev + Profile Dev)
+    agent_upper = agent_name.upper()
+    asset_counts = {}
 
+    if created_assets_data is not None and not created_assets_data.empty:
+        asset_counts = count_created_assets(created_assets_data).get(agent_upper, {})
+
+    # Account Dev (Gmail + FB accounts from Created Assets)
+    acct_gmail = asset_counts.get('gmail', 0)
+    acct_fb = asset_counts.get('fb_accounts', 0)
+    acct_total = asset_counts.get('total_accounts', 0)
+    acct_score = score_account_dev(acct_total)
+    scores['account_dev'] = {
+        'score': acct_score,
+        'value': acct_total,
+        'name': KPI_SCORING['account_dev']['name'],
+        'gmail': acct_gmail,
+        'fb_accounts': acct_fb,
+    }
+
+    # Profile Dev (FB Pages + BMs from Created Assets)
+    prof_pages = asset_counts.get('fb_pages', 0)
+    prof_bms = asset_counts.get('bms', 0)
+    prof_total = asset_counts.get('total_assets', 0)
+    prof_score = score_profile_dev(prof_total)
     scores['profile_dev'] = {
-        'score': profile_score,
-        'value': profile_total,
+        'score': prof_score,
+        'value': prof_total,
         'name': KPI_SCORING['profile_dev']['name'],
+        'fb_pages': prof_pages,
+        'bms': prof_bms,
     }
 
     return scores
@@ -1514,11 +1668,11 @@ def get_google_write_client():
 
 
 def write_kpi_scores_to_sheet(agent_name, scores_dict):
-    """Write Profile Dev score to the agent's KPI tab in Google Sheets.
+    """Write Account Dev and Profile Dev scores to the agent's KPI tab in Google Sheets.
 
     Args:
         agent_name: Agent name (e.g. 'Mika')
-        scores_dict: dict from calculate_kpi_scores() with profile_dev entry
+        scores_dict: dict from calculate_kpi_scores() with account_dev and profile_dev entries
 
     Returns:
         (success: bool, message: str)
@@ -1526,12 +1680,6 @@ def write_kpi_scores_to_sheet(agent_name, scores_dict):
     tab_name = KPI_AGENT_TABS.get(agent_name)
     if not tab_name:
         return False, f"No KPI tab mapping for {agent_name}"
-
-    profile_info = scores_dict.get('profile_dev', {})
-    score = profile_info.get('score', 0)
-    raw_value = profile_info.get('value', 0)
-    weight = KPI_SCORING.get('profile_dev', {}).get('weight', 0.05)
-    weighted = round(score * weight, 4)
 
     try:
         client = get_google_write_client()
@@ -1541,17 +1689,35 @@ def write_kpi_scores_to_sheet(agent_name, scores_dict):
         spreadsheet = client.open_by_key(KPI_SHEET_ID)
         worksheet = spreadsheet.worksheet(tab_name)
 
-        # Row 17 is 0-indexed, so gspread row = 18 (1-indexed)
-        row_num = PROFILE_DEV_ROW + 1
+        messages = []
 
-        # Write score to column that holds the score value (typically col F or similar)
-        # We'll update cells in the Profile Dev row: Score, Weighted, Raw count
-        # Standard KPI sheet layout: col E = Score (5), col F = Weighted (6), col G = Raw (7)
-        worksheet.update_cell(row_num, 5, score)          # Score column (E)
-        worksheet.update_cell(row_num, 6, weighted)        # Weighted column (F)
-        worksheet.update_cell(row_num, 7, int(raw_value))  # Raw asset count (G)
+        # Write Account Dev (row ACCOUNT_DEV_ROW)
+        acct_info = scores_dict.get('account_dev', {})
+        acct_score = acct_info.get('score', 0)
+        acct_raw = acct_info.get('value', 0)
+        acct_weight = KPI_SCORING.get('account_dev', {}).get('weight', 0.05)
+        acct_weighted = round(acct_score * acct_weight, 4)
 
-        return True, f"Wrote Profile Dev score={score}, weighted={weighted}, assets={int(raw_value)} to {tab_name}"
+        acct_row_num = ACCOUNT_DEV_ROW + 1  # 0-indexed to 1-indexed
+        worksheet.update_cell(acct_row_num, 5, acct_score)
+        worksheet.update_cell(acct_row_num, 6, acct_weighted)
+        worksheet.update_cell(acct_row_num, 7, int(acct_raw))
+        messages.append(f"Account Dev score={acct_score}, assets={int(acct_raw)}")
+
+        # Write Profile Dev (row PROFILE_DEV_ROW)
+        profile_info = scores_dict.get('profile_dev', {})
+        prof_score = profile_info.get('score', 0)
+        prof_raw = profile_info.get('value', 0)
+        prof_weight = KPI_SCORING.get('profile_dev', {}).get('weight', 0.05)
+        prof_weighted = round(prof_score * prof_weight, 4)
+
+        prof_row_num = PROFILE_DEV_ROW + 1
+        worksheet.update_cell(prof_row_num, 5, prof_score)
+        worksheet.update_cell(prof_row_num, 6, prof_weighted)
+        worksheet.update_cell(prof_row_num, 7, int(prof_raw))
+        messages.append(f"Profile Dev score={prof_score}, assets={int(prof_raw)}")
+
+        return True, f"Wrote to {tab_name}: {'; '.join(messages)}"
 
     except Exception as e:
         return False, f"Failed to write to {tab_name}: {e}"

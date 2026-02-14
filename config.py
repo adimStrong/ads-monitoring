@@ -434,6 +434,33 @@ TEAM_CHANNEL_SOURCES = [
 ]
 
 # ============================================================
+# CREATED ASSETS CONFIGURATION (Channel ROI sheet)
+# ============================================================
+CREATED_ASSETS_TAB = {"name": "Created Assets", "gid": 820171568}
+CREATED_ASSETS_HEADER_ROW = 2   # 0-indexed row with column headers
+CREATED_ASSETS_DATA_START = 3   # 0-indexed first data row
+
+# Column mapping for left section (cols B-N, index 1-13)
+CREATED_ASSETS_COLUMNS = {
+    'date': 1,           # B - DATE
+    'creator': 2,        # C - CREATOR
+    'gmail': 3,          # D - GMAIL / OUTLOOK
+    'fb_username': 4,    # E - FB USERNAME
+    'fb_password': 5,    # F - FB PASSWORD
+    'fb_condition': 6,   # G - CONDITION (for FB account)
+    'fb_page': 7,        # H - FB PAGE
+    'page_condition': 8, # I - CONDITION (for page)
+    'bm_name': 9,        # J - BM NAME
+    'bm_condition': 10,  # K - CONDITION (for BM)
+    'bm_id': 11,         # L - BM ID
+    'pixel': 12,         # M - PIXEL
+    'pixel_condition': 13, # N - CONDITION (for pixel)
+}
+
+# Row in KPI sheet for Account Dev write-back (0-indexed)
+ACCOUNT_DEV_ROW = 16
+
+# ============================================================
 # UPDATED ACCOUNTS CONFIGURATION
 # ============================================================
 # Separate spreadsheet with 3 tabs: FB accounts, BM, Pages
@@ -561,6 +588,14 @@ KPI_SCORING = {
         'thresholds': [(4, 3.0, 100.0), (3, 2.0, 2.99), (2, 1.0, 1.99), (1, 0, 0.99)],
         'direction': 'higher_better',
     },
+    'account_dev': {
+        'name': 'Gmail/FB Account Dev',
+        'weight': 0.05,     # 5% (Account Dev 5% + Profile Dev 5% = 10%)
+        'krs': 'Account Management',
+        'auto': True,
+        'thresholds': [(4, 5, float('inf')), (3, 3, 4), (2, 2, 2), (1, 0, 1)],
+        'direction': 'higher_better',
+    },
     'profile_dev': {
         'name': 'Profile Development',
         'weight': 0.05,     # 5% (Account Dev 5% + Profile Dev 5% = 10%)
@@ -577,7 +612,6 @@ KPI_MANUAL = {
     'ab_testing': {'name': 'A/B Testing', 'weight': 0.075, 'krs': 'Campaign Efficiency'},                 # 7.5% (CTR + A/B Testing = 15%)
     'reporting': {'name': 'Reporting Accuracy', 'weight': 0.10, 'krs': 'Data & Reporting'},                # 10%
     'data_insights': {'name': 'Data-Driven Insights', 'weight': 0, 'krs': 'Data & Reporting'},
-    'account_dev': {'name': 'Gmail/FB Account Dev', 'weight': 0.05, 'krs': 'Account Management'},          # 5%
     'collaboration': {'name': 'Collaboration', 'weight': 0.10, 'krs': 'Teamwork'},                         # 10%
     'communication': {'name': 'Communication', 'weight': 0, 'krs': 'Teamwork'},
 }
