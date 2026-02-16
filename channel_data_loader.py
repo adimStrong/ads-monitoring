@@ -1153,12 +1153,14 @@ def count_created_assets(assets_df, date_range=None):
     if assets_df is None or assets_df.empty:
         return {}
 
-    # Filter by date range if provided
+    # Filter by date range if provided (skip if no valid dates exist)
     if date_range and 'date' in assets_df.columns:
         df = assets_df.copy()
         df['date_dt'] = pd.to_datetime(df['date'], errors='coerce')
-        df = df[(df['date_dt'] >= date_range[0]) & (df['date_dt'] <= date_range[1])]
-        assets_df = df
+        has_valid_dates = df['date_dt'].notna().any()
+        if has_valid_dates:
+            df = df[(df['date_dt'] >= date_range[0]) & (df['date_dt'] <= date_range[1])]
+            assets_df = df
 
     result = {}
 
