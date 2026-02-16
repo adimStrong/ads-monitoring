@@ -516,7 +516,7 @@ AGENT_PERFORMANCE_TABS = [
 AGENT_PERF_OVERALL_COLUMNS = {
     'channel': 1, 'date': 2, 'cost': 3, 'register': 4, 'cpr': 5,
     'ftd': 6, 'cpd': 7, 'conv_rate': 8, 'impressions': 9,
-    'clicks': 10, 'ctr': 11, 'arppu': 12, 'roas': 13,
+    'clicks': 10, 'ctr': 11, 'recharge': 12, 'arppu': 13, 'roas': 14,
 }
 
 # Monthly summary section (0-indexed rows)
@@ -568,7 +568,7 @@ KPI_SCORING = {
         'weight': 0.125,    # 12.5% (CPA + ROAS = 25%)
         'krs': 'Revenue Generation',
         'auto': True,
-        'thresholds': [(4, 9.0, 9.99), (3, 10.0, 13.0), (2, 14.0, 15.0), (1, 15.01, float('inf'))],
+        'thresholds': [(4, 9.0, 9.99), (3, 10.0, 13.99), (2, 14.0, 15.0), (1, 15.01, float('inf'))],
         'direction': 'lower_better',
     },
     'roas': {
@@ -576,7 +576,7 @@ KPI_SCORING = {
         'weight': 0.125,    # 12.5% (CPA + ROAS = 25%)
         'krs': 'Revenue Generation',
         'auto': True,
-        'thresholds': [(4, 0.40, float('inf')), (3, 0.20, 0.39), (2, 0.10, 0.19), (1, 0, 0.099)],
+        'thresholds': [(4, 0.40, float('inf')), (3, 0.20, 0.399), (2, 0.10, 0.199), (1, 0, 0.099)],
         'direction': 'higher_better',
     },
     'cvr': {
