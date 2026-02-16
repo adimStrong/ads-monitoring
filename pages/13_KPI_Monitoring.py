@@ -19,6 +19,8 @@ from channel_data_loader import (
     load_ab_testing_data,
     refresh_ab_testing_data,
     count_ab_testing,
+    get_available_months,
+    month_to_label,
 )
 import os
 import requests as http_requests
@@ -41,14 +43,6 @@ st.title("📊 KPI Monitoring")
 # Initialize session state for manual scores
 if 'manual_scores' not in st.session_state:
     st.session_state.manual_scores = {}
-
-# Fetch reporting scores from Railway Chat Listener API (used by auto-scoring)
-try:
-    resp = http_requests.get(f"{CHAT_API_URL}/api/reporting", params={'key': CHAT_API_KEY}, timeout=10)
-    resp.raise_for_status()
-    chat_reporting = resp.json()
-except Exception:
-    chat_reporting = {}
 
 ALL_KPIS = {**KPI_SCORING, **KPI_MANUAL}
 MANUAL_KEYS = list(KPI_MANUAL.keys())
@@ -119,17 +113,34 @@ KPI_AGENTS = [t for t in AGENT_PERFORMANCE_TABS if t['agent'].upper() not in EXC
 agent_names = ["All Agents"] + [t['agent'] for t in KPI_AGENTS]
 selected_agent = st.sidebar.selectbox("Agent", agent_names)
 
+# Load P-tab data
+ptab_data = load_agent_performance_data()
+monthly_df = ptab_data.get('monthly', pd.DataFrame()) if ptab_data else pd.DataFrame()
+daily_df = ptab_data.get('daily', pd.DataFrame()) if ptab_data else pd.DataFrame()
+
+# Month selector
+available_months = get_available_months(monthly_df)
+if available_months:
+    month_options = available_months
+    month_labels = [month_to_label(m) for m in month_options]
+    selected_month_idx = st.sidebar.selectbox(
+        "Month",
+        range(len(month_options)),
+        index=len(month_options) - 1,  # Default to latest month
+        format_func=lambda i: month_labels[i],
+    )
+    selected_month = month_options[selected_month_idx]
+    selected_month_label = month_labels[selected_month_idx]
+else:
+    selected_month = None
+    selected_month_label = "N/A"
+
 if st.sidebar.button("🔄 Refresh Data"):
     refresh_agent_performance_data()
     refresh_updated_accounts_data()
     refresh_created_assets_data()
     refresh_ab_testing_data()
     st.rerun()
-
-# Load P-tab data
-ptab_data = load_agent_performance_data()
-monthly_df = ptab_data.get('monthly', pd.DataFrame()) if ptab_data else pd.DataFrame()
-daily_df = ptab_data.get('daily', pd.DataFrame()) if ptab_data else pd.DataFrame()
 
 # Load Updated Accounts data (kept for backward compat)
 accounts_data = load_updated_accounts_data()
@@ -139,6 +150,17 @@ created_assets_data = load_created_assets_data()
 
 # Load A/B Testing data
 ab_testing_data = load_ab_testing_data()
+
+# Fetch reporting scores - pass month param if selected
+try:
+    report_params = {'key': CHAT_API_KEY}
+    if selected_month:
+        report_params['month'] = selected_month
+    resp = http_requests.get(f"{CHAT_API_URL}/api/reporting", params=report_params, timeout=10)
+    resp.raise_for_status()
+    chat_reporting = resp.json()
+except Exception:
+    chat_reporting = {}
 
 # Calculate live auto scores from P-tab + Created Assets + AB Testing + Reporting
 live_scores = {}
@@ -150,6 +172,7 @@ for tab_info in AGENT_PERFORMANCE_TABS:
         created_assets_data=created_assets_data,
         ab_testing_data=ab_testing_data,
         reporting_data=chat_reporting,
+        month_filter=selected_month,
     )
 
 
@@ -157,7 +180,7 @@ for tab_info in AGENT_PERFORMANCE_TABS:
 # ALL AGENTS VIEW
 # ============================================================
 if selected_agent == "All Agents":
-    st.subheader("Team KPI Overview")
+    st.subheader(f"Team KPI Overview - {selected_month_label}")
     st.markdown(f"**ROAS Formula:** `ARPPU / {KPI_PHP_USD_RATE} / Cost_per_FTD`")
 
     rows = []
@@ -376,7 +399,7 @@ else:
     agent_name = selected_agent
     agent_scores = live_scores.get(agent_name, {})
 
-    st.subheader(f"KPI Card: {agent_name}")
+    st.subheader(f"KPI Card: {agent_name} - {selected_month_label}")
     st.markdown(f"**ROAS Formula:** `ARPPU / {KPI_PHP_USD_RATE} / Cost_per_FTD`")
 
     # Auto KPI metric cards

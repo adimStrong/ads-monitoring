@@ -8,6 +8,7 @@ import json
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta
+import calendar
 import re
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -1101,11 +1102,12 @@ def refresh_created_assets_data():
     load_created_assets_data.clear()
 
 
-def count_created_assets(assets_df):
+def count_created_assets(assets_df, date_range=None):
     """Count created assets per agent from Created Assets data.
 
     Args:
         assets_df: DataFrame from load_created_assets_data()
+        date_range: Optional (start_date, end_date) tuple to filter by date
 
     Returns:
         dict: {agent_upper: {'gmail': N, 'fb_accounts': N, 'fb_pages': N, 'bms': N,
@@ -1113,6 +1115,13 @@ def count_created_assets(assets_df):
     """
     if assets_df is None or assets_df.empty:
         return {}
+
+    # Filter by date range if provided
+    if date_range and 'date' in assets_df.columns:
+        df = assets_df.copy()
+        df['date_dt'] = pd.to_datetime(df['date'], errors='coerce')
+        df = df[(df['date_dt'] >= date_range[0]) & (df['date_dt'] <= date_range[1])]
+        assets_df = df
 
     result = {}
 
@@ -1340,11 +1349,12 @@ def refresh_ab_testing_data():
     load_ab_testing_data.clear()
 
 
-def count_ab_testing(ab_data):
+def count_ab_testing(ab_data, date_range=None):
     """Count A/B testing metrics per agent from Text/AbTest data.
 
     Args:
         ab_data: dict from load_ab_testing_data()
+        date_range: Optional (start_date, end_date) tuple to filter detail rows by batch_date
 
     Returns:
         dict: {agent_upper: {'primary_text': N, 'published_ad': N, 'total_published': N}}
@@ -1353,8 +1363,8 @@ def count_ab_testing(ab_data):
     summary_df = ab_data.get('summary', pd.DataFrame())
     detail_df = ab_data.get('detail', pd.DataFrame())
 
-    # From summary section
-    if not summary_df.empty:
+    # From summary section (skip when date_range is set - summary is all-time)
+    if not date_range and not summary_df.empty:
         for _, row in summary_df.iterrows():
             agent = str(row.get('agent', '')).strip().upper()
             metric = row.get('metric', '')
@@ -1370,7 +1380,17 @@ def count_ab_testing(ab_data):
 
     # From detail section - count total published per advertiser
     if not detail_df.empty:
-        for _, row in detail_df.iterrows():
+        # Filter by date range if provided
+        filtered_df = detail_df
+        if date_range and 'batch_date' in detail_df.columns:
+            filtered_df = detail_df.copy()
+            filtered_df['batch_date_dt'] = pd.to_datetime(filtered_df['batch_date'], errors='coerce')
+            filtered_df = filtered_df[
+                (filtered_df['batch_date_dt'] >= date_range[0]) &
+                (filtered_df['batch_date_dt'] <= date_range[1])
+            ]
+
+        for _, row in filtered_df.iterrows():
             advertiser = str(row.get('advertiser', '')).strip().upper()
             published = int(row.get('total_published', 0))
             if not advertiser or published == 0:
@@ -1783,7 +1803,78 @@ def score_profile_dev(total_count):
     return 1
 
 
-def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None, created_assets_data=None, ab_testing_data=None, reporting_data=None):
+def normalize_month(val):
+    """Normalize various month string formats to 'YYYY-MM'.
+
+    Handles: 'Feb', 'February', '2/2026', 'Feb 2026', '02/2026', 'February 2026'
+    Returns 'YYYY-MM' string or None if unparseable.
+    """
+    if not val or pd.isna(val):
+        return None
+    val = str(val).strip()
+    if not val:
+        return None
+
+    current_year = datetime.now().year
+
+    # Try 'MM/YYYY' or 'M/YYYY'
+    m = re.match(r'^(\d{1,2})/(\d{4})$', val)
+    if m:
+        return f"{m.group(2)}-{int(m.group(1)):02d}"
+
+    # Try 'YYYY-MM'
+    m = re.match(r'^(\d{4})-(\d{2})$', val)
+    if m:
+        return val
+
+    # Build month name mapping
+    month_map = {}
+    for i in range(1, 13):
+        month_map[calendar.month_name[i].lower()] = i
+        month_map[calendar.month_abbr[i].lower()] = i
+
+    # Try 'MonthName YYYY' or 'MonthAbbr YYYY'
+    m = re.match(r'^([A-Za-z]+)\s+(\d{4})$', val)
+    if m:
+        month_num = month_map.get(m.group(1).lower())
+        if month_num:
+            return f"{m.group(2)}-{month_num:02d}"
+
+    # Try bare month name/abbr (assume current year)
+    lower = val.lower()
+    if lower in month_map:
+        return f"{current_year}-{month_map[lower]:02d}"
+
+    return None
+
+
+def get_available_months(monthly_df):
+    """Extract available months from monthly_df as sorted list of 'YYYY-MM' strings."""
+    if monthly_df is None or monthly_df.empty:
+        return []
+    months = set()
+    for val in monthly_df['month'].dropna().unique():
+        normalized = normalize_month(val)
+        if normalized:
+            months.add(normalized)
+    return sorted(months)
+
+
+def month_to_date_range(month_str):
+    """Convert 'YYYY-MM' to (first_day, last_day) as datetime objects."""
+    year, month = int(month_str[:4]), int(month_str[5:7])
+    first_day = datetime(year, month, 1)
+    last_day = datetime(year, month, calendar.monthrange(year, month)[1])
+    return first_day, last_day
+
+
+def month_to_label(month_str):
+    """Convert 'YYYY-MM' to display label like 'February 2026'."""
+    year, month = int(month_str[:4]), int(month_str[5:7])
+    return f"{calendar.month_name[month]} {year}"
+
+
+def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=None, created_assets_data=None, ab_testing_data=None, reporting_data=None, month_filter=None):
     """Calculate auto KPI scores for an agent from P-tab data.
     ROAS = ARPPU / 57.7 / Cost_per_FTD (IFERROR -> 0)
 
@@ -1791,10 +1882,17 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
     and gets ARPPU from daily data (latest available) for ROAS.
     Account Dev is scored from Created Assets tab (Gmail + FB accounts).
 
+    Args:
+        month_filter: Optional 'YYYY-MM' string to filter to a specific month.
+
     Returns dict: {metric_key: {'score': int, 'value': float, 'name': str, ...}}
     """
     scores = {}
     agent_data = monthly_df[monthly_df['agent'] == agent_name]
+
+    # Filter to specific month if requested
+    if month_filter and not agent_data.empty:
+        agent_data = agent_data[agent_data['month'].apply(normalize_month) == month_filter]
 
     if agent_data.empty:
         for key in KPI_SCORING:
@@ -1802,7 +1900,7 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
                 continue  # Handle separately below
             scores[key] = {'score': 0, 'value': 0, 'name': KPI_SCORING[key]['name']}
     else:
-        # Use the most recent month's data
+        # Use the most recent month's data (or the filtered month's row)
         row = agent_data.iloc[-1]
 
         # CPA = cost / ftd
@@ -1819,6 +1917,14 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
 
         if arppu == 0 and daily_df is not None and not daily_df.empty:
             agent_daily = daily_df[daily_df['agent'] == agent_name].copy()
+            # Filter daily data to the selected month
+            if month_filter and not agent_daily.empty and 'date' in agent_daily.columns:
+                agent_daily['date_dt'] = pd.to_datetime(agent_daily['date'], errors='coerce')
+                date_range = month_to_date_range(month_filter)
+                agent_daily = agent_daily[
+                    (agent_daily['date_dt'] >= date_range[0]) &
+                    (agent_daily['date_dt'] <= date_range[1])
+                ]
             if not agent_daily.empty:
                 agent_daily['arppu_num'] = pd.to_numeric(agent_daily['arppu'], errors='coerce').fillna(0)
                 has_arppu = agent_daily[agent_daily['arppu_num'] > 0]
@@ -1849,9 +1955,10 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
     # Created Assets scoring (Account Dev + Profile Dev)
     agent_upper = agent_name.upper()
     asset_counts = {}
+    kpi_date_range = month_to_date_range(month_filter) if month_filter else None
 
     if created_assets_data is not None and not created_assets_data.empty:
-        asset_counts = count_created_assets(created_assets_data).get(agent_upper, {})
+        asset_counts = count_created_assets(created_assets_data, date_range=kpi_date_range).get(agent_upper, {})
 
     # Account Dev (Gmail + FB accounts from Created Assets)
     acct_gmail = asset_counts.get('gmail', 0)
@@ -1869,7 +1976,7 @@ def calculate_kpi_scores(monthly_df, agent_name, daily_df=None, accounts_data=No
     # A/B Testing (Published campaigns from Text/AbTest tab)
     ab_counts = {}
     if ab_testing_data is not None:
-        ab_counts = count_ab_testing(ab_testing_data).get(agent_upper, {})
+        ab_counts = count_ab_testing(ab_testing_data, date_range=kpi_date_range).get(agent_upper, {})
 
     ab_published = ab_counts.get('published_ad', 0)
     ab_primary = ab_counts.get('primary_text', 0)
