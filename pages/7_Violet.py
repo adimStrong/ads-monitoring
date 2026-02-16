@@ -220,8 +220,11 @@ def main():
         fb_w = fb_df.copy()
         fb_w['week'] = fb_w['date'].dt.isocalendar().week
         fb_w['year'] = fb_w['date'].dt.isocalendar().year
-        fb_w['week_label'] = fb_w.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
-        fb_weekly = fb_w.groupby('week_label').agg({'cost': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum'}).reset_index()
+        fb_w['week_sort'] = fb_w.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
+        fb_w['week_start'] = fb_w.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 1), axis=1)
+        fb_w['week_end'] = fb_w.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 7), axis=1)
+        fb_w['week_label'] = fb_w.apply(lambda x: f"{x['week_start'].strftime('%b %d')} - {x['week_end'].strftime('%b %d')}", axis=1)
+        fb_weekly = fb_w.groupby(['week_sort', 'week_label']).agg({'cost': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum'}).reset_index().sort_values('week_sort')
         fb_weekly['channel'] = 'Facebook'
         weekly_data.append(fb_weekly)
 
@@ -229,13 +232,16 @@ def main():
         g_w = google_df.copy()
         g_w['week'] = g_w['date'].dt.isocalendar().week
         g_w['year'] = g_w['date'].dt.isocalendar().year
-        g_w['week_label'] = g_w.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
-        g_weekly = g_w.groupby('week_label').agg({'cost': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum'}).reset_index()
+        g_w['week_sort'] = g_w.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
+        g_w['week_start'] = g_w.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 1), axis=1)
+        g_w['week_end'] = g_w.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 7), axis=1)
+        g_w['week_label'] = g_w.apply(lambda x: f"{x['week_start'].strftime('%b %d')} - {x['week_end'].strftime('%b %d')}", axis=1)
+        g_weekly = g_w.groupby(['week_sort', 'week_label']).agg({'cost': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum'}).reset_index().sort_values('week_sort')
         g_weekly['channel'] = 'Google'
         weekly_data.append(g_weekly)
 
     if weekly_data:
-        weekly_combined = pd.concat(weekly_data, ignore_index=True).sort_values('week_label')
+        weekly_combined = pd.concat(weekly_data, ignore_index=True).sort_values('week_sort')
         weekly_combined['cost_ftd'] = weekly_combined.apply(lambda x: x['cost'] / x['ftd'] if x['ftd'] > 0 else 0, axis=1)
 
         col1, col2, col3 = st.columns(3)
