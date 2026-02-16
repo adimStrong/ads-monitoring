@@ -82,7 +82,7 @@ def make_pie_chart(labels, values, title, value_format="count"):
 
 # Team-to-channel mapping for KPI scoring
 TEAM_CHANNEL_MAP = {
-    'JASON / SHILA / ADRIAN': 'Promo - 07 - 1, 2 - 13',
+    'JASON / SHILA / ADRIAN': 'Promo - 07 - 12 - 13',
     'RON / KRISSA': 'Promo - 10 - 11',
     'JOMAR / MIKA': 'Promo - 6 - 8',
     'DER': 'Promo 9',

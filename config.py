@@ -416,16 +416,18 @@ TEAM_CHANNEL_SHEET = {"name": "Team Channel", "gid": 1810393673}
 # Data starts after headers (verify from sheet)
 TEAM_CHANNEL_DATA_START_ROW = 4
 
-# Columns B-H (index 1-7)
+# Columns B-I (index 1-8)
 # Team name is in column B (index 1) for overall section
+# Column C (index 2) has secondary team info or is empty
+# Channel source starts at column D (index 3)
 TEAM_CHANNEL_COLUMNS = {
     'team_name': 1,           # B - Team Name (overall section)
-    'channel_source': 2,      # C - Channel Source (渠道来源)
-    'cost': 3,                # D - Cost (USD)
-    'registrations': 4,       # E - Registrations
-    'first_recharge': 5,      # F - First Recharge Count
-    'total_amount': 6,        # G - Total Recharge Amount (PHP)
-    'arppu': 7,               # H - ARPPU Per Person (PHP)
+    'channel_source': 3,      # D - Channel Source (FB-FB-FB-DEERPROMO*)
+    'cost': 4,                # E - Cost (USD)
+    'registrations': 5,       # F - Registrations
+    'first_recharge': 6,      # G - First Recharge Count
+    'total_amount': 7,        # H - Total Recharge Amount (PHP)
+    'arppu': 8,               # I - ARPPU Per Person (PHP)
 }
 
 # Known channel sources (DEERPROMO01 through DEERPROMO13)
