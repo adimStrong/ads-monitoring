@@ -893,8 +893,44 @@ def load_team_channel_data():
                         'arppu': arppu,
                     })
 
+        # --- Parse PER TEAM ACTUAL section (cols K-S, indices 10-18) ---
+        team_actual_records = []
+        for row in all_data:
+            if len(row) <= 18:
+                continue
+            team_name = str(row[10]).strip()
+            channel_src = str(row[11]).strip()
+            # Skip headers and empty rows
+            if not team_name or team_name.upper() in ('TEAM', '') or 'REPORT' in team_name.upper():
+                continue
+            if not channel_src or channel_src.upper() in ('CHANNEL SOURCE', ''):
+                continue
+            # Must be a PER TEAM ACTUAL row (starts with "Promo" not "DEERPROMO")
+            if not channel_src.lower().startswith('promo'):
+                continue
+            cost = parse_numeric(row[12])
+            registrations = parse_numeric(row[13])
+            first_recharge = parse_numeric(row[14])
+            cpfd = parse_numeric(row[15])
+            total_amount = parse_numeric(row[16])
+            arppu = parse_numeric(row[17])
+            roas = parse_numeric(row[18])
+            if cost > 0 or registrations > 0:
+                team_actual_records.append({
+                    'team': team_name,
+                    'channel_source': channel_src,
+                    'cost': cost,
+                    'registrations': int(registrations),
+                    'first_recharge': int(first_recharge),
+                    'cpfd': cpfd,
+                    'total_amount': total_amount,
+                    'arppu': arppu,
+                    'roas': roas,
+                })
+
         overall_df = pd.DataFrame(overall_records)
         daily_df = pd.DataFrame(daily_records)
+        team_actual_df = pd.DataFrame(team_actual_records)
 
         if not daily_df.empty:
             daily_df['date'] = pd.to_datetime(daily_df['date'])
@@ -915,8 +951,9 @@ def load_team_channel_data():
 
         print(f"[OK] Loaded {len(overall_records)} Team Channel overall records")
         print(f"[OK] Loaded {len(daily_records)} Team Channel daily records")
+        print(f"[OK] Loaded {len(team_actual_records)} Team Channel team actual records")
 
-        return {'overall': overall_df, 'daily': daily_df}
+        return {'overall': overall_df, 'daily': daily_df, 'team_actual': team_actual_df}
 
     except Exception as e:
         print(f"[ERROR] Failed to load Team Channel data: {e}")
