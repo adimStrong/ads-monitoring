@@ -240,8 +240,8 @@ if selected_agent == "All Agents":
     html += '</tr>'
 
     for _, r in summary_df.iterrows():
-        html += '<tr style="border:1px solid #334155">'
-        html += f'<td style="padding:5px;font-weight:bold;border:1px solid #334155">{r["Agent"]}</td>'
+        html += '<tr style="background:#0f172a;color:#e2e8f0;border:1px solid #334155">'
+        html += f'<td style="padding:5px;font-weight:bold;border:1px solid #334155;color:#f1f5f9">{r["Agent"]}</td>'
         html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["CPA"]}</td>'
         html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{score_badge(r["CPA Score"])}</td>'
         html += f'<td style="padding:5px;text-align:center;border:1px solid #334155">{r["ROAS"]}</td>'
@@ -514,14 +514,14 @@ else:
         prev_krs = krs
 
         bg = '#0f172a' if is_auto else '#1a1a2e'
-        html += f'<tr style="background:{bg};border:1px solid #334155">'
-        html += f'<td style="padding:6px;border:1px solid #334155;font-weight:bold">{krs_display}</td>'
-        html += f'<td style="padding:6px;border:1px solid #334155">{name}{tag}</td>'
+        html += f'<tr style="background:{bg};color:#e2e8f0;border:1px solid #334155">'
+        html += f'<td style="padding:6px;border:1px solid #334155;font-weight:bold;color:#94a3b8">{krs_display}</td>'
+        html += f'<td style="padding:6px;border:1px solid #334155;color:#f1f5f9">{name}{tag}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{weight}</td>'
-        html += f'<td style="padding:6px;font-size:11px;border:1px solid #334155">{params}</td>'
+        html += f'<td style="padding:6px;font-size:11px;border:1px solid #334155;color:#cbd5e1">{params}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{score_html}</td>'
         html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{weighted}</td>'
-        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155">{raw_display}</td>'
+        html += f'<td style="padding:6px;text-align:center;border:1px solid #334155;color:#f1f5f9">{raw_display}</td>'
         html += '</tr>'
 
     # Total row
