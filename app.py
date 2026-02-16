@@ -265,8 +265,13 @@ def main():
         running_ads_df, creative_df, sms_df, content_df = load_sample_data()
         ptab_daily = pd.DataFrame()
 
-    # Date filter with auto-detection from data - only allow dates with data
-    min_date, max_date = get_date_range(running_ads_df)
+    # Date filter with auto-detection from data - prefer P-tab data
+    if not ptab_daily.empty and 'date' in ptab_daily.columns:
+        ptab_daily['date'] = pd.to_datetime(ptab_daily['date'])
+        min_date = ptab_daily['date'].min()
+        max_date = ptab_daily['date'].max()
+    else:
+        min_date, max_date = get_date_range(running_ads_df)
 
     # Convert to date objects if they're datetime
     if hasattr(min_date, 'date'):
@@ -302,6 +307,9 @@ def main():
         sms_df = sms_df[sms_df['agent_name'] == selected_agent]
         content_df = content_df[content_df['agent_name'] == selected_agent]
 
+    if selected_agent != 'All Agents' and not ptab_daily.empty and 'agent' in ptab_daily.columns:
+        ptab_daily = ptab_daily[ptab_daily['agent'] == selected_agent]
+
     running_ads_df = running_ads_df[
         (running_ads_df['date'] >= pd.Timestamp(start_date)) &
         (running_ads_df['date'] <= pd.Timestamp(end_date))
@@ -318,6 +326,12 @@ def main():
         (content_df['date'] >= pd.Timestamp(start_date)) &
         (content_df['date'] <= pd.Timestamp(end_date))
     ]
+
+    if not ptab_daily.empty and 'date' in ptab_daily.columns:
+        ptab_daily = ptab_daily[
+            (ptab_daily['date'] >= pd.Timestamp(start_date)) &
+            (ptab_daily['date'] <= pd.Timestamp(end_date))
+        ]
 
     # Main content tabs (Running Ads removed - now uses Facebook Ads data)
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -440,21 +454,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
             }
         )
     else:
-        # Fallback to old running_ads_df if no P-tab data
-        col1, col2, col3, col4, col5, col6 = st.columns(6)
-        with col1:
-            st.metric("Total Ads", f"{running_ads_df['total_ad'].sum():,}")
-        with col2:
-            st.metric("Impressions", f"{running_ads_df['impressions'].sum():,}")
-        with col3:
-            st.metric("Clicks", f"{running_ads_df['clicks'].sum():,}")
-        with col4:
-            st.metric("Avg CTR", f"{running_ads_df['ctr_percent'].mean():.2f}%")
-        with col5:
-            st.metric("Avg CPC", f"${running_ads_df['cpc'].mean():.2f}")
-        with col6:
-            st.metric("Active Ads", f"{running_ads_df['active_count'].sum():,}")
-        st.info("No P-tab data available. Showing legacy data.")
+        st.info("No P-tab data available. Check Channel ROI sheet P6-P13 tabs.")
 
     # ============================================================
     # SECTION 2: WITHOUT (Creative Work) Summary
@@ -891,99 +891,6 @@ def render_facebook_ads(ptab_daily):
         )
     else:
         st.dataframe(ptab_daily, use_container_width=True, hide_index=True)
-
-
-def render_running_ads(running_ads_df, selected_agent):
-    """Render Running Ads tab"""
-    st.subheader(f"WITH RUNNING ADS: {selected_agent if selected_agent != 'All Agents' else 'All Agents'}")
-
-    # Summary metrics - Row 1
-    col1, col2, col3, col4, col5, col6, col7, col8 = st.columns(8)
-
-    with col1:
-        st.metric("Total Ads", f"{running_ads_df['total_ad'].sum():,}")
-    with col2:
-        st.metric("Impressions", f"{running_ads_df['impressions'].sum():,}")
-    with col3:
-        st.metric("Clicks", f"{running_ads_df['clicks'].sum():,}")
-    with col4:
-        st.metric("Avg CTR", f"{running_ads_df['ctr_percent'].mean():.2f}%")
-    with col5:
-        st.metric("Avg CPC", f"${running_ads_df['cpc'].mean():.2f}")
-    with col6:
-        amount_spent = running_ads_df['amount_spent'].sum() if 'amount_spent' in running_ads_df.columns else 0
-        st.metric("Amount Spent", f"${amount_spent:,.2f}")
-    with col7:
-        avg_cpr = running_ads_df['cpr'].mean() if 'cpr' in running_ads_df.columns else 0
-        st.metric("Avg CPR", f"${avg_cpr:.2f}")
-    with col8:
-        st.metric("Active", f"{running_ads_df['active_count'].sum():,}")
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Performance Trend")
-        daily_trend = running_ads_df.copy()
-        daily_trend['date_only'] = daily_trend['date'].dt.date
-        daily_agg = daily_trend.groupby('date_only').agg({
-            'total_ad': 'sum',
-            'impressions': 'sum',
-            'clicks': 'sum',
-            'ctr_percent': 'mean'
-        }).reset_index()
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=daily_agg['date_only'],
-            y=daily_agg['impressions'],
-            name='Impressions',
-            fill='tozeroy',
-            line=dict(color='#3498db', width=2)
-        ))
-        fig.add_trace(go.Scatter(
-            x=daily_agg['date_only'],
-            y=daily_agg['clicks'],
-            name='Clicks',
-            fill='tozeroy',
-            yaxis='y2',
-            line=dict(color='#e74c3c', width=2)
-        ))
-        fig.update_layout(
-            height=350,
-            yaxis=dict(title='Impressions'),
-            yaxis2=dict(title='Clicks', overlaying='y', side='right'),
-            xaxis_tickformat='%Y-%m-%d'
-        )
-        fig.update_xaxes(type='category')  # Prevent duplicate dates
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        st.subheader("Ad Status Distribution")
-        status_data = running_ads_df[['active_count', 'rejected_count', 'deleted_count']].sum()
-        fig = px.pie(
-            values=status_data.values,
-            names=['Active', 'Rejected', 'Deleted'],
-            hole=0.4,
-            color_discrete_sequence=['#2ecc71', '#e74c3c', '#95a5a6']
-        )
-        fig.update_layout(height=350)
-        st.plotly_chart(fig, use_container_width=True)
-
-    # Data table
-    st.subheader("Detailed Data")
-    # Build column list dynamically based on available columns
-    base_cols = ['date', 'agent_name', 'total_ad', 'campaign', 'impressions', 'clicks', 'ctr_percent', 'cpc', 'conversion_rate']
-    if 'amount_spent' in running_ads_df.columns:
-        base_cols.append('amount_spent')
-    if 'cpr' in running_ads_df.columns:
-        base_cols.append('cpr')
-    base_cols.extend(['active_count', 'rejected_count'])
-
-    display_df = running_ads_df[[col for col in base_cols if col in running_ads_df.columns]].copy()
-    display_df['date'] = display_df['date'].dt.strftime('%Y-%m-%d')
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 
 def render_creative_work(creative_df, selected_agent):
