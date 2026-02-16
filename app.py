@@ -442,15 +442,15 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
             hide_index=True,
             column_config={
                 "Agent": st.column_config.TextColumn(width="medium"),
-                "Cost": st.column_config.NumberColumn(format="$ %.2f"),
-                "Impressions": st.column_config.NumberColumn(format="%,d"),
-                "Clicks": st.column_config.NumberColumn(format="%,d"),
-                "CTR": st.column_config.NumberColumn(format="%.2f%%"),
-                "Register": st.column_config.NumberColumn(format="%,d"),
-                "FTD": st.column_config.NumberColumn(format="%,d"),
-                "CPR": st.column_config.NumberColumn(format="$ %.2f"),
-                "Cost/FTD": st.column_config.NumberColumn(format="$ %.2f"),
-                "Conv %": st.column_config.NumberColumn(format="%.1f%%"),
+                "Cost": st.column_config.NumberColumn(format="$,.2f"),
+                "Impressions": st.column_config.NumberColumn(format=",d"),
+                "Clicks": st.column_config.NumberColumn(format=",d"),
+                "CTR": st.column_config.NumberColumn(format=".2f"),
+                "Register": st.column_config.NumberColumn(format=",d"),
+                "FTD": st.column_config.NumberColumn(format=",d"),
+                "CPR": st.column_config.NumberColumn(format="$,.2f"),
+                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
+                "Conv %": st.column_config.NumberColumn(format=".1f"),
             }
         )
     else:
@@ -645,16 +645,16 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Cost": st.column_config.NumberColumn(format="$ %.2f"),
-            "Impressions": st.column_config.NumberColumn(format="%,d"),
-            "Clicks": st.column_config.NumberColumn(format="%,d"),
-            "Register": st.column_config.NumberColumn(format="%,d"),
-            "FTD": st.column_config.NumberColumn(format="%,d"),
-            "CTR %": st.column_config.NumberColumn(format="%.2f%%"),
-            "CPC": st.column_config.NumberColumn(format="$ %.2f"),
-            "Creatives": st.column_config.NumberColumn(format="%,d"),
-            "SMS Total": st.column_config.NumberColumn(format="%,d"),
-            "Content Posts": st.column_config.NumberColumn(format="%,d"),
+            "Cost": st.column_config.NumberColumn(format="$,.2f"),
+            "Impressions": st.column_config.NumberColumn(format=",d"),
+            "Clicks": st.column_config.NumberColumn(format=",d"),
+            "Register": st.column_config.NumberColumn(format=",d"),
+            "FTD": st.column_config.NumberColumn(format=",d"),
+            "CTR %": st.column_config.NumberColumn(format=".2f"),
+            "CPC": st.column_config.NumberColumn(format="$,.2f"),
+            "Creatives": st.column_config.NumberColumn(format=",d"),
+            "SMS Total": st.column_config.NumberColumn(format=",d"),
+            "Content Posts": st.column_config.NumberColumn(format=",d"),
         }
     )
 
@@ -878,15 +878,15 @@ def render_facebook_ads(ptab_daily):
             hide_index=True,
             column_config={
                 "Agent": st.column_config.TextColumn(width="medium"),
-                "Cost": st.column_config.NumberColumn(format="$ %.2f"),
-                "Impressions": st.column_config.NumberColumn(format="%,d"),
-                "Clicks": st.column_config.NumberColumn(format="%,d"),
-                "Register": st.column_config.NumberColumn(format="%,d"),
-                "FTD": st.column_config.NumberColumn(format="%,d"),
-                "CTR%": st.column_config.NumberColumn(format="%.2f%%"),
-                "CPR": st.column_config.NumberColumn(format="$ %.2f"),
-                "Cost/FTD": st.column_config.NumberColumn(format="$ %.2f"),
-                "Conv %": st.column_config.NumberColumn(format="%.1f%%"),
+                "Cost": st.column_config.NumberColumn(format="$,.2f"),
+                "Impressions": st.column_config.NumberColumn(format=",d"),
+                "Clicks": st.column_config.NumberColumn(format=",d"),
+                "Register": st.column_config.NumberColumn(format=",d"),
+                "FTD": st.column_config.NumberColumn(format=",d"),
+                "CTR%": st.column_config.NumberColumn(format=".2f"),
+                "CPR": st.column_config.NumberColumn(format="$,.2f"),
+                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
+                "Conv %": st.column_config.NumberColumn(format=".1f"),
             }
         )
     else:
