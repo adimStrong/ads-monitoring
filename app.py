@@ -435,19 +435,18 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         agent_summary['Register'] = agent_summary['Register'].astype(int)
         agent_summary['FTD'] = agent_summary['FTD'].astype(int)
 
-        # Format for display
-        styled = agent_summary.style.format({
-            'Cost': '${:,.2f}',
-            'Impressions': '{:,.0f}',
-            'Clicks': '{:,.0f}',
-            'CTR': '{:.2f}%',
-            'Register': '{:,.0f}',
-            'FTD': '{:,.0f}',
-            'CPR': '${:,.2f}',
-            'Cost/FTD': '${:,.2f}',
-            'Conv %': '{:.1f}%',
-        })
-        st.dataframe(styled, use_container_width=True, hide_index=True)
+        # Format numbers as strings for display
+        display = agent_summary.copy()
+        display['Cost'] = display['Cost'].apply(lambda x: f'${x:,.2f}')
+        display['Impressions'] = display['Impressions'].apply(lambda x: f'{x:,.0f}')
+        display['Clicks'] = display['Clicks'].apply(lambda x: f'{x:,.0f}')
+        display['CTR'] = display['CTR'].apply(lambda x: f'{x:.2f}%')
+        display['Register'] = display['Register'].apply(lambda x: f'{x:,.0f}')
+        display['FTD'] = display['FTD'].apply(lambda x: f'{x:,.0f}')
+        display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
+        display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
+        display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
+        st.dataframe(display, use_container_width=True, hide_index=True)
     else:
         st.info("No P-tab data available. Check Channel ROI sheet P6-P13 tabs.")
 
@@ -635,19 +634,18 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
     summary.columns = ['Agent', 'Cost', 'Impressions', 'Clicks', 'Register', 'FTD', 'CTR %', 'CPC', 'Creatives', 'SMS Total', 'Content Posts']
     summary = summary.fillna(0)
 
-    styled = summary.style.format({
-        'Cost': '${:,.2f}',
-        'Impressions': '{:,.0f}',
-        'Clicks': '{:,.0f}',
-        'Register': '{:,.0f}',
-        'FTD': '{:,.0f}',
-        'CTR %': '{:.2f}%',
-        'CPC': '${:,.2f}',
-        'Creatives': '{:,.0f}',
-        'SMS Total': '{:,.0f}',
-        'Content Posts': '{:,.0f}',
-    })
-    st.dataframe(styled, use_container_width=True, hide_index=True)
+    display = summary.copy()
+    display['Cost'] = display['Cost'].apply(lambda x: f'${x:,.2f}')
+    display['Impressions'] = display['Impressions'].apply(lambda x: f'{x:,.0f}')
+    display['Clicks'] = display['Clicks'].apply(lambda x: f'{x:,.0f}')
+    display['Register'] = display['Register'].apply(lambda x: f'{x:,.0f}')
+    display['FTD'] = display['FTD'].apply(lambda x: f'{x:,.0f}')
+    display['CTR %'] = display['CTR %'].apply(lambda x: f'{x:.2f}%')
+    display['CPC'] = display['CPC'].apply(lambda x: f'${x:,.2f}')
+    display['Creatives'] = display['Creatives'].apply(lambda x: f'{x:,.0f}')
+    display['SMS Total'] = display['SMS Total'].apply(lambda x: f'{x:,.0f}')
+    display['Content Posts'] = display['Content Posts'].apply(lambda x: f'{x:,.0f}')
+    st.dataframe(display, use_container_width=True, hide_index=True)
 
 
 def render_facebook_ads(ptab_daily):
@@ -863,18 +861,17 @@ def render_facebook_ads(ptab_daily):
         # Rename columns
         summary_df.columns = ['Agent', 'Cost', 'Impressions', 'Clicks', 'Register', 'FTD', 'CTR%', 'CPR', 'Cost/FTD', 'Conv %']
 
-        styled = summary_df.style.format({
-            'Cost': '${:,.2f}',
-            'Impressions': '{:,.0f}',
-            'Clicks': '{:,.0f}',
-            'Register': '{:,.0f}',
-            'FTD': '{:,.0f}',
-            'CTR%': '{:.2f}%',
-            'CPR': '${:,.2f}',
-            'Cost/FTD': '${:,.2f}',
-            'Conv %': '{:.1f}%',
-        })
-        st.dataframe(styled, use_container_width=True, hide_index=True)
+        display = summary_df.copy()
+        display['Cost'] = display['Cost'].apply(lambda x: f'${x:,.2f}')
+        display['Impressions'] = display['Impressions'].apply(lambda x: f'{x:,.0f}')
+        display['Clicks'] = display['Clicks'].apply(lambda x: f'{x:,.0f}')
+        display['Register'] = display['Register'].apply(lambda x: f'{x:,.0f}')
+        display['FTD'] = display['FTD'].apply(lambda x: f'{x:,.0f}')
+        display['CTR%'] = display['CTR%'].apply(lambda x: f'{x:.2f}%')
+        display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
+        display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
+        display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
+        st.dataframe(display, use_container_width=True, hide_index=True)
     else:
         st.dataframe(ptab_daily, use_container_width=True, hide_index=True)
 
