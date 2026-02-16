@@ -436,23 +436,18 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         agent_summary['FTD'] = agent_summary['FTD'].astype(int)
 
         # Format for display
-        st.dataframe(
-            agent_summary,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Agent": st.column_config.TextColumn(width="medium"),
-                "Cost": st.column_config.NumberColumn(format="$,.2f"),
-                "Impressions": st.column_config.NumberColumn(format=",.0f"),
-                "Clicks": st.column_config.NumberColumn(format=",.0f"),
-                "CTR": st.column_config.NumberColumn(format=".2f"),
-                "Register": st.column_config.NumberColumn(format=",.0f"),
-                "FTD": st.column_config.NumberColumn(format=",.0f"),
-                "CPR": st.column_config.NumberColumn(format="$,.2f"),
-                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
-                "Conv %": st.column_config.NumberColumn(format=".1f"),
-            }
-        )
+        styled = agent_summary.style.format({
+            'Cost': '${:,.2f}',
+            'Impressions': '{:,.0f}',
+            'Clicks': '{:,.0f}',
+            'CTR': '{:.2f}%',
+            'Register': '{:,.0f}',
+            'FTD': '{:,.0f}',
+            'CPR': '${:,.2f}',
+            'Cost/FTD': '${:,.2f}',
+            'Conv %': '{:.1f}%',
+        })
+        st.dataframe(styled, use_container_width=True, hide_index=True)
     else:
         st.info("No P-tab data available. Check Channel ROI sheet P6-P13 tabs.")
 
@@ -640,23 +635,19 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
     summary.columns = ['Agent', 'Cost', 'Impressions', 'Clicks', 'Register', 'FTD', 'CTR %', 'CPC', 'Creatives', 'SMS Total', 'Content Posts']
     summary = summary.fillna(0)
 
-    st.dataframe(
-        summary,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Cost": st.column_config.NumberColumn(format="$,.2f"),
-            "Impressions": st.column_config.NumberColumn(format=",.0f"),
-            "Clicks": st.column_config.NumberColumn(format=",.0f"),
-            "Register": st.column_config.NumberColumn(format=",.0f"),
-            "FTD": st.column_config.NumberColumn(format=",.0f"),
-            "CTR %": st.column_config.NumberColumn(format=".2f"),
-            "CPC": st.column_config.NumberColumn(format="$,.2f"),
-            "Creatives": st.column_config.NumberColumn(format=",.0f"),
-            "SMS Total": st.column_config.NumberColumn(format=",.0f"),
-            "Content Posts": st.column_config.NumberColumn(format=",.0f"),
-        }
-    )
+    styled = summary.style.format({
+        'Cost': '${:,.2f}',
+        'Impressions': '{:,.0f}',
+        'Clicks': '{:,.0f}',
+        'Register': '{:,.0f}',
+        'FTD': '{:,.0f}',
+        'CTR %': '{:.2f}%',
+        'CPC': '${:,.2f}',
+        'Creatives': '{:,.0f}',
+        'SMS Total': '{:,.0f}',
+        'Content Posts': '{:,.0f}',
+    })
+    st.dataframe(styled, use_container_width=True, hide_index=True)
 
 
 def render_facebook_ads(ptab_daily):
@@ -872,23 +863,18 @@ def render_facebook_ads(ptab_daily):
         # Rename columns
         summary_df.columns = ['Agent', 'Cost', 'Impressions', 'Clicks', 'Register', 'FTD', 'CTR%', 'CPR', 'Cost/FTD', 'Conv %']
 
-        st.dataframe(
-            summary_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Agent": st.column_config.TextColumn(width="medium"),
-                "Cost": st.column_config.NumberColumn(format="$,.2f"),
-                "Impressions": st.column_config.NumberColumn(format=",.0f"),
-                "Clicks": st.column_config.NumberColumn(format=",.0f"),
-                "Register": st.column_config.NumberColumn(format=",.0f"),
-                "FTD": st.column_config.NumberColumn(format=",.0f"),
-                "CTR%": st.column_config.NumberColumn(format=".2f"),
-                "CPR": st.column_config.NumberColumn(format="$,.2f"),
-                "Cost/FTD": st.column_config.NumberColumn(format="$,.2f"),
-                "Conv %": st.column_config.NumberColumn(format=".1f"),
-            }
-        )
+        styled = summary_df.style.format({
+            'Cost': '${:,.2f}',
+            'Impressions': '{:,.0f}',
+            'Clicks': '{:,.0f}',
+            'Register': '{:,.0f}',
+            'FTD': '{:,.0f}',
+            'CTR%': '{:.2f}%',
+            'CPR': '${:,.2f}',
+            'Cost/FTD': '${:,.2f}',
+            'Conv %': '{:.1f}%',
+        })
+        st.dataframe(styled, use_container_width=True, hide_index=True)
     else:
         st.dataframe(ptab_daily, use_container_width=True, hide_index=True)
 
