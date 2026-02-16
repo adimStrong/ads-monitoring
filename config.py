@@ -528,7 +528,7 @@ AGENT_PERF_MONTHLY_DATA_END = 7      # Exclusive end (rows 3,4,5,6)
 AGENT_PERF_DAILY_LABEL_ROW = 8       # Row with "Overall" label + ad account names
 AGENT_PERF_DAILY_HEADERS_ROW = 9     # Row with column headers
 AGENT_PERF_DAILY_DATA_START = 10     # First daily data row
-AGENT_PERF_AD_ACCOUNT_START_COL = 15 # First ad account column (0-indexed)
+AGENT_PERF_AD_ACCOUNT_START_COL = 16 # First ad account column (0-indexed)
 AGENT_PERF_AD_ACCOUNT_STRIDE = 5    # Every 5 columns per ad account
 
 # ============================================================
