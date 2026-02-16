@@ -60,6 +60,8 @@ def main():
         google_data = load_google_channel_data()
         fb_df = fb_data.get('violet', pd.DataFrame())
         google_df = google_data.get('violet', pd.DataFrame())
+        fb_rb_df = fb_data.get('roll_back', pd.DataFrame())
+        google_rb_df = google_data.get('roll_back', pd.DataFrame())
 
     has_fb = not fb_df.empty
     has_google = not google_df.empty
@@ -67,6 +69,12 @@ def main():
     if not has_fb and not has_google:
         st.error("No Violet data available.")
         return
+
+    # Prepare Roll Back dates
+    if not fb_rb_df.empty:
+        fb_rb_df['date'] = pd.to_datetime(fb_rb_df['date'])
+    if not google_rb_df.empty:
+        google_rb_df['date'] = pd.to_datetime(google_rb_df['date'])
 
     # Prepare dates
     all_dates = []
@@ -111,6 +119,10 @@ def main():
         fb_df = fb_df[(fb_df['date'].dt.date >= date_from) & (fb_df['date'].dt.date <= date_to)]
     if has_google:
         google_df = google_df[(google_df['date'].dt.date >= date_from) & (google_df['date'].dt.date <= date_to)]
+    if not fb_rb_df.empty:
+        fb_rb_df = fb_rb_df[(fb_rb_df['date'].dt.date >= date_from) & (fb_rb_df['date'].dt.date <= date_to)]
+    if not google_rb_df.empty:
+        google_rb_df = google_rb_df[(google_rb_df['date'].dt.date >= date_from) & (google_rb_df['date'].dt.date <= date_to)]
 
     # Apply channel filter
     show_fb = channel_filter in ["All", "Facebook"] and has_fb and not fb_df.empty
@@ -120,52 +132,52 @@ def main():
         st.warning("No data in selected date range or channel.")
         return
 
-    # Summary (Violet has no Register data)
+    # Summary with 5 metrics (registration from Roll Back)
     st.markdown('<div class="section-header"><h3>💜 VIOLET SUMMARY</h3></div>', unsafe_allow_html=True)
+
+    def calc_metrics(cost, ftd, ftd_recharge, register):
+        return {
+            'cost': cost,
+            'ftd': ftd,
+            'ftd_recharge': ftd_recharge,
+            'register': register,
+            'cost_reg': cost / register if register > 0 else 0,
+            'cost_ftd': cost / ftd if ftd > 0 else 0,
+            'arppu': ftd_recharge / ftd if ftd > 0 else 0,
+            'roas': ftd_recharge / cost if cost > 0 else 0,
+            'conv_rate': (ftd / register) * 100 if register > 0 else 0,
+        }
+
+    def render_card(title, emoji, css_class, m):
+        return f"""
+        <div class="{css_class}">
+            <h2>{emoji} {title}</h2>
+            <hr style="border-color: rgba(255,255,255,0.3);">
+            <p><strong>Cost/Register:</strong> {format_currency(m['cost_reg'])}</p>
+            <p><strong>Cost/FTD:</strong> {format_currency(m['cost_ftd'])}</p>
+            <p><strong>ARPPU:</strong> ₱{m['arppu']:,.2f}</p>
+            <p><strong>ROAS:</strong> {m['roas']:.2f}x</p>
+            <p><strong>Conv Rate:</strong> {m['conv_rate']:.1f}%</p>
+            <hr style="border-color: rgba(255,255,255,0.2);">
+            <p style="font-size:0.85em; opacity:0.8;">Cost: {format_currency(m['cost'])} | FTD: {format_number(m['ftd'])} | Reg: {format_number(m['register'])}</p>
+        </div>
+        """
 
     col1, col2 = st.columns(2)
 
     with col1:
         if show_fb:
-            fb_totals = {
-                'cost': fb_df['cost'].sum(),
-                'ftd': fb_df['ftd'].sum(),  # First Recharge
-                'ftd_recharge': fb_df['ftd_recharge'].sum(),
-            }
-            fb_totals['cost_ftd'] = fb_totals['cost'] / fb_totals['ftd'] if fb_totals['ftd'] > 0 else 0
-
-            st.markdown(f"""
-            <div class="fb-card">
-                <h2>📘 FACEBOOK</h2>
-                <hr style="border-color: rgba(255,255,255,0.3);">
-                <p><strong>Cost:</strong> {format_currency(fb_totals['cost'])}</p>
-                <p><strong>First Recharge:</strong> {format_number(fb_totals['ftd'])}</p>
-                <p><strong>Recharge Amount:</strong> ₱{fb_totals['ftd_recharge']:,.0f}</p>
-                <p><strong>Cost/FTD:</strong> {format_currency(fb_totals['cost_ftd'])}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            fb_reg = fb_rb_df['register'].sum() if not fb_rb_df.empty and 'register' in fb_rb_df.columns else 0
+            fb_m = calc_metrics(fb_df['cost'].sum(), fb_df['ftd'].sum(), fb_df['ftd_recharge'].sum(), fb_reg)
+            st.markdown(render_card("FACEBOOK", "📘", "fb-card", fb_m), unsafe_allow_html=True)
         else:
             st.info("No Facebook Violet data")
 
     with col2:
         if show_google:
-            g_totals = {
-                'cost': google_df['cost'].sum(),
-                'ftd': google_df['ftd'].sum(),  # First Recharge
-                'ftd_recharge': google_df['ftd_recharge'].sum(),
-            }
-            g_totals['cost_ftd'] = g_totals['cost'] / g_totals['ftd'] if g_totals['ftd'] > 0 else 0
-
-            st.markdown(f"""
-            <div class="google-card">
-                <h2>🔍 GOOGLE</h2>
-                <hr style="border-color: rgba(255,255,255,0.3);">
-                <p><strong>Cost:</strong> {format_currency(g_totals['cost'])}</p>
-                <p><strong>First Recharge:</strong> {format_number(g_totals['ftd'])}</p>
-                <p><strong>Recharge Amount:</strong> ₱{g_totals['ftd_recharge']:,.0f}</p>
-                <p><strong>Cost/FTD:</strong> {format_currency(g_totals['cost_ftd'])}</p>
-            </div>
-            """, unsafe_allow_html=True)
+            g_reg = google_rb_df['register'].sum() if not google_rb_df.empty and 'register' in google_rb_df.columns else 0
+            g_m = calc_metrics(google_df['cost'].sum(), google_df['ftd'].sum(), google_df['ftd_recharge'].sum(), g_reg)
+            st.markdown(render_card("GOOGLE", "🔍", "google-card", g_m), unsafe_allow_html=True)
         else:
             st.info("No Google Violet data")
 
