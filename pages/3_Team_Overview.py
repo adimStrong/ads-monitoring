@@ -1,5 +1,5 @@
 """
-Team Overview Page - Compare teams using Team Channel (P sheet) data
+Team Overview Page - Individual channel results from P sheet (Team Channel)
 """
 import streamlit as st
 import pandas as pd
@@ -26,13 +26,6 @@ TEAM_COLORS = {
     'RON / KRISSA': '#22c55e',
     'JOMAR / MIKA': '#a855f7',
     'DER': '#f59e0b',
-}
-
-TEAM_CHANNEL_MAP = {
-    'JASON / SHILA / ADRIAN': 'Promo - 07 - 1, 2 - 13',
-    'RON / KRISSA': 'Promo - 10 - 11',
-    'JOMAR / MIKA': 'Promo - 6 - 8',
-    'DER': 'Promo 9',
 }
 
 
@@ -71,6 +64,12 @@ if st.sidebar.button("🔄 Refresh Data", type="primary", use_container_width=Tr
     st.cache_data.clear()
     st.rerun()
 
+# Team filter
+teams = sorted(overall_df['team'].unique()) if not overall_df.empty else []
+st.sidebar.markdown("---")
+st.sidebar.subheader("👥 Team Filter")
+selected_team = st.sidebar.selectbox("Team", ["All Teams"] + list(teams))
+
 # Date filter (for daily data)
 has_daily = not daily_df.empty
 if has_daily:
@@ -88,7 +87,6 @@ if has_daily:
 
     st.sidebar.caption(f"Data: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
 
-    # Filter daily data
     filtered_daily = daily_df[
         (daily_df['date'].dt.date >= start_date) &
         (daily_df['date'].dt.date <= end_date)
@@ -98,27 +96,36 @@ else:
     end_date = datetime.now().date()
     filtered_daily = pd.DataFrame()
 
+# Apply team filter
+filtered_overall = overall_df.copy()
+if selected_team != "All Teams":
+    filtered_overall = filtered_overall[filtered_overall['team'] == selected_team]
+    if has_daily and not filtered_daily.empty:
+        # Map channels to teams for daily filter
+        team_channels = overall_df[overall_df['team'] == selected_team]['channel'].unique()
+        filtered_daily = filtered_daily[filtered_daily['channel'].isin(team_channels)]
+
 # ============================================================
 # HEADER
 # ============================================================
-teams = sorted(overall_df['team'].unique()) if not overall_df.empty else []
+n_channels = len(filtered_overall) if not filtered_overall.empty else 0
 st.markdown(f"""
 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 15px; color: white; margin-bottom: 2rem;">
-    <h2 style="margin: 0;">Team Performance Overview</h2>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')} &bull; {len(teams)} teams</p>
+    <h2 style="margin: 0;">Individual Channel Performance</h2>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')} &bull; {n_channels} channels &bull; {selected_team}</p>
 </div>
 """, unsafe_allow_html=True)
 
 # ============================================================
-# TEAM TOTALS (from overall section)
+# TOTALS
 # ============================================================
-st.subheader("📊 Team Totals")
+st.subheader("📊 Totals")
 
-if not overall_df.empty:
-    total_cost = overall_df['cost'].sum()
-    total_reg = int(overall_df['registrations'].sum())
-    total_fr = int(overall_df['first_recharge'].sum())
-    total_amt = overall_df['total_amount'].sum()
+if not filtered_overall.empty:
+    total_cost = filtered_overall['cost'].sum()
+    total_reg = int(filtered_overall['registrations'].sum())
+    total_fr = int(filtered_overall['first_recharge'].sum())
+    total_amt = filtered_overall['total_amount'].sum()
     avg_cpr = total_cost / total_reg if total_reg > 0 else 0
     avg_cpfd = total_cost / total_fr if total_fr > 0 else 0
     avg_roas = total_amt / total_cost if total_cost > 0 else 0
@@ -136,67 +143,63 @@ if not overall_df.empty:
         st.metric("📊 CPR", format_currency(avg_cpr))
     with col6:
         st.metric("📈 ROAS", f"{avg_roas:.2f}")
-else:
-    st.info("No overall data available.")
 
 st.divider()
 
 # ============================================================
-# TEAM CARDS
+# INDIVIDUAL CHANNEL CARDS
 # ============================================================
-st.subheader("👤 Team Summary")
+st.subheader("📡 Individual Channel Results")
 
-if not overall_df.empty:
-    team_agg = overall_df.groupby('team').agg({
-        'cost': 'sum',
-        'registrations': 'sum',
-        'first_recharge': 'sum',
-        'total_amount': 'sum',
-    }).reset_index()
+if not filtered_overall.empty:
+    # Sort by cost descending
+    channel_df = filtered_overall.sort_values('cost', ascending=False).reset_index(drop=True)
 
-    team_agg['cpr'] = team_agg.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
-    team_agg['cpfd'] = team_agg.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    team_agg['arppu'] = team_agg.apply(lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    team_agg['roas'] = team_agg.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
-
-    # Sort by ROAS descending
-    team_agg = team_agg.sort_values('roas', ascending=False).reset_index(drop=True)
-
-    cols = st.columns(2)
-    for idx, (_, r) in enumerate(team_agg.iterrows()):
+    cols = st.columns(3)
+    for idx, (_, r) in enumerate(channel_df.iterrows()):
         team = r['team']
+        channel = r['channel']
         color = TEAM_COLORS.get(team, '#64748b')
-        channels = TEAM_CHANNEL_MAP.get(team, '-')
 
-        # Performance badge
-        if r['roas'] >= 3:
+        # Short channel name (DEERPROMO01 etc)
+        short_name = channel.replace('FB-FB-FB-', '')
+
+        cpr = r['cost'] / r['registrations'] if r['registrations'] > 0 else 0
+        cpfd = r['cost'] / r['first_recharge'] if r['first_recharge'] > 0 else 0
+        roas = r['total_amount'] / r['cost'] if r['cost'] > 0 else 0
+
+        # Performance badge based on ROAS
+        if roas >= 3:
             perf_badge = '🏆 Top'
             perf_color = '#28a745'
-        elif r['roas'] >= 2:
+        elif roas >= 2:
             perf_badge = '⭐ Good'
             perf_color = '#ffc107'
-        else:
+        elif roas >= 1:
             perf_badge = '📈 Active'
             perf_color = '#17a2b8'
+        else:
+            perf_badge = '⚠️ Low'
+            perf_color = '#dc3545'
 
-        with cols[idx % 2]:
+        with cols[idx % 3]:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 1rem;">
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.2rem; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; color: #333;">{team}</h3>
-                    <span style="background: {perf_color}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem;">{perf_badge}</span>
+                    <h4 style="margin: 0; color: #333;">{short_name}</h4>
+                    <span style="background: {perf_color}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem;">{perf_badge}</span>
                 </div>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #666;">Channels: {channels}</p>
-                <hr style="margin: 10px 0; border-color: #dee2e6;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: {color}; font-weight: bold;">{team}</p>
+                <hr style="margin: 8px 0; border-color: #dee2e6;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.82rem;">
                     <div><strong>Cost:</strong> ${r['cost']:,.2f}</div>
-                    <div><strong>1st Recharge:</strong> {int(r['first_recharge']):,}</div>
-                    <div><strong>Registrations:</strong> {int(r['registrations']):,}</div>
+                    <div><strong>1st Rech:</strong> {int(r['first_recharge']):,}</div>
+                    <div><strong>Reg:</strong> {int(r['registrations']):,}</div>
                     <div><strong>Amount:</strong> ₱{r['total_amount']:,.0f}</div>
-                    <div><strong>CPR:</strong> ${r['cpr']:.2f}</div>
-                    <div><strong>CPFD:</strong> ${r['cpfd']:.2f}</div>
+                    <div><strong>CPR:</strong> ${cpr:.2f}</div>
+                    <div><strong>CPFD:</strong> ${cpfd:.2f}</div>
                     <div><strong>ARPPU:</strong> ₱{r['arppu']:.0f}</div>
-                    <div><strong>ROAS:</strong> {r['roas']:.2f}</div>
+                    <div><strong>ROAS:</strong> {roas:.2f}</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -206,123 +209,92 @@ st.divider()
 # ============================================================
 # COMPARISON CHARTS
 # ============================================================
-st.subheader("📈 Performance Comparison")
+st.subheader("📈 Channel Comparison")
 
-if not overall_df.empty:
+if not filtered_overall.empty:
+    chart_df = filtered_overall.copy()
+    chart_df['short_name'] = chart_df['channel'].str.replace('FB-FB-FB-', '', regex=False)
+    chart_df['cpr'] = chart_df.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
+    chart_df['cpfd'] = chart_df.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    chart_df['roas'] = chart_df.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+
     tab1, tab2 = st.tabs(["Performance Metrics", "Daily Trends"])
 
     with tab1:
         col1, col2 = st.columns(2)
 
         with col1:
-            fig = go.Figure(go.Bar(
-                x=team_agg['team'], y=team_agg['cost'],
-                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-                text=[f"${v:,.0f}" for v in team_agg['cost']], textposition='outside',
-            ))
-            fig.add_hline(y=team_agg['cost'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(title='Total Cost ($)', height=380, yaxis_title="USD", showlegend=False)
+            fig = px.bar(
+                chart_df.sort_values('cost', ascending=True),
+                x='cost', y='short_name', orientation='h',
+                color='team', color_discrete_map=TEAM_COLORS,
+                title='Cost by Channel ($)', text='cost'
+            )
+            fig.update_traces(texttemplate='$%{text:,.0f}', textposition='inside')
+            fig.update_layout(height=450, yaxis_title="", xaxis_title="Cost (USD)",
+                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            fig = go.Figure(go.Bar(
-                x=team_agg['team'], y=team_agg['first_recharge'],
-                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-                text=[f"{int(v):,}" for v in team_agg['first_recharge']], textposition='outside',
-            ))
-            fig.add_hline(y=team_agg['first_recharge'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(title='1st Recharge Count', height=380, yaxis_title="Count", showlegend=False)
+            fig = px.bar(
+                chart_df.sort_values('first_recharge', ascending=True),
+                x='first_recharge', y='short_name', orientation='h',
+                color='team', color_discrete_map=TEAM_COLORS,
+                title='1st Recharge by Channel', text='first_recharge'
+            )
+            fig.update_traces(texttemplate='%{text:,}', textposition='inside')
+            fig.update_layout(height=450, yaxis_title="", xaxis_title="1st Recharge",
+                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
             st.plotly_chart(fig, use_container_width=True)
 
         col1, col2 = st.columns(2)
 
         with col1:
-            fig = go.Figure(go.Bar(
-                x=team_agg['team'], y=team_agg['roas'],
-                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-                text=[f"{v:.2f}" for v in team_agg['roas']], textposition='outside',
-            ))
-            fig.add_hline(y=team_agg['roas'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(title='ROAS', height=380, yaxis_title="Ratio", showlegend=False)
+            fig = px.bar(
+                chart_df.sort_values('roas', ascending=True),
+                x='roas', y='short_name', orientation='h',
+                color='team', color_discrete_map=TEAM_COLORS,
+                title='ROAS by Channel', text='roas'
+            )
+            fig.update_traces(texttemplate='%{text:.2f}', textposition='inside')
+            fig.update_layout(height=450, yaxis_title="", xaxis_title="ROAS",
+                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            fig = go.Figure(go.Bar(
-                x=team_agg['team'], y=team_agg['cpfd'],
-                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-                text=[f"${v:.2f}" for v in team_agg['cpfd']], textposition='outside',
-            ))
-            fig.add_hline(y=team_agg['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(title='CPFD ($)', height=380, yaxis_title="USD", showlegend=False)
+            fig = px.bar(
+                chart_df.sort_values('cpfd', ascending=True),
+                x='cpfd', y='short_name', orientation='h',
+                color='team', color_discrete_map=TEAM_COLORS,
+                title='CPFD by Channel ($)', text='cpfd'
+            )
+            fig.update_traces(texttemplate='$%{text:.2f}', textposition='inside')
+            fig.update_layout(height=450, yaxis_title="", xaxis_title="CPFD (USD)",
+                              legend=dict(orientation="h", yanchor="bottom", y=-0.3))
             st.plotly_chart(fig, use_container_width=True)
-
-        # Radar chart
-        st.subheader("🎯 Team Performance Radar")
-
-        metrics = ['cost', 'registrations', 'first_recharge', 'total_amount', 'roas']
-        metric_labels = {'cost': 'Cost', 'registrations': 'Registrations', 'first_recharge': '1st Recharge',
-                         'total_amount': 'Amount', 'roas': 'ROAS'}
-
-        radar_df = team_agg.copy()
-        for col in metrics:
-            max_val = radar_df[col].max()
-            radar_df[col + '_norm'] = (radar_df[col] / max_val * 100) if max_val > 0 else 0
-
-        fig = go.Figure()
-        for _, r in radar_df.iterrows():
-            team = r['team']
-            fig.add_trace(go.Scatterpolar(
-                r=[r.get(f'{m}_norm', 0) for m in metrics],
-                theta=[metric_labels.get(m, m) for m in metrics],
-                fill='toself',
-                name=team,
-                line_color=TEAM_COLORS.get(team, '#64748b'),
-            ))
-
-        fig.update_layout(
-            polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-            showlegend=True, height=450,
-        )
-        st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
         if has_daily and not filtered_daily.empty:
-            # Aggregate daily by team (map channels to teams using overall_df)
-            # Build channel->team mapping from overall data
-            channel_team = overall_df[['team', 'channel']].drop_duplicates()
-            daily_with_team = filtered_daily.merge(channel_team, on='channel', how='left', suffixes=('', '_mapped'))
-            # Use mapped team, fallback to original
-            if 'team_mapped' in daily_with_team.columns:
-                daily_with_team['team_final'] = daily_with_team['team_mapped'].fillna(daily_with_team['team'])
-            else:
-                daily_with_team['team_final'] = daily_with_team['team']
-
-            daily_by_team = daily_with_team.groupby(['date', 'team_final']).agg({
-                'cost': 'sum',
-                'registrations': 'sum',
-                'first_recharge': 'sum',
-                'total_amount': 'sum',
-            }).reset_index()
-            daily_by_team.rename(columns={'team_final': 'team'}, inplace=True)
-            daily_by_team['date_only'] = daily_by_team['date'].dt.date
-            daily_by_team['roas'] = daily_by_team.apply(
+            daily_agg = filtered_daily.copy()
+            daily_agg['short_name'] = daily_agg['channel'].str.replace('FB-FB-FB-', '', regex=False)
+            daily_agg['date_only'] = daily_agg['date'].dt.date
+            daily_agg['roas'] = daily_agg.apply(
                 lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
-            daily_by_team['cpfd'] = daily_by_team.apply(
+            daily_agg['cpfd'] = daily_agg.apply(
                 lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
 
             metric_choice = st.selectbox("Select Metric",
                 ['cost', 'registrations', 'first_recharge', 'total_amount', 'roas', 'cpfd'])
-            metric_labels_full = {
+            metric_labels = {
                 'cost': 'Cost ($)', 'registrations': 'Registrations', 'first_recharge': '1st Recharge',
                 'total_amount': 'Amount (₱)', 'roas': 'ROAS', 'cpfd': 'CPFD ($)'}
 
             fig = px.line(
-                daily_by_team, x='date_only', y=metric_choice, color='team',
-                title=f'{metric_labels_full.get(metric_choice, metric_choice)} Trend by Team',
+                daily_agg, x='date_only', y=metric_choice, color='short_name',
+                title=f'{metric_labels.get(metric_choice, metric_choice)} Daily Trend',
                 markers=True,
-                color_discrete_map=TEAM_COLORS,
             )
-            fig.update_layout(height=400, legend=dict(orientation='h', yanchor='bottom', y=1.02))
+            fig.update_layout(height=450, legend=dict(orientation='h', yanchor='bottom', y=-0.4))
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No daily data available for trend analysis.")
@@ -331,15 +303,19 @@ if not overall_df.empty:
 # LEADERBOARD
 # ============================================================
 st.divider()
-st.subheader("🏆 Team Leaderboard")
+st.subheader("🏆 Channel Leaderboard")
 
-if not overall_df.empty:
-    lb = team_agg.copy()
+if not filtered_overall.empty:
+    lb = filtered_overall.copy()
+    lb['short_name'] = lb['channel'].str.replace('FB-FB-FB-', '', regex=False)
+    lb['cpr'] = lb.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
+    lb['cpfd'] = lb.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    lb['roas'] = lb.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
     lb = lb.sort_values('roas', ascending=False).reset_index(drop=True)
     lb['rank'] = range(1, len(lb) + 1)
 
-    display_lb = lb[['rank', 'team', 'cost', 'registrations', 'first_recharge', 'total_amount', 'cpr', 'cpfd', 'roas']].copy()
-    display_lb.columns = ['#', 'Team', 'Cost ($)', 'Reg', '1st Rech', 'Amount (₱)', 'CPR ($)', 'CPFD ($)', 'ROAS']
+    display_lb = lb[['rank', 'short_name', 'team', 'cost', 'registrations', 'first_recharge', 'total_amount', 'cpr', 'cpfd', 'roas']].copy()
+    display_lb.columns = ['#', 'Channel', 'Team', 'Cost ($)', 'Reg', '1st Rech', 'Amount (₱)', 'CPR ($)', 'CPFD ($)', 'ROAS']
 
     st.dataframe(
         display_lb,
@@ -347,6 +323,7 @@ if not overall_df.empty:
         hide_index=True,
         column_config={
             "#": st.column_config.NumberColumn(width="small"),
+            "Channel": st.column_config.TextColumn(width="medium"),
             "Team": st.column_config.TextColumn(width="medium"),
             "Cost ($)": st.column_config.NumberColumn(format="$ %.2f"),
             "Reg": st.column_config.NumberColumn(format="%d"),
