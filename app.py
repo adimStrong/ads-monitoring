@@ -446,7 +446,8 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
         display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
         display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
+        st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)
     else:
         st.info("No P-tab data available. Check Channel ROI sheet P6-P13 tabs.")
 
@@ -645,7 +646,8 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
     display['Creatives'] = display['Creatives'].apply(lambda x: f'{x:,.0f}')
     display['SMS Total'] = display['SMS Total'].apply(lambda x: f'{x:,.0f}')
     display['Content Posts'] = display['Content Posts'].apply(lambda x: f'{x:,.0f}')
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
+    st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)
 
 
 def render_facebook_ads(ptab_daily):
@@ -871,7 +873,8 @@ def render_facebook_ads(ptab_daily):
         display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
         display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
         display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
-        st.dataframe(display, use_container_width=True, hide_index=True)
+        _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
+        st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)
     else:
         st.dataframe(ptab_daily, use_container_width=True, hide_index=True)
 
