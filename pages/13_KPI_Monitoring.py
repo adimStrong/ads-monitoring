@@ -244,6 +244,40 @@ if selected_agent == "All Agents":
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
 
+    # Calculation explanation
+    explain = """
+<div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin:16px 0;font-size:13px;line-height:1.7">
+<b style="font-size:14px">How is the Total KPI Score calculated?</b><br><br>
+Each KPI is scored <b>1 to 4</b>, then multiplied by its <b>weight</b>. The Total = sum of all weighted scores.<br>
+<b>Maximum possible score = 4.00</b> (if every KPI scores 4).<br><br>
+
+<b style="color:#3b82f6">AUTO KPIs (75% of total = max 3.00)</b><br>
+<table style="width:100%;border-collapse:collapse;font-size:12px;margin:6px 0">
+<tr style="background:#0f172a"><th style="padding:4px 8px;text-align:left;border:1px solid #334155">KPI</th><th style="padding:4px 8px;text-align:center;border:1px solid #334155">Weight</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Formula</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Score 4</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Score 3</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Score 2</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Score 1</th></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">CPA</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">12.5%</td><td style="padding:4px 8px;border:1px solid #334155">Cost &divide; FTD</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">$9-$9.99</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">$10-$13.99</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">$14-$15</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&gt;$15</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">ROAS</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">12.5%</td><td style="padding:4px 8px;border:1px solid #334155">ARPPU &divide; 57.7 &divide; CPD</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&ge;0.40x</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">0.20-0.399x</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">0.10-0.199x</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&lt;0.10x</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">CVR</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">15%</td><td style="padding:4px 8px;border:1px solid #334155">FTD &divide; Register &times; 100</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&ge;7%</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">4-6.99%</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">2-3.99%</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&lt;2%</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">CTR</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">7.5%</td><td style="padding:4px 8px;border:1px solid #334155">Clicks &divide; Impressions &times; 100</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&ge;3%</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">2-2.99%</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">1-1.99%</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&lt;1%</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">Account Dev</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">10%</td><td style="padding:4px 8px;border:1px solid #334155">Gmail + FB accounts created</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&ge;5</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">3-4</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">2</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&lt;2</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">A/B Testing</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">7.5%</td><td style="padding:4px 8px;border:1px solid #334155">Published ads count</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&ge;20</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">11-19</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">6-10</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">&lt;6</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">Reporting</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">10%</td><td style="padding:4px 8px;border:1px solid #334155">Avg minutes after each hour</td><td style="padding:4px 8px;border:1px solid #334155;color:#22c55e">&lt;15 min</td><td style="padding:4px 8px;border:1px solid #334155;color:#eab308">15-24 min</td><td style="padding:4px 8px;border:1px solid #334155;color:#f97316">25-34 min</td><td style="padding:4px 8px;border:1px solid #334155;color:#ef4444">35+ min</td></tr>
+</table>
+
+<b style="color:#a855f7">MANUAL KPIs (25% of total = max 1.00)</b><br>
+<table style="width:50%;border-collapse:collapse;font-size:12px;margin:6px 0">
+<tr style="background:#0f172a"><th style="padding:4px 8px;text-align:left;border:1px solid #334155">KPI</th><th style="padding:4px 8px;text-align:center;border:1px solid #334155">Weight</th><th style="padding:4px 8px;text-align:left;border:1px solid #334155">Scored By</th></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">Campaign Setup Accuracy</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">15%</td><td style="padding:4px 8px;border:1px solid #334155">Manager (1-4)</td></tr>
+<tr><td style="padding:4px 8px;border:1px solid #334155">Collaboration</td><td style="padding:4px 8px;text-align:center;border:1px solid #334155">10%</td><td style="padding:4px 8px;border:1px solid #334155">Manager (1-4)</td></tr>
+</table>
+
+<b>Example:</b> If an agent scores CPA=3, ROAS=3, CVR=4, CTR=4, Acct=4, AB=4, Report=4:<br>
+<code>Auto = (3&times;0.125) + (3&times;0.125) + (4&times;0.15) + (4&times;0.075) + (4&times;0.10) + (4&times;0.075) + (4&times;0.10) = 0.375 + 0.375 + 0.60 + 0.30 + 0.40 + 0.30 + 0.40 = <b>2.75</b></code><br>
+<code>Manual = (Campaign Setup score &times; 0.15) + (Collaboration score &times; 0.10)</code><br>
+<code><b>Total = Auto + Manual</b> (out of 4.00)</code>
+</div>
+"""
+    st.markdown(explain, unsafe_allow_html=True)
+
     # Bar chart - all auto KPIs grouped
     st.subheader("Auto Scores by Agent")
     agents = summary_df['Agent'].tolist()
