@@ -1,18 +1,18 @@
 """
-Team Overview Page - Compare all agents side by side
+Team Overview Page - Compare teams using Team Channel (P sheet) data
 """
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import random
 import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import AGENTS
-from data_loader import load_agent_performance_data, load_agent_content_data, get_date_range, load_facebook_ads_data
+
+from channel_data_loader import load_team_channel_data, refresh_team_channel_data
+from config import CHANNEL_ROI_ENABLED
 
 # Sidebar logo
 logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.jpg")
@@ -21,435 +21,344 @@ if os.path.exists(logo_path):
 
 st.title("👥 Team Overview & Comparison")
 
+TEAM_COLORS = {
+    'JASON / SHILA / ADRIAN': '#3b82f6',
+    'RON / KRISSA': '#22c55e',
+    'JOMAR / MIKA': '#a855f7',
+    'DER': '#f59e0b',
+}
+
+TEAM_CHANNEL_MAP = {
+    'JASON / SHILA / ADRIAN': 'Promo - 07 - 1, 2 - 13',
+    'RON / KRISSA': 'Promo - 10 - 11',
+    'JOMAR / MIKA': 'Promo - 6 - 8',
+    'DER': 'Promo 9',
+}
+
+
+def format_currency(v):
+    return f"${v:,.2f}" if v else "$0.00"
+
+
+def format_php(v):
+    return f"₱{v:,.0f}" if v else "₱0"
+
+
 # ============================================================
-# DATA LOADING - Load real data from Google Sheets
+# DATA LOADING
 # ============================================================
 
-@st.cache_data(ttl=300)
-def load_all_team_data(agents):
-    """Load performance data for all agents from Google Sheets"""
-    all_running_ads = []
-    all_creative = []
-    all_content = []
+if not CHANNEL_ROI_ENABLED:
+    st.warning("Channel ROI is disabled.")
+    st.stop()
 
-    for agent in agents:
-        # Load performance data (running ads, creative, sms)
-        running_ads_df, creative_df, sms_df = load_agent_performance_data(
-            agent['name'],
-            agent['sheet_performance']
-        )
+with st.spinner("Loading Team Channel data..."):
+    data = load_team_channel_data()
+    overall_df = data.get('overall', pd.DataFrame())
+    daily_df = data.get('daily', pd.DataFrame())
 
-        if running_ads_df is not None and not running_ads_df.empty:
-            all_running_ads.append(running_ads_df)
+if overall_df.empty and daily_df.empty:
+    st.error("No Team Channel data available. Check that the sheet exists and has data.")
+    st.stop()
 
-        if creative_df is not None and not creative_df.empty:
-            all_creative.append(creative_df)
+# ============================================================
+# SIDEBAR
+# ============================================================
+st.sidebar.header("Controls")
 
-        # Load content data
-        content_df = load_agent_content_data(
-            agent['name'],
-            agent['sheet_content']
-        )
+if st.sidebar.button("🔄 Refresh Data", type="primary", use_container_width=True):
+    refresh_team_channel_data()
+    st.cache_data.clear()
+    st.rerun()
 
-        if content_df is not None and not content_df.empty:
-            all_content.append(content_df)
+# Date filter (for daily data)
+has_daily = not daily_df.empty
+if has_daily:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("📅 Date Range")
+    min_date = daily_df['date'].min().date()
+    max_date = daily_df['date'].max().date()
+    default_start = max(min_date, max_date - timedelta(days=30))
 
-    combined_ads = pd.concat(all_running_ads, ignore_index=True) if all_running_ads else pd.DataFrame()
-    combined_creative = pd.concat(all_creative, ignore_index=True) if all_creative else pd.DataFrame()
-    combined_content = pd.concat(all_content, ignore_index=True) if all_content else pd.DataFrame()
-
-    return combined_ads, combined_creative, combined_content
-
-# Sidebar
-st.sidebar.header("Filters")
-
-# Data source toggle
-use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True, key="team_overview_toggle")
-
-# Load data FIRST to determine date range
-team_ads_df = pd.DataFrame()
-team_creative_df = pd.DataFrame()
-team_content_df = pd.DataFrame()
-fb_ads_df = pd.DataFrame()
-
-if use_real_data:
-    with st.spinner("Loading team data from Google Sheets..."):
-        team_ads_df, team_creative_df, team_content_df = load_all_team_data(AGENTS)
-
-        # Load Facebook Ads data (primary source for ads metrics)
-        fb_ads_df = load_facebook_ads_data()
-        if fb_ads_df is not None and not fb_ads_df.empty:
-            st.sidebar.success(f"Loaded {len(fb_ads_df)} Facebook Ads records")
-        else:
-            fb_ads_df = pd.DataFrame()
-
-    if fb_ads_df.empty and team_creative_df.empty:
-        st.warning("Could not load team data from Google Sheets. Using sample data.")
-        use_real_data = False
-
-# Date range - constrained to available data (prefer Facebook Ads)
-if not fb_ads_df.empty:
-    min_date, max_date = get_date_range(fb_ads_df)
-elif not team_ads_df.empty:
-    min_date, max_date = get_date_range(team_ads_df)
-else:
-    min_date, max_date = get_date_range(team_content_df)
-
-# Convert to date objects
-if hasattr(min_date, 'date'):
-    min_date = min_date.date()
-if hasattr(max_date, 'date'):
-    max_date = max_date.date()
-
-has_data = min_date is not None and max_date is not None and (not fb_ads_df.empty or not team_content_df.empty)
-
-if has_data:
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        default_start = max(min_date, max_date - timedelta(days=14))
-        start_date = st.date_input(
-            "From",
-            value=default_start,
-            min_value=min_date,
-            max_value=max_date
-        )
+        start_date = st.date_input("From", value=default_start, min_value=min_date, max_value=max_date)
     with col2:
-        end_date = st.date_input(
-            "To",
-            value=max_date,
-            min_value=min_date,
-            max_value=max_date
-        )
+        end_date = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date)
+
     st.sidebar.caption(f"Data: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
+
+    # Filter daily data
+    filtered_daily = daily_df[
+        (daily_df['date'].dt.date >= start_date) &
+        (daily_df['date'].dt.date <= end_date)
+    ]
 else:
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        start_date = st.date_input("From", datetime.now() - timedelta(days=30))
-    with col2:
-        end_date = st.date_input("To", datetime.now())
+    start_date = datetime.now().date() - timedelta(days=30)
+    end_date = datetime.now().date()
+    filtered_daily = pd.DataFrame()
 
-# Generate sample data (fallback)
-def generate_team_data(agents, start_date, end_date):
-    dates = pd.date_range(start=start_date, end=end_date, freq='D')
-    data = []
-
-    for agent in agents:
-        random.seed(hash(agent['name']))
-        for date in dates:
-            data.append({
-                'date': date,
-                'agent_name': agent['name'],
-                'total_ad': random.randint(5, 25),
-                'impressions': random.randint(2000, 15000),
-                'clicks': random.randint(100, 800),
-                'ctr_percent': round(random.uniform(1.5, 5.5), 2),
-                'cpc': round(random.uniform(0.3, 2.5), 2),
-                'conversion_rate': round(random.uniform(0.8, 4.0), 2),
-                'active_count': random.randint(5, 20),
-                'content_posts': random.randint(3, 8),
-                'unique_content': random.randint(2, 6),
-            })
-
-    return pd.DataFrame(data)
-
-# Build df from Facebook Ads data (primary source)
-if use_real_data and not fb_ads_df.empty:
-    # Use Facebook Ads as primary data source
-    df = fb_ads_df.copy()
-    df['agent_name'] = df['person_name']  # Map person_name to agent_name for compatibility
-else:
-    df = generate_team_data(AGENTS, start_date, end_date)
-
-# Header
+# ============================================================
+# HEADER
+# ============================================================
+teams = sorted(overall_df['team'].unique()) if not overall_df.empty else []
 st.markdown(f"""
 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 15px; color: white; margin-bottom: 2rem;">
     <h2 style="margin: 0;">Team Performance Overview</h2>
-    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')} • {len(AGENTS)} agents</p>
+    <p style="margin: 0.5rem 0 0 0; opacity: 0.9;">{start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')} &bull; {len(teams)} teams</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Team Summary Metrics
-st.subheader("📊 Team Totals (Facebook Ads)")
+# ============================================================
+# TEAM TOTALS (from overall section)
+# ============================================================
+st.subheader("📊 Team Totals")
 
-if df.empty:
-    st.info("No data available. Check if Google Sheets have data or use sample data.")
-else:
+if not overall_df.empty:
+    total_cost = overall_df['cost'].sum()
+    total_reg = int(overall_df['registrations'].sum())
+    total_fr = int(overall_df['first_recharge'].sum())
+    total_amt = overall_df['total_amount'].sum()
+    avg_cpr = total_cost / total_reg if total_reg > 0 else 0
+    avg_cpfd = total_cost / total_fr if total_fr > 0 else 0
+    avg_roas = total_amt / total_cost if total_cost > 0 else 0
+
     col1, col2, col3, col4, col5, col6 = st.columns(6)
-
     with col1:
-        total_spend = df['spend'].sum() if 'spend' in df.columns else 0
-        st.metric("💵 Total Spend", f"${total_spend:,.2f}")
+        st.metric("💵 Total Cost", format_currency(total_cost))
     with col2:
-        impressions = int(df['impressions'].sum()) if 'impressions' in df.columns else 0
-        st.metric("👁️ Impressions", f"{impressions:,}")
+        st.metric("📝 Registrations", f"{total_reg:,}")
     with col3:
-        clicks = int(df['clicks'].sum()) if 'clicks' in df.columns else 0
-        st.metric("👆 Clicks", f"{clicks:,}")
+        st.metric("💰 1st Recharge", f"{total_fr:,}")
     with col4:
-        avg_ctr = (clicks / impressions * 100) if impressions > 0 else 0
-        st.metric("📊 CTR", f"{avg_ctr:.2f}%")
+        st.metric("₱ Total Amount", format_php(total_amt))
     with col5:
-        register = int(df['register'].sum()) if 'register' in df.columns else 0
-        st.metric("📝 Register", f"{register:,}")
+        st.metric("📊 CPR", format_currency(avg_cpr))
     with col6:
-        ftd = int(df['result_ftd'].sum()) if 'result_ftd' in df.columns else 0
-        st.metric("💰 FTD", f"{ftd:,}")
+        st.metric("📈 ROAS", f"{avg_roas:.2f}")
+else:
+    st.info("No overall data available.")
 
 st.divider()
 
-# Agent Cards
-st.subheader("👤 Individual Agent Summary")
+# ============================================================
+# TEAM CARDS
+# ============================================================
+st.subheader("👤 Team Summary")
 
-if not df.empty and 'agent_name' in df.columns:
-    # Get unique agents from Facebook Ads data
-    fb_agents = df['agent_name'].unique().tolist()
-    cols = st.columns(3)
+if not overall_df.empty:
+    team_agg = overall_df.groupby('team').agg({
+        'cost': 'sum',
+        'registrations': 'sum',
+        'first_recharge': 'sum',
+        'total_amount': 'sum',
+    }).reset_index()
 
-    for idx, agent_name in enumerate(fb_agents):
-        agent_df = df[df['agent_name'] == agent_name]
+    team_agg['cpr'] = team_agg.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
+    team_agg['cpfd'] = team_agg.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    team_agg['arppu'] = team_agg.apply(lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    team_agg['roas'] = team_agg.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
 
-        with cols[idx % 3]:
-            spend = agent_df['spend'].sum() if 'spend' in agent_df.columns else 0
-            impressions = int(agent_df['impressions'].sum()) if 'impressions' in agent_df.columns else 0
-            reach = int(agent_df['reach'].sum()) if 'reach' in agent_df.columns else 0
-            clicks = int(agent_df['clicks'].sum()) if 'clicks' in agent_df.columns else 0
-            register = int(agent_df['register'].sum()) if 'register' in agent_df.columns else 0
-            ftd = int(agent_df['result_ftd'].sum()) if 'result_ftd' in agent_df.columns else 0
-            ctr = (clicks / impressions * 100) if impressions > 0 else 0
-            cpc = (spend / clicks) if clicks > 0 else 0
-            cpr = (spend / register) if register > 0 else 0
-            cpftd = (spend / ftd) if ftd > 0 else 0
+    # Sort by ROAS descending
+    team_agg = team_agg.sort_values('roas', ascending=False).reset_index(drop=True)
 
-            # Determine performance color based on FTD
-            if ftd >= 30:
-                perf_color = '#28a745'
-                perf_badge = '🏆 Top Performer'
-            elif ftd >= 15:
-                perf_color = '#ffc107'
-                perf_badge = '⭐ Good'
-            else:
-                perf_color = '#17a2b8'
-                perf_badge = '📈 Active'
+    cols = st.columns(2)
+    for idx, (_, r) in enumerate(team_agg.iterrows()):
+        team = r['team']
+        color = TEAM_COLORS.get(team, '#64748b')
+        channels = TEAM_CHANNEL_MAP.get(team, '-')
 
-            # Format CPR and CPFTD display
-            cpr_display = f"${cpr:,.2f}" if cpr > 0 else "-"
-            cpftd_display = f"${cpftd:,.2f}" if cpftd > 0 else "-"
+        # Performance badge
+        if r['roas'] >= 3:
+            perf_badge = '🏆 Top'
+            perf_color = '#28a745'
+        elif r['roas'] >= 2:
+            perf_badge = '⭐ Good'
+            perf_color = '#ffc107'
+        else:
+            perf_badge = '📈 Active'
+            perf_color = '#17a2b8'
 
+        with cols[idx % 2]:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 12px; border-left: 5px solid {perf_color}; margin-bottom: 1rem;">
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 1rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; color: #333;">{agent_name}</h3>
+                    <h3 style="margin: 0; color: #333;">{team}</h3>
                     <span style="background: {perf_color}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem;">{perf_badge}</span>
                 </div>
-            <hr style="margin: 10px 0; border-color: #dee2e6;">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                <div><strong>Spend:</strong> ${spend:,.2f}</div>
-                <div><strong>FTD:</strong> {ftd:,}</div>
-                <div><strong>Impressions:</strong> {impressions:,}</div>
-                <div><strong>Register:</strong> {register:,}</div>
-                <div><strong>Reach:</strong> {reach:,}</div>
-                <div><strong>Clicks:</strong> {clicks:,}</div>
-                <div><strong>CTR:</strong> {ctr:.2f}%</div>
-                <div><strong>CPC:</strong> ${cpc:.2f}</div>
-                <div><strong>CPR:</strong> {cpr_display}</div>
-                <div><strong>Cost/FTD:</strong> {cpftd_display}</div>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #666;">Channels: {channels}</p>
+                <hr style="margin: 10px 0; border-color: #dee2e6;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
+                    <div><strong>Cost:</strong> ${r['cost']:,.2f}</div>
+                    <div><strong>1st Recharge:</strong> {int(r['first_recharge']):,}</div>
+                    <div><strong>Registrations:</strong> {int(r['registrations']):,}</div>
+                    <div><strong>Amount:</strong> ₱{r['total_amount']:,.0f}</div>
+                    <div><strong>CPR:</strong> ${r['cpr']:.2f}</div>
+                    <div><strong>CPFD:</strong> ${r['cpfd']:.2f}</div>
+                    <div><strong>ARPPU:</strong> ₱{r['arppu']:.0f}</div>
+                    <div><strong>ROAS:</strong> {r['roas']:.2f}</div>
+                </div>
             </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-else:
-    st.info("No agent data available for display.")
+            """, unsafe_allow_html=True)
 
 st.divider()
 
-# Comparison Charts
+# ============================================================
+# COMPARISON CHARTS
+# ============================================================
 st.subheader("📈 Performance Comparison")
 
-if df.empty or 'agent_name' not in df.columns:
-    st.info("No data available for comparison charts.")
-else:
-    tab1, tab2 = st.tabs(["Performance Metrics", "Trends"])
+if not overall_df.empty:
+    tab1, tab2 = st.tabs(["Performance Metrics", "Daily Trends"])
 
     with tab1:
         col1, col2 = st.columns(2)
 
         with col1:
-            # Spend by Agent
-            agent_summary = df.groupby('agent_name').agg({
-                'spend': 'sum',
-                'impressions': 'sum',
-                'clicks': 'sum',
-                'register': 'sum',
-                'result_ftd': 'sum'
-            }).reset_index()
-
-            fig = px.bar(
-                agent_summary,
-                x='agent_name',
-                y='spend',
-                color='spend',
-                color_continuous_scale='Blues',
-                title='Total Spend by Agent'
-            )
-            fig.add_hline(y=agent_summary['spend'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(height=350, showlegend=False)
+            fig = go.Figure(go.Bar(
+                x=team_agg['team'], y=team_agg['cost'],
+                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+                text=[f"${v:,.0f}" for v in team_agg['cost']], textposition='outside',
+            ))
+            fig.add_hline(y=team_agg['cost'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(title='Total Cost ($)', height=380, yaxis_title="USD", showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            # FTD by Agent
-            fig = px.bar(
-                agent_summary,
-                x='agent_name',
-                y='result_ftd',
-                color='result_ftd',
-                color_continuous_scale='Greens',
-                title='FTD by Agent'
-            )
-            fig.add_hline(y=agent_summary['result_ftd'].mean(), line_dash="dash", annotation_text="Avg")
-            fig.update_layout(height=350, showlegend=False)
+            fig = go.Figure(go.Bar(
+                x=team_agg['team'], y=team_agg['first_recharge'],
+                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+                text=[f"{int(v):,}" for v in team_agg['first_recharge']], textposition='outside',
+            ))
+            fig.add_hline(y=team_agg['first_recharge'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(title='1st Recharge Count', height=380, yaxis_title="Count", showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
 
-        # Radar Chart
-        st.subheader("🎯 Agent Performance Radar")
+        col1, col2 = st.columns(2)
 
-        sum_metrics = ['spend', 'impressions', 'clicks', 'register', 'result_ftd']
-        agent_metrics = df.groupby('agent_name')[sum_metrics].sum().reset_index()
+        with col1:
+            fig = go.Figure(go.Bar(
+                x=team_agg['team'], y=team_agg['roas'],
+                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+                text=[f"{v:.2f}" for v in team_agg['roas']], textposition='outside',
+            ))
+            fig.add_hline(y=team_agg['roas'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(title='ROAS', height=380, yaxis_title="Ratio", showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
 
-        # Calculate CTR per agent
-        agent_metrics['ctr'] = (agent_metrics['clicks'] / agent_metrics['impressions'] * 100).fillna(0).round(2)
-        agent_metrics.loc[agent_metrics['impressions'] == 0, 'ctr'] = 0
+        with col2:
+            fig = go.Figure(go.Bar(
+                x=team_agg['team'], y=team_agg['cpfd'],
+                marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+                text=[f"${v:.2f}" for v in team_agg['cpfd']], textposition='outside',
+            ))
+            fig.add_hline(y=team_agg['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
+            fig.update_layout(title='CPFD ($)', height=380, yaxis_title="USD", showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
 
-        metrics = ['spend', 'impressions', 'clicks', 'ctr', 'register', 'result_ftd']
+        # Radar chart
+        st.subheader("🎯 Team Performance Radar")
 
-        # Normalize to 0-100 scale
+        metrics = ['cost', 'registrations', 'first_recharge', 'total_amount', 'roas']
+        metric_labels = {'cost': 'Cost', 'registrations': 'Registrations', 'first_recharge': '1st Recharge',
+                         'total_amount': 'Amount', 'roas': 'ROAS'}
+
+        radar_df = team_agg.copy()
         for col in metrics:
-            max_val = agent_metrics[col].max()
-            if max_val > 0:
-                agent_metrics[col + '_norm'] = agent_metrics[col] / max_val * 100
-            else:
-                agent_metrics[col + '_norm'] = 0
+            max_val = radar_df[col].max()
+            radar_df[col + '_norm'] = (radar_df[col] / max_val * 100) if max_val > 0 else 0
 
         fig = go.Figure()
-
-        metric_labels = {'spend': 'Spend', 'impressions': 'Impressions', 'clicks': 'Clicks',
-                         'ctr': 'CTR %', 'register': 'Register', 'result_ftd': 'FTD'}
-
-        for agent in agent_metrics['agent_name'].unique():
-            agent_data = agent_metrics[agent_metrics['agent_name'] == agent].iloc[0]
+        for _, r in radar_df.iterrows():
+            team = r['team']
             fig.add_trace(go.Scatterpolar(
-                r=[agent_data.get(f'{m}_norm', 0) for m in metrics],
+                r=[r.get(f'{m}_norm', 0) for m in metrics],
                 theta=[metric_labels.get(m, m) for m in metrics],
                 fill='toself',
-                name=agent
+                name=team,
+                line_color=TEAM_COLORS.get(team, '#64748b'),
             ))
 
         fig.update_layout(
             polar=dict(radialaxis=dict(visible=True, range=[0, 100])),
-            showlegend=True,
-            height=450
+            showlegend=True, height=450,
         )
         st.plotly_chart(fig, use_container_width=True)
 
     with tab2:
-        # Daily trend by agent
-        if 'date' in df.columns:
-            df['date_only'] = pd.to_datetime(df['date']).dt.date
-            daily_by_agent = df.groupby(['date_only', 'agent_name']).agg({
-                'spend': 'sum',
-                'impressions': 'sum',
-                'clicks': 'sum',
-                'register': 'sum',
-                'result_ftd': 'sum'
+        if has_daily and not filtered_daily.empty:
+            # Aggregate daily by team (map channels to teams using overall_df)
+            # Build channel->team mapping from overall data
+            channel_team = overall_df[['team', 'channel']].drop_duplicates()
+            daily_with_team = filtered_daily.merge(channel_team, on='channel', how='left', suffixes=('', '_mapped'))
+            # Use mapped team, fallback to original
+            if 'team_mapped' in daily_with_team.columns:
+                daily_with_team['team_final'] = daily_with_team['team_mapped'].fillna(daily_with_team['team'])
+            else:
+                daily_with_team['team_final'] = daily_with_team['team']
+
+            daily_by_team = daily_with_team.groupby(['date', 'team_final']).agg({
+                'cost': 'sum',
+                'registrations': 'sum',
+                'first_recharge': 'sum',
+                'total_amount': 'sum',
             }).reset_index()
+            daily_by_team.rename(columns={'team_final': 'team'}, inplace=True)
+            daily_by_team['date_only'] = daily_by_team['date'].dt.date
+            daily_by_team['roas'] = daily_by_team.apply(
+                lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+            daily_by_team['cpfd'] = daily_by_team.apply(
+                lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
 
-            # Calculate daily CTR per agent
-            daily_by_agent['ctr'] = (daily_by_agent['clicks'] / daily_by_agent['impressions'] * 100).fillna(0).round(2)
-            daily_by_agent.loc[daily_by_agent['impressions'] == 0, 'ctr'] = 0
-
-            metric_choice = st.selectbox("Select Metric", ['spend', 'impressions', 'clicks', 'ctr', 'register', 'result_ftd'])
-            metric_labels = {'spend': 'Spend ($)', 'impressions': 'Impressions', 'clicks': 'Clicks', 'ctr': 'CTR (%)', 'register': 'Register', 'result_ftd': 'FTD'}
+            metric_choice = st.selectbox("Select Metric",
+                ['cost', 'registrations', 'first_recharge', 'total_amount', 'roas', 'cpfd'])
+            metric_labels_full = {
+                'cost': 'Cost ($)', 'registrations': 'Registrations', 'first_recharge': '1st Recharge',
+                'total_amount': 'Amount (₱)', 'roas': 'ROAS', 'cpfd': 'CPFD ($)'}
 
             fig = px.line(
-                daily_by_agent,
-                x='date_only',
-                y=metric_choice,
-                color='agent_name',
-                title=f'{metric_labels.get(metric_choice, metric_choice)} Trend by Agent',
-                markers=True
+                daily_by_team, x='date_only', y=metric_choice, color='team',
+                title=f'{metric_labels_full.get(metric_choice, metric_choice)} Trend by Team',
+                markers=True,
+                color_discrete_map=TEAM_COLORS,
             )
             fig.update_layout(height=400, legend=dict(orientation='h', yanchor='bottom', y=1.02))
             st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Not enough data available for trend analysis")
+            st.info("No daily data available for trend analysis.")
 
-# Leaderboard
+# ============================================================
+# LEADERBOARD
+# ============================================================
 st.divider()
-st.subheader("🏆 Agent Leaderboard")
+st.subheader("🏆 Team Leaderboard")
 
-if df.empty or 'agent_name' not in df.columns:
-    st.info("No data available for leaderboard")
-else:
-    # Build leaderboard from Facebook Ads data
-    leaderboard = df.groupby('agent_name').agg({
-        'spend': 'sum',
-        'impressions': 'sum',
-        'clicks': 'sum',
-        'reach': 'sum',
-        'register': 'sum',
-        'result_ftd': 'sum'
-    }).reset_index()
+if not overall_df.empty:
+    lb = team_agg.copy()
+    lb = lb.sort_values('roas', ascending=False).reset_index(drop=True)
+    lb['rank'] = range(1, len(lb) + 1)
 
-    # Calculate derived metrics
-    leaderboard['ctr'] = (leaderboard['clicks'] / leaderboard['impressions'] * 100).round(2)
-    leaderboard['cpr'] = (leaderboard['spend'] / leaderboard['register']).round(2)
-    leaderboard['cpftd'] = (leaderboard['spend'] / leaderboard['result_ftd']).round(2)
-
-    # Handle inf/nan
-    leaderboard = leaderboard.replace([float('inf'), float('-inf')], 0).fillna(0)
-
-    # Sort by FTD descending
-    leaderboard = leaderboard.sort_values('result_ftd', ascending=False).reset_index(drop=True)
-
-    # Add rank column
-    leaderboard['rank'] = range(1, len(leaderboard) + 1)
-
-    # Rename for display - cleaner columns
-    display_leaderboard = leaderboard[['rank', 'agent_name', 'spend', 'register', 'result_ftd', 'cpr', 'cpftd']].copy()
-    display_leaderboard.columns = ['#', 'Agent', 'Spend', 'Register', 'FTD', 'CPR', 'Cost/FTD']
+    display_lb = lb[['rank', 'team', 'cost', 'registrations', 'first_recharge', 'total_amount', 'cpr', 'cpfd', 'roas']].copy()
+    display_lb.columns = ['#', 'Team', 'Cost ($)', 'Reg', '1st Rech', 'Amount (₱)', 'CPR ($)', 'CPFD ($)', 'ROAS']
 
     st.dataframe(
-        display_leaderboard,
+        display_lb,
         use_container_width=True,
         hide_index=True,
         column_config={
             "#": st.column_config.NumberColumn(width="small"),
-            "Agent": st.column_config.TextColumn(width="medium"),
-            "Spend": st.column_config.NumberColumn(format="$ %.2f", width="small"),
-            "Register": st.column_config.NumberColumn(format="%d", width="small"),
-            "FTD": st.column_config.NumberColumn(format="%d", width="small"),
-            "CPR": st.column_config.NumberColumn(format="$ %.2f", width="small"),
-            "Cost/FTD": st.column_config.NumberColumn(format="$ %.2f", width="small"),
+            "Team": st.column_config.TextColumn(width="medium"),
+            "Cost ($)": st.column_config.NumberColumn(format="$ %.2f"),
+            "Reg": st.column_config.NumberColumn(format="%d"),
+            "1st Rech": st.column_config.NumberColumn(format="%d"),
+            "Amount (₱)": st.column_config.NumberColumn(format="₱ %.0f"),
+            "CPR ($)": st.column_config.NumberColumn(format="$ %.2f"),
+            "CPFD ($)": st.column_config.NumberColumn(format="$ %.2f"),
+            "ROAS": st.column_config.NumberColumn(format="%.2f"),
         }
     )
 
-    # Show detailed metrics in expandable section
-    with st.expander("📊 View All Metrics"):
-        detail_df = leaderboard[['agent_name', 'spend', 'impressions', 'reach', 'clicks', 'ctr', 'register', 'result_ftd', 'cpr', 'cpftd']].copy()
-        detail_df.columns = ['Agent', 'Spend', 'Impressions', 'Reach', 'Clicks', 'CTR %', 'Register', 'FTD', 'CPR', 'Cost/FTD']
-
-        st.dataframe(
-            detail_df,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Spend": st.column_config.NumberColumn(format="$ %.2f"),
-                "Impressions": st.column_config.NumberColumn(format="%d"),
-                "Reach": st.column_config.NumberColumn(format="%d"),
-                "Clicks": st.column_config.NumberColumn(format="%d"),
-                "CTR %": st.column_config.NumberColumn(format="%.2f%%"),
-                "Register": st.column_config.NumberColumn(format="%d"),
-                "FTD": st.column_config.NumberColumn(format="%d"),
-                "CPR": st.column_config.NumberColumn(format="$ %.2f"),
-                "Cost/FTD": st.column_config.NumberColumn(format="$ %.2f"),
-            }
-        )
+if has_daily:
+    st.caption(f"Team Overview | {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}")
+else:
+    st.caption("Team Overview | Overall Data")
