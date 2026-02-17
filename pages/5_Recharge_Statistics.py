@@ -128,20 +128,27 @@ def main():
 
     # Helper: aggregate totals from a df pair
     def calc_totals(fb_df, g_df, show_fb, show_g):
-        cost = reg = ftd = 0
+        cost = reg = ftd = rech = 0
         if show_fb and not fb_df.empty:
             cost += fb_df['cost'].sum()
             reg += fb_df['register'].sum()
             ftd += fb_df['ftd'].sum()
+            if 'ftd_recharge' in fb_df.columns:
+                rech += fb_df['ftd_recharge'].sum()
         if show_g and not g_df.empty:
             cost += g_df['cost'].sum()
             reg += g_df['register'].sum()
             ftd += g_df['ftd'].sum()
+            if 'ftd_recharge' in g_df.columns:
+                rech += g_df['ftd_recharge'].sum()
         return {
             'cost': cost, 'register': int(reg), 'ftd': int(ftd),
+            'ftd_recharge': rech,
             'cpr': cost / reg if reg > 0 else 0,
             'cost_ftd': cost / ftd if ftd > 0 else 0,
             'conv_rate': (ftd / reg * 100) if reg > 0 else 0,
+            'roas': rech / cost if cost > 0 else 0,
+            'arppu': rech / ftd if ftd > 0 else 0,
         }
 
     def calc_channel_totals(fb_df, g_df):
@@ -183,9 +190,12 @@ def main():
         grand_cost = sum(t['cost'] for t in type_totals.values())
         grand_reg = sum(t['register'] for t in type_totals.values())
         grand_ftd = sum(t['ftd'] for t in type_totals.values())
+        grand_rech = sum(t['ftd_recharge'] for t in type_totals.values())
         grand_cpr = grand_cost / grand_reg if grand_reg > 0 else 0
         grand_cpf = grand_cost / grand_ftd if grand_ftd > 0 else 0
         grand_conv = (grand_ftd / grand_reg * 100) if grand_reg > 0 else 0
+        grand_roas = grand_rech / grand_cost if grand_cost > 0 else 0
+        grand_arppu = grand_rech / grand_ftd if grand_ftd > 0 else 0
 
         # Executive Header
         st.markdown(f"""
@@ -195,14 +205,19 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # Grand Total KPI Cards
-        c1, c2, c3, c4, c5, c6 = st.columns(6)
+        # Grand Total KPI Cards - Row 1
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("Total Cost", fmt_c(grand_cost))
         c2.metric("Total Register", fmt_n(grand_reg))
         c3.metric("Total FTD", fmt_n(grand_ftd))
-        c4.metric("Avg CPR", fmt_c(grand_cpr))
-        c5.metric("Avg Cost/FTD", fmt_c(grand_cpf))
-        c6.metric("Conv Rate", f"{grand_conv:.2f}%")
+        c4.metric("FTD Recharge", f"₱{grand_rech:,.2f}")
+        # Row 2
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Avg CPR", fmt_c(grand_cpr))
+        c2.metric("Avg Cost/FTD", fmt_c(grand_cpf))
+        c3.metric("Conv Rate", f"{grand_conv:.2f}%")
+        c4.metric("ROAS", f"{grand_roas:.2f}x")
+        c5.metric("ARPPU", f"₱{grand_arppu:,.2f}")
 
         st.divider()
 
@@ -227,6 +242,8 @@ def main():
                 st.metric("CPR", fmt_c(t['cpr']))
                 st.metric("Cost/FTD", fmt_c(t['cost_ftd']))
                 st.metric("Conv Rate", f"{t['conv_rate']:.2f}%")
+                st.metric("ROAS", f"{t['roas']:.2f}x")
+                st.metric("ARPPU", f"₱{t['arppu']:,.2f}")
 
         st.divider()
 
@@ -325,6 +342,160 @@ def main():
 
         st.divider()
 
+        # ---- Helper: combine all types into one daily df ----
+        def _combine_all_daily():
+            """Merge FB+Google across all 3 types into a single daily df with type column."""
+            rows = []
+            for key, label in type_labels.items():
+                d = filtered[key]
+                for src, sdf, show in [('fb', d['fb'], d['show_fb']), ('google', d['google'], d['show_g'])]:
+                    if show and not sdf.empty:
+                        tmp = sdf.groupby(sdf['date'].dt.date).agg({
+                            'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
+                            'ftd_recharge': 'sum',
+                        }).reset_index()
+                        tmp['type'] = label
+                        rows.append(tmp)
+            if rows:
+                return pd.concat(rows, ignore_index=True)
+            return pd.DataFrame()
+
+        all_daily = _combine_all_daily()
+
+        def _agg_period(df, group_col):
+            """Aggregate a df by group_col across all types, computing derived metrics."""
+            agg = df.groupby(group_col).agg({
+                'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
+            }).reset_index()
+            agg['cpr'] = agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            agg['cost_ftd'] = agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            agg['conv_rate'] = agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
+            agg['roas'] = agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
+            agg['arppu'] = agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            return agg
+
+        def _format_period_table(df, period_col):
+            """Format a period aggregation df for display."""
+            disp = df.copy()
+            disp['cost'] = disp['cost'].apply(lambda x: f"${x:,.2f}")
+            disp['register'] = disp['register'].apply(lambda x: f"{int(x):,}")
+            disp['ftd'] = disp['ftd'].apply(lambda x: f"{int(x):,}")
+            disp['ftd_recharge'] = disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
+            disp['cpr'] = disp['cpr'].apply(lambda x: f"${x:,.2f}")
+            disp['cost_ftd'] = disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
+            disp['conv_rate'] = disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
+            disp['roas'] = disp['roas'].apply(lambda x: f"{x:.2f}x")
+            disp['arppu'] = disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
+            disp = disp.rename(columns={
+                period_col: period_col.title(), 'cost': 'Cost', 'register': 'Register',
+                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
+                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
+            })
+            return disp
+
+        # ---- Weekly Summary ----
+        st.subheader("📆 Weekly Summary")
+
+        if not all_daily.empty:
+            wd = all_daily.copy()
+            wd['date'] = pd.to_datetime(wd['date'])
+            wd['week'] = wd['date'].dt.isocalendar().week
+            wd['year'] = wd['date'].dt.isocalendar().year
+            wd['week_sort'] = wd.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
+            wd['week_start'] = wd.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 1), axis=1)
+            wd['week_end'] = wd.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 7), axis=1)
+            wd['week_label'] = wd.apply(lambda x: f"{x['week_start'].strftime('%b %d')} - {x['week_end'].strftime('%b %d')}", axis=1)
+
+            # Aggregate across all types per week
+            weekly_agg = wd.groupby(['week_sort', 'week_label']).agg({
+                'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
+            }).reset_index().sort_values('week_sort')
+            weekly_agg['cpr'] = weekly_agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            weekly_agg['cost_ftd'] = weekly_agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            weekly_agg['conv_rate'] = weekly_agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
+            weekly_agg['roas'] = weekly_agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
+            weekly_agg['arppu'] = weekly_agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+
+            # Chart: weekly cost by type
+            weekly_by_type = wd.groupby(['week_label', 'week_sort', 'type'])['cost'].sum().reset_index().sort_values('week_sort')
+            fig = px.bar(weekly_by_type, x='week_label', y='cost', color='type', barmode='group',
+                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
+                         title='Weekly Cost by Report Type')
+            fig.update_layout(height=380, xaxis_title='', yaxis_title='Cost (USD)',
+                              legend=dict(orientation='h', yanchor='bottom', y=-0.25))
+            st.plotly_chart(fig, use_container_width=True, key="co_weekly_chart")
+
+            # Table
+            w_disp = weekly_agg.drop(columns=['week_sort']).copy()
+            w_disp['cost'] = w_disp['cost'].apply(lambda x: f"${x:,.2f}")
+            w_disp['register'] = w_disp['register'].apply(lambda x: f"{int(x):,}")
+            w_disp['ftd'] = w_disp['ftd'].apply(lambda x: f"{int(x):,}")
+            w_disp['ftd_recharge'] = w_disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
+            w_disp['cpr'] = w_disp['cpr'].apply(lambda x: f"${x:,.2f}")
+            w_disp['cost_ftd'] = w_disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
+            w_disp['conv_rate'] = w_disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
+            w_disp['roas'] = w_disp['roas'].apply(lambda x: f"{x:.2f}x")
+            w_disp['arppu'] = w_disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
+            w_disp = w_disp.rename(columns={
+                'week_label': 'Week', 'cost': 'Cost', 'register': 'Register',
+                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
+                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
+            })
+            st.dataframe(w_disp, use_container_width=True, hide_index=True, key="co_weekly_tbl")
+        else:
+            st.info("No data available for weekly summary.")
+
+        st.divider()
+
+        # ---- Monthly Summary ----
+        st.subheader("📊 Monthly Summary")
+
+        if not all_daily.empty:
+            md = all_daily.copy()
+            md['date'] = pd.to_datetime(md['date'])
+            md['month'] = md['date'].dt.to_period('M').astype(str)
+
+            # Aggregate across all types per month
+            monthly_agg = md.groupby('month').agg({
+                'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
+            }).reset_index().sort_values('month')
+            monthly_agg['cpr'] = monthly_agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            monthly_agg['cost_ftd'] = monthly_agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            monthly_agg['conv_rate'] = monthly_agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
+            monthly_agg['roas'] = monthly_agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
+            monthly_agg['arppu'] = monthly_agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+
+            # Chart: monthly cost by type
+            monthly_by_type = md.groupby(['month', 'type'])['cost'].sum().reset_index().sort_values('month')
+            fig = px.bar(monthly_by_type, x='month', y='cost', color='type', barmode='group',
+                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
+                         title='Monthly Cost by Report Type')
+            fig.update_layout(height=380, xaxis_title='', yaxis_title='Cost (USD)',
+                              legend=dict(orientation='h', yanchor='bottom', y=-0.25))
+            st.plotly_chart(fig, use_container_width=True, key="co_monthly_chart")
+
+            # Table
+            m_disp = monthly_agg.copy()
+            m_disp['cost'] = m_disp['cost'].apply(lambda x: f"${x:,.2f}")
+            m_disp['register'] = m_disp['register'].apply(lambda x: f"{int(x):,}")
+            m_disp['ftd'] = m_disp['ftd'].apply(lambda x: f"{int(x):,}")
+            m_disp['ftd_recharge'] = m_disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
+            m_disp['cpr'] = m_disp['cpr'].apply(lambda x: f"${x:,.2f}")
+            m_disp['cost_ftd'] = m_disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
+            m_disp['conv_rate'] = m_disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
+            m_disp['roas'] = m_disp['roas'].apply(lambda x: f"{x:.2f}x")
+            m_disp['arppu'] = m_disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
+            m_disp = m_disp.rename(columns={
+                'month': 'Month', 'cost': 'Cost', 'register': 'Register',
+                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
+                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
+            })
+            st.dataframe(m_disp, use_container_width=True, hide_index=True, key="co_monthly_tbl")
+        else:
+            st.info("No data available for monthly summary.")
+
+        st.divider()
+
         # ---- Summary Table ----
         st.subheader("Summary Table")
         summary_rows = []
@@ -339,9 +510,12 @@ def main():
                 'Total Cost': t['cost'],
                 'Register': t['register'],
                 'FTD': t['ftd'],
+                'Recharge': t['ftd_recharge'],
                 'CPR': t['cpr'],
                 'Cost/FTD': t['cost_ftd'],
                 'Conv %': t['conv_rate'],
+                'ROAS': t['roas'],
+                'ARPPU': t['arppu'],
             })
         # Grand total row
         summary_rows.append({
@@ -351,9 +525,12 @@ def main():
             'Total Cost': grand_cost,
             'Register': grand_reg,
             'FTD': grand_ftd,
+            'Recharge': grand_rech,
             'CPR': grand_cpr,
             'Cost/FTD': grand_cpf,
             'Conv %': grand_conv,
+            'ROAS': grand_roas,
+            'ARPPU': grand_arppu,
         })
         summary_df = pd.DataFrame(summary_rows)
 
@@ -363,7 +540,10 @@ def main():
             disp[col] = disp[col].apply(lambda x: f"${x:,.2f}")
         disp['Register'] = disp['Register'].apply(lambda x: f"{int(x):,}")
         disp['FTD'] = disp['FTD'].apply(lambda x: f"{int(x):,}")
+        disp['Recharge'] = disp['Recharge'].apply(lambda x: f"₱{x:,.2f}")
         disp['Conv %'] = disp['Conv %'].apply(lambda x: f"{x:.2f}%")
+        disp['ROAS'] = disp['ROAS'].apply(lambda x: f"{x:.2f}x")
+        disp['ARPPU'] = disp['ARPPU'].apply(lambda x: f"₱{x:,.2f}")
 
         st.dataframe(disp, use_container_width=True, hide_index=True, key="co_summary_tbl")
 
