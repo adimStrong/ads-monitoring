@@ -336,38 +336,58 @@ def main():
             'ROAS': '#14b8a6', 'ARPPU': '#ec4899',
         }
 
-        # ---- Shared chart builder: bars + multi-line overlay ----
-        def _metric_chart(df, x_col, title, bar_color, bar_metric, line_metrics, chart_key):
-            """Dual-axis chart: selected bar metric (left) + line metrics (right)."""
-            if df.empty:
-                st.info(f"No data for {title}.")
-                return
-            bar_def = METRIC_DEFS[bar_metric]
+        # ---- Shared chart builder: 3 views grouped on one chart ----
+        def _grouped_chart(view_data_map, x_col, title, bar_metric, line_metrics, chart_key):
+            """One chart with Daily ROI / Roll Back / Violet bars side-by-side + line overlays."""
             fig = make_subplots(specs=[[{"secondary_y": True}]])
-            fig.add_trace(
-                go.Bar(x=df[x_col], y=df[bar_def['col']], name=bar_metric,
-                       marker_color=bar_color, opacity=0.85),
-                secondary_y=False,
-            )
+            bar_def = METRIC_DEFS[bar_metric]
+            has_data = False
+
+            # Grouped bars: one per view
+            for key, label in type_labels.items():
+                df = view_data_map.get(key, pd.DataFrame())
+                if df.empty:
+                    continue
+                has_data = True
+                fig.add_trace(
+                    go.Bar(x=df[x_col], y=df[bar_def['col']],
+                           name=f"{label} ({bar_metric})",
+                           marker_color=type_colors[key], opacity=0.85),
+                    secondary_y=False,
+                )
+
+            # Line overlays: one line per view per metric
+            dash_styles = ['solid', 'dash', 'dot']
             for lm in line_metrics:
                 ldef = METRIC_DEFS[lm]
-                fig.add_trace(
-                    go.Scatter(x=df[x_col], y=df[ldef['col']], name=lm,
-                               mode='lines+markers',
-                               line=dict(color=LINE_COLORS[lm], width=2),
-                               marker=dict(size=4)),
-                    secondary_y=True,
-                )
+                for vidx, (key, label) in enumerate(type_labels.items()):
+                    df = view_data_map.get(key, pd.DataFrame())
+                    if df.empty:
+                        continue
+                    fig.add_trace(
+                        go.Scatter(x=df[x_col], y=df[ldef['col']],
+                                   name=f"{label} ({lm})",
+                                   mode='lines+markers',
+                                   line=dict(color=type_colors[key], width=2,
+                                             dash=dash_styles[vidx % len(dash_styles)]),
+                                   marker=dict(size=4, symbol=['circle', 'diamond', 'square'][vidx % 3])),
+                        secondary_y=True,
+                    )
+
+            if not has_data:
+                st.info(f"No data for {title}.")
+                return
+
             fig.update_layout(
-                title=title, height=360,
-                legend=dict(orientation='h', yanchor='bottom', y=-0.32, font=dict(size=10)),
-                margin=dict(l=40, r=40, t=50, b=70),
+                title=title, height=420, barmode='group',
+                legend=dict(orientation='h', yanchor='bottom', y=-0.35, font=dict(size=10)),
+                margin=dict(l=50, r=50, t=50, b=80),
                 hovermode='x unified',
             )
             fig.update_yaxes(title_text=bar_def['label'], secondary_y=False)
             if len(line_metrics) == 1:
                 fig.update_yaxes(title_text=METRIC_DEFS[line_metrics[0]]['label'], secondary_y=True)
-            else:
+            elif line_metrics:
                 fig.update_yaxes(title_text='Metrics', secondary_y=True)
             fig.update_xaxes(title_text='')
             st.plotly_chart(fig, use_container_width=True, key=chart_key)
@@ -382,49 +402,43 @@ def main():
             line_choice = st.multiselect("Line Metrics", line_options,
                                          default=['Cost'], key="co_line_metrics")
 
-        # ---- Daily Trend Charts ----
+        # ---- Daily Trend Chart ----
         st.subheader("Daily Trend")
-        d_cols = st.columns(3)
-        for idx, (key, label) in enumerate(type_labels.items()):
+        daily_map = {}
+        for key in type_labels:
             daily = view_daily[key]
-            with d_cols[idx]:
-                if daily.empty:
-                    st.info(f"No {label} daily data.")
-                else:
-                    dd = daily.copy()
-                    dd['date'] = pd.to_datetime(dd['date'])
-                    dd = dd.sort_values('date')
-                    dd['date_label'] = dd['date'].dt.strftime('%b %d')
-                    _metric_chart(dd, 'date_label', label, type_colors[key],
-                                  bar_choice, line_choice, f"co_d_{key}")
+            if not daily.empty:
+                dd = daily.copy()
+                dd['date'] = pd.to_datetime(dd['date'])
+                dd = dd.sort_values('date')
+                dd['date_label'] = dd['date'].dt.strftime('%b %d')
+                daily_map[key] = dd
+        _grouped_chart(daily_map, 'date_label', 'Daily: Daily ROI vs Roll Back vs Violet',
+                       bar_choice, line_choice, 'co_daily')
 
         st.divider()
 
-        # ---- Weekly Charts ----
+        # ---- Weekly Chart ----
         st.subheader("Weekly Summary")
-        w_cols = st.columns(3)
-        for idx, (key, label) in enumerate(type_labels.items()):
+        weekly_map = {}
+        for key in type_labels:
             wagg = _weekly_agg(view_daily[key])
-            with w_cols[idx]:
-                if wagg.empty:
-                    st.info(f"No {label} weekly data.")
-                else:
-                    _metric_chart(wagg, 'week_label', label, type_colors[key],
-                                  bar_choice, line_choice, f"co_w_{key}")
+            if not wagg.empty:
+                weekly_map[key] = wagg
+        _grouped_chart(weekly_map, 'week_label', 'Weekly: Daily ROI vs Roll Back vs Violet',
+                       bar_choice, line_choice, 'co_weekly')
 
         st.divider()
 
-        # ---- Monthly Charts ----
+        # ---- Monthly Chart ----
         st.subheader("Monthly Summary")
-        m_cols = st.columns(3)
-        for idx, (key, label) in enumerate(type_labels.items()):
+        monthly_map = {}
+        for key in type_labels:
             magg = _monthly_agg(view_daily[key])
-            with m_cols[idx]:
-                if magg.empty:
-                    st.info(f"No {label} monthly data.")
-                else:
-                    _metric_chart(magg, 'month', label, type_colors[key],
-                                  bar_choice, line_choice, f"co_m_{key}")
+            if not magg.empty:
+                monthly_map[key] = magg
+        _grouped_chart(monthly_map, 'month', 'Monthly: Daily ROI vs Roll Back vs Violet',
+                       bar_choice, line_choice, 'co_monthly')
 
         st.divider()
 
