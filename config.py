@@ -691,5 +691,12 @@ SIDEBAR_HIDE_CSS = """
     [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Violet"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="KPI_Monitoring"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Team_KPI"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Created_Assets"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="AB_Testing"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Chat_Monitor"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Reporting_Accuracy"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Ad_Spend_Tracker"] { display: none !important; }
 </style>
 """
