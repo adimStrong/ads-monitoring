@@ -279,17 +279,48 @@ def main():
     if hasattr(max_date, 'date'):
         max_date = max_date.date()
 
-    st.sidebar.subheader("Data Date")
+    st.sidebar.subheader("Date Filter")
 
     # Check if we have valid data range
     has_data = min_date is not None and max_date is not None and min_date <= max_date
 
     if has_data:
-        # Use latest available date automatically (no dropdown)
-        start_date = max_date
-        end_date = max_date
-        st.sidebar.info(f"📅 Latest: **{max_date.strftime('%b %d, %Y')}**")
-        st.sidebar.caption(f"Data range: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')}")
+        # Build list of dates that actually have data
+        if not ptab_daily.empty and 'date' in ptab_daily.columns:
+            available_dates = sorted(ptab_daily['date'].dt.date.unique())
+        elif not running_ads_df.empty and 'date' in running_ads_df.columns:
+            available_dates = sorted(running_ads_df['date'].dt.date.unique())
+        else:
+            available_dates = [max_date]
+
+        # Date range mode: single day or range
+        date_mode = st.sidebar.radio("Date Mode", ["Single Day", "Date Range"], horizontal=True)
+
+        if date_mode == "Single Day":
+            # Dropdown with only dates that have data
+            date_labels = [d.strftime('%b %d, %Y') for d in available_dates]
+            default_idx = len(available_dates) - 1  # latest date
+            selected_label = st.sidebar.selectbox(
+                "Select Date", date_labels, index=default_idx
+            )
+            selected_date = available_dates[date_labels.index(selected_label)]
+            start_date = selected_date
+            end_date = selected_date
+        else:
+            # Date range with min/max constrained to available data
+            date_range = st.sidebar.date_input(
+                "Select Range",
+                value=(min_date, max_date),
+                min_value=min_date,
+                max_value=max_date,
+            )
+            if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+                start_date, end_date = date_range
+            else:
+                start_date = date_range[0] if isinstance(date_range, (list, tuple)) else date_range
+                end_date = start_date
+
+        st.sidebar.caption(f"Data available: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')} ({len(available_dates)} days)")
     else:
         st.sidebar.warning("No data available")
         start_date = datetime.now().date()
