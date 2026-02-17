@@ -136,40 +136,10 @@ else:
     filtered_daily = pd.DataFrame()
 
 # ============================================================
-# BUILD DATE-FILTERED TEAM AGGREGATES
+# USE SHEET DATA FOR SUMMARY SECTIONS (date filter only for daily trends)
 # ============================================================
-if has_daily and not filtered_daily.empty:
-    # Aggregate daily data by team for the selected date range
-    filtered_team_df = filtered_daily.groupby('promo_team').agg({
-        'cost': 'sum',
-        'registrations': 'sum',
-        'first_recharge': 'sum',
-        'total_amount': 'sum',
-    }).reset_index().rename(columns={'promo_team': 'team'})
-
-    # Compute derived metrics
-    filtered_team_df['cpfd'] = filtered_team_df.apply(
-        lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    filtered_team_df['arppu'] = filtered_team_df.apply(
-        lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-    filtered_team_df['roas'] = filtered_team_df.apply(
-        lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
-
-    # Map channel_source from team_actual_df for display
-    ch_map = team_actual_df.set_index('team')['channel_source'].to_dict()
-    filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
-
-    # Also build filtered channel-level data for breakdown
-    filtered_overall = filtered_daily.groupby('channel').agg({
-        'cost': 'sum',
-        'registrations': 'sum',
-        'first_recharge': 'sum',
-        'total_amount': 'sum',
-    }).reset_index()
-else:
-    # Fallback to pre-aggregated sheet data
-    filtered_team_df = team_actual_df.copy()
-    filtered_overall = overall_df.copy()
+filtered_team_df = team_actual_df.copy()
+filtered_overall = overall_df.copy()
 
 # ============================================================
 # HEADER
@@ -393,13 +363,17 @@ st.dataframe(
     }
 )
 
-# Channel breakdown per team
+# Channel breakdown per team (use team column from overall_df sheet data)
 with st.expander("📋 Channel Breakdown by Team"):
     for team in TEAM_ORDER:
         if filtered_overall.empty:
             break
-        team_channels = [ch for ch, t in CHANNEL_TO_TEAM.items() if t == team]
-        team_ch = filtered_overall[filtered_overall['channel'].isin(team_channels)]
+        # Filter overall_df by team column (from sheet) OR by CHANNEL_TO_TEAM mapping
+        if 'team' in filtered_overall.columns:
+            team_ch = filtered_overall[filtered_overall['team'] == team]
+        else:
+            team_channels = [ch for ch, t in CHANNEL_TO_TEAM.items() if t == team]
+            team_ch = filtered_overall[filtered_overall['channel'].isin(team_channels)]
         if team_ch.empty:
             continue
         color = TEAM_COLORS.get(team, '#64748b')
