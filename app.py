@@ -265,13 +265,15 @@ def main():
         running_ads_df, creative_df, sms_df, content_df = load_sample_data()
         ptab_daily = pd.DataFrame()
 
-    # Date filter with auto-detection from data - prefer P-tab data
+    # Date filter - use widest range from all data sources
     if not ptab_daily.empty and 'date' in ptab_daily.columns:
         ptab_daily['date'] = pd.to_datetime(ptab_daily['date'])
-        min_date = ptab_daily['date'].min()
-        max_date = ptab_daily['date'].max()
-    else:
-        min_date, max_date = get_date_range(running_ads_df)
+    ptab_min, ptab_max = (ptab_daily['date'].min(), ptab_daily['date'].max()) if not ptab_daily.empty and 'date' in ptab_daily.columns else (None, None)
+    legacy_min, legacy_max = get_date_range(running_ads_df)
+    all_mins = [d for d in [ptab_min, legacy_min] if d is not None and not (hasattr(d, 'isna') and d.isna()) and not pd.isna(d)]
+    all_maxs = [d for d in [ptab_max, legacy_max] if d is not None and not (hasattr(d, 'isna') and d.isna()) and not pd.isna(d)]
+    min_date = min(all_mins) if all_mins else None
+    max_date = max(all_maxs) if all_maxs else None
 
     # Convert to date objects if they're datetime
     if hasattr(min_date, 'date'):
@@ -285,13 +287,13 @@ def main():
     has_data = min_date is not None and max_date is not None and min_date <= max_date
 
     if has_data:
-        # Build list of dates that actually have data
+        # Build list of dates that actually have data (combine all sources)
+        all_dates = set()
         if not ptab_daily.empty and 'date' in ptab_daily.columns:
-            available_dates = sorted(ptab_daily['date'].dt.date.unique())
-        elif not running_ads_df.empty and 'date' in running_ads_df.columns:
-            available_dates = sorted(running_ads_df['date'].dt.date.unique())
-        else:
-            available_dates = [max_date]
+            all_dates.update(ptab_daily['date'].dt.date.unique())
+        if not running_ads_df.empty and 'date' in running_ads_df.columns:
+            all_dates.update(running_ads_df['date'].dt.date.unique())
+        available_dates = sorted(all_dates) if all_dates else [max_date]
 
         # Default: show all data, with optional date range filter
         date_range = st.sidebar.date_input(
@@ -465,8 +467,28 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
         _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
         st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)
+    elif not running_ads_df.empty:
+        # Fallback to legacy data for dates not covered by P-tab
+        col1, col2, col3, col4, col5 = st.columns(5)
+        total_cost = running_ads_df['amount_spent'].sum() if 'amount_spent' in running_ads_df.columns else 0
+        total_impressions = running_ads_df['impressions'].sum() if 'impressions' in running_ads_df.columns else 0
+        total_clicks = running_ads_df['clicks'].sum() if 'clicks' in running_ads_df.columns else 0
+        avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+        total_register = running_ads_df['conversion_rate'].sum() if 'conversion_rate' in running_ads_df.columns else 0
+
+        with col1:
+            st.metric("Total Spent", f"${total_cost:,.2f}")
+        with col2:
+            st.metric("Impressions", f"{int(total_impressions):,}")
+        with col3:
+            st.metric("Clicks", f"{int(total_clicks):,}")
+        with col4:
+            st.metric("CTR", f"{avg_ctr:.2f}%")
+        with col5:
+            st.metric("Conversions", f"{int(total_register):,}")
+        st.caption("⚠️ Showing legacy data (5 agents only). P-tab data not available for this date range.")
     else:
-        st.info("No P-tab data available. Check Channel ROI sheet P6-P13 tabs.")
+        st.info("No data available for this date range.")
 
     # ============================================================
     # SECTION 2: WITHOUT (Creative Work) Summary
