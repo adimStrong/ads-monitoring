@@ -136,10 +136,42 @@ else:
     filtered_daily = pd.DataFrame()
 
 # ============================================================
-# USE SHEET DATA FOR SUMMARY SECTIONS (date filter only for daily trends)
+# BUILD DATE-FILTERED TEAM AGGREGATES (all sections react to date filter)
 # ============================================================
-filtered_team_df = team_actual_df.copy()
-filtered_overall = overall_df.copy()
+if has_daily and not filtered_daily.empty:
+    # Aggregate daily data by team for the selected date range
+    filtered_team_df = filtered_daily.groupby('promo_team').agg({
+        'cost': 'sum',
+        'registrations': 'sum',
+        'first_recharge': 'sum',
+        'total_amount': 'sum',
+    }).reset_index().rename(columns={'promo_team': 'team'})
+
+    # Compute derived metrics
+    filtered_team_df['cpfd'] = filtered_team_df.apply(
+        lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    filtered_team_df['arppu'] = filtered_team_df.apply(
+        lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+    filtered_team_df['roas'] = filtered_team_df.apply(
+        lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+
+    # Map channel_source from team_actual_df for display
+    ch_map = team_actual_df.set_index('team')['channel_source'].to_dict()
+    filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
+
+    # Build filtered channel-level data for breakdown
+    filtered_overall = filtered_daily.groupby('channel').agg({
+        'cost': 'sum',
+        'registrations': 'sum',
+        'first_recharge': 'sum',
+        'total_amount': 'sum',
+    }).reset_index()
+    # Add team mapping for channel breakdown
+    filtered_overall['team'] = filtered_overall['channel'].map(CHANNEL_TO_TEAM)
+else:
+    # Fallback to pre-aggregated sheet data
+    filtered_team_df = team_actual_df.copy()
+    filtered_overall = overall_df.copy()
 
 # ============================================================
 # HEADER
