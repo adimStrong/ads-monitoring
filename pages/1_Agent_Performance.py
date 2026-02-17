@@ -64,15 +64,17 @@ if st.sidebar.button("🔄 Refresh Data", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-# Agent selector - use all Facebook Ads persons
+# Agent selector - use all Facebook Ads persons, with "All" option
 selected_agent = st.sidebar.selectbox(
     "Select Agent",
-    FACEBOOK_ADS_PERSONS,
+    ["All"] + list(FACEBOOK_ADS_PERSONS),
     index=0
 )
 
+is_all_agents = selected_agent == "All"
+
 # Get agent config (for legacy sheets - may be None for FB-only agents like RON, JASON, DER)
-agent_config = next((a for a in AGENTS if a['name'] == selected_agent), None)
+agent_config = next((a for a in AGENTS if a['name'] == selected_agent), None) if not is_all_agents else None
 
 # Data source toggle
 use_real_data = st.sidebar.checkbox("Use Google Sheets Data", value=True, key="agent_perf_data_source")
@@ -82,7 +84,7 @@ running_ads_df = None
 creative_df = None
 sms_df = None
 
-if use_real_data and agent_config:
+if use_real_data and agent_config and not is_all_agents:
     with st.spinner(f"Loading data for {selected_agent}..."):
         running_ads_df, creative_df, sms_df = get_agent_data(
             selected_agent,
@@ -92,18 +94,30 @@ if use_real_data and agent_config:
     if running_ads_df is None or running_ads_df.empty:
         use_real_data = False
 
-# P-tab data for this agent (By Campaign tab)
-ptab_agent = PTAB_AGENT_MAP.get(selected_agent)
+# P-tab data
 ptab_daily = ptab_all.get('daily', pd.DataFrame())
 ptab_monthly = ptab_all.get('monthly', pd.DataFrame())
 ptab_ad = ptab_all.get('ad_accounts', pd.DataFrame())
 
-has_ptab = ptab_agent and not ptab_daily.empty and ptab_agent in ptab_daily['agent'].values
-
-# P-tab daily data for this agent (Overview + Individual Overall)
-agent_ptab_daily = pd.DataFrame()
-if has_ptab:
-    agent_ptab_daily = ptab_daily[ptab_daily['agent'] == ptab_agent].copy()
+if is_all_agents:
+    # All agents: use all P-tab data
+    ptab_agent = None  # not filtering by single agent
+    has_ptab = not ptab_daily.empty
+    agent_ptab_daily = ptab_daily.copy() if has_ptab else pd.DataFrame()
+    # Aggregate daily across all agents (sum per date)
+    if has_ptab:
+        agent_ptab_daily = agent_ptab_daily.groupby('date').agg({
+            'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
+            'impressions': 'sum', 'clicks': 'sum',
+            'cpr': 'mean', 'cpd': 'mean', 'conv_rate': 'mean',
+            'arppu': 'mean', 'roas': 'mean', 'ctr': 'mean',
+        }).reset_index()
+else:
+    ptab_agent = PTAB_AGENT_MAP.get(selected_agent)
+    has_ptab = ptab_agent and not ptab_daily.empty and ptab_agent in ptab_daily['agent'].values
+    agent_ptab_daily = pd.DataFrame()
+    if has_ptab:
+        agent_ptab_daily = ptab_daily[ptab_daily['agent'] == ptab_agent].copy()
 
 # Date range from P-tab or legacy
 if has_ptab:
@@ -134,12 +148,22 @@ else:
 # Sidebar data info
 if has_ptab:
     st.sidebar.success(f"P-tab: {len(agent_ptab_daily)} days loaded")
-if has_ptab:
+if has_ptab and not is_all_agents:
     n_accts = ptab_ad[ptab_ad['agent'] == ptab_agent]['ad_account'].nunique() if not ptab_ad.empty and ptab_agent in ptab_ad['agent'].values else 0
     st.sidebar.success(f"P-tab: {n_accts} ad accounts")
+elif has_ptab and is_all_agents:
+    n_accts = ptab_ad['ad_account'].nunique() if not ptab_ad.empty else 0
+    st.sidebar.success(f"P-tab: {n_accts} ad accounts ({len(FACEBOOK_ADS_PERSONS)} agents)")
 
-# Fallback sample data for creative/SMS
-if not use_real_data or running_ads_df is None or running_ads_df.empty:
+# Fallback sample data for creative/SMS (skip for "All" view)
+if is_all_agents:
+    if running_ads_df is None:
+        running_ads_df = pd.DataFrame()
+    if creative_df is None:
+        creative_df = pd.DataFrame()
+    if sms_df is None:
+        sms_df = pd.DataFrame()
+elif not use_real_data or running_ads_df is None or running_ads_df.empty:
     random.seed(hash(selected_agent + "ads"))
     dates = pd.date_range(start=start_date, end=end_date, freq='D')
     running_ads_data = []
@@ -184,10 +208,12 @@ if not use_real_data or running_ads_df is None or running_ads_df.empty:
 # AGENT HEADER
 # ============================================================
 
+header_name = "ALL AGENTS" if is_all_agents else selected_agent
+header_subtitle = f"Combined Performance • {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}" if is_all_agents else f"Performance Overview • {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}"
 st.markdown(f"""
 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 15px; color: white; margin-bottom: 2rem;">
-    <h1 style="margin: 0; font-size: 2.5rem;">{selected_agent}</h1>
-    <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; opacity: 0.9;">Performance Overview • {start_date.strftime('%b %d')} - {end_date.strftime('%b %d, %Y')}</p>
+    <h1 style="margin: 0; font-size: 2.5rem;">{header_name}</h1>
+    <p style="margin: 0.5rem 0 0 0; font-size: 1.2rem; opacity: 0.9;">{header_subtitle}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -313,6 +339,42 @@ with tab5:
 
         st.divider()
 
+        # Per-agent breakdown table when "All" selected
+        if is_all_agents and not ptab_daily.empty:
+            st.subheader("Per Agent Breakdown")
+            per_agent = ptab_daily.groupby('agent').agg({
+                'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
+                'impressions': 'sum', 'clicks': 'sum',
+            }).reset_index()
+            per_agent['cpr'] = per_agent.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            per_agent['cpd'] = per_agent.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            per_agent['conv_rate'] = per_agent.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
+            per_agent['ctr'] = per_agent.apply(lambda r: (r['clicks'] / r['impressions'] * 100) if r['impressions'] > 0 else 0, axis=1)
+            per_agent = per_agent.sort_values('cost', ascending=False)
+
+            # Chart: cost by agent
+            fig = px.bar(per_agent.sort_values('cost', ascending=True), y='agent', x='cost', orientation='h',
+                         title='Cost by Agent', text_auto='$.2s', color_discrete_sequence=['#667eea'])
+            fig.update_layout(height=max(300, len(per_agent) * 45), showlegend=False, yaxis_title='')
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Format for display
+            pa_disp = per_agent.copy()
+            pa_disp['cost'] = pa_disp['cost'].apply(lambda x: f"${x:,.2f}")
+            pa_disp['cpr'] = pa_disp['cpr'].apply(lambda x: f"${x:,.2f}")
+            pa_disp['cpd'] = pa_disp['cpd'].apply(lambda x: f"${x:,.2f}")
+            pa_disp['impressions'] = pa_disp['impressions'].apply(lambda x: f"{int(x):,}")
+            pa_disp['clicks'] = pa_disp['clicks'].apply(lambda x: f"{int(x):,}")
+            pa_disp['conv_rate'] = pa_disp['conv_rate'].apply(lambda x: f"{x:.1f}%")
+            pa_disp['ctr'] = pa_disp['ctr'].apply(lambda x: f"{x:.2f}%")
+            pa_disp = pa_disp.rename(columns={
+                'agent': 'Agent', 'cost': 'Cost', 'register': 'Register', 'ftd': 'FTD',
+                'cpr': 'CPR', 'cpd': 'Cost/FTD', 'conv_rate': 'Conv %',
+                'impressions': 'Impressions', 'clicks': 'Clicks', 'ctr': 'CTR',
+            })
+            st.dataframe(pa_disp, use_container_width=True, hide_index=True)
+            st.divider()
+
         # Daily trend charts
         col1, col2 = st.columns(2)
         with col1:
@@ -329,18 +391,25 @@ with tab5:
 
         # Daily data table
         st.subheader("Daily Data")
-        d_display = agent_daily[['date', 'cost', 'register', 'cpr', 'ftd', 'cpd', 'conv_rate', 'impressions', 'clicks', 'ctr', 'arppu', 'roas']].copy()
+        daily_cols = ['date', 'cost', 'register', 'cpr', 'ftd', 'cpd', 'conv_rate', 'impressions', 'clicks', 'ctr', 'arppu', 'roas']
+        available_daily_cols = [c for c in daily_cols if c in agent_daily.columns]
+        d_display = agent_daily[available_daily_cols].copy()
         d_display = d_display.sort_values('date', ascending=False)
-        d_display['date'] = d_display['date'].dt.strftime('%m/%d/%Y')
+        d_display['date'] = d_display['date'].dt.strftime('%m/%d/%Y') if hasattr(d_display['date'], 'dt') else d_display['date']
         # Format numbers with commas for display
         d_display['cost'] = d_display['cost'].apply(lambda x: f"${x:,.2f}")
-        d_display['cpr'] = d_display['cpr'].apply(lambda x: f"${x:,.2f}")
-        d_display['cpd'] = d_display['cpd'].apply(lambda x: f"${x:,.2f}")
+        if 'cpr' in d_display.columns:
+            d_display['cpr'] = d_display['cpr'].apply(lambda x: f"${x:,.2f}")
+        if 'cpd' in d_display.columns:
+            d_display['cpd'] = d_display['cpd'].apply(lambda x: f"${x:,.2f}")
         d_display['impressions'] = d_display['impressions'].apply(lambda x: f"{int(x):,}")
         d_display['clicks'] = d_display['clicks'].apply(lambda x: f"{int(x):,}")
-        d_display['conv_rate'] = d_display['conv_rate'].apply(lambda x: f"{x:.2f}%")
-        d_display['ctr'] = d_display['ctr'].apply(lambda x: f"{x:.2f}%")
-        d_display['arppu'] = d_display['arppu'].apply(lambda x: f"${x:,.2f}")
+        if 'conv_rate' in d_display.columns:
+            d_display['conv_rate'] = d_display['conv_rate'].apply(lambda x: f"{x:.2f}%")
+        if 'ctr' in d_display.columns:
+            d_display['ctr'] = d_display['ctr'].apply(lambda x: f"{x:.2f}%")
+        if 'arppu' in d_display.columns:
+            d_display['arppu'] = d_display['arppu'].apply(lambda x: f"${x:,.2f}")
         st.dataframe(
             d_display,
             use_container_width=True, hide_index=True,
@@ -360,10 +429,16 @@ with tab5:
 with tab6:
     st.subheader("🎯 By Campaign (Ad Accounts)")
 
-    has_ad = ptab_agent and not ptab_ad.empty and ptab_agent in ptab_ad['agent'].values
+    if is_all_agents:
+        has_ad = not ptab_ad.empty
+    else:
+        has_ad = ptab_agent and not ptab_ad.empty and ptab_agent in ptab_ad['agent'].values
 
     if has_ad:
-        agent_ad = ptab_ad[ptab_ad['agent'] == ptab_agent].copy()
+        if is_all_agents:
+            agent_ad = ptab_ad.copy()
+        else:
+            agent_ad = ptab_ad[ptab_ad['agent'] == ptab_agent].copy()
 
         # Aggregate by ad account
         acct_summary = agent_ad.groupby('ad_account').agg({
