@@ -23,6 +23,7 @@ from channel_data_loader import (
     load_ab_testing_data, load_created_assets_data,
 )
 from daily_report import (
+    generate_facebook_ads_section,
     generate_by_campaign_section,
     generate_ab_testing_section, generate_account_dev_section,
 )
@@ -165,14 +166,24 @@ def send_report():
         logger.warning("Daily report sending is disabled in config.py")
         return False
 
-    logger.info("Loading P-tab data...")
-    ptab_data = load_ptab_data()
-
     import pandas as pd
-    ad_accounts_df = ptab_data.get('ad_accounts', pd.DataFrame()) if ptab_data else pd.DataFrame()
+    import time
 
-    if ad_accounts_df.empty:
-        logger.error("No P-tab ad accounts data loaded!")
+    # Retry loading P-tab data (Google Sheets API can be flaky under concurrent access)
+    ptab_data = None
+    for attempt in range(3):
+        logger.info(f"Loading P-tab data... (attempt {attempt + 1}/3)")
+        ptab_data = load_ptab_data()
+        daily_df = ptab_data.get('daily', pd.DataFrame()) if ptab_data else pd.DataFrame()
+        ad_accounts_df = ptab_data.get('ad_accounts', pd.DataFrame()) if ptab_data else pd.DataFrame()
+
+        if not daily_df.empty or not ad_accounts_df.empty:
+            break
+        logger.warning(f"Attempt {attempt + 1}: No P-tab data loaded, retrying in 10s...")
+        time.sleep(10)
+
+    if daily_df.empty and ad_accounts_df.empty:
+        logger.error("No P-tab data loaded after 3 attempts!")
         return False
 
     # T+1 reporting: yesterday's data
@@ -181,11 +192,15 @@ def send_report():
     logger.info(f"Generating T+1 report for {yesterday}...")
     report = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}\n\n"
 
-    # By Campaign section only (per boss request)
+    # Facebook Ads overview section (from daily data)
+    if not daily_df.empty:
+        fb_section = generate_facebook_ads_section(daily_df, yesterday)
+        if fb_section:
+            report += fb_section
+
+    # By Campaign section (from ad accounts data)
     if not ad_accounts_df.empty:
         report += generate_by_campaign_section(ad_accounts_df, yesterday)
-    else:
-        report += "⚠️ No campaign data available.\n"
 
     report += '\n@xxxadsron @Adsbasty'
 
