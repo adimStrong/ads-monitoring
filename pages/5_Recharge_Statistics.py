@@ -203,12 +203,20 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # ---- KPI Cards: 3 columns side-by-side ----
+        # ---- Shared Cost (same across all views) + Register ----
+        shared_cost = type_totals['daily_roi']['cost']  # identical across views
+        shared_reg = type_totals['daily_roi']['register']  # DR & RB same, Violet uses RB
+        sc1, sc2 = st.columns(2)
+        sc1.metric("Total Ad Spend (shared)", fmt_c(shared_cost))
+        sc2.metric("Total Register (Daily ROI / Roll Back)", fmt_n(shared_reg))
+
+        st.divider()
+
+        # ---- KPI Cards: 3 columns side-by-side (metrics that DIFFER) ----
         cols = st.columns(3)
         metric_rows = [
-            ('Cost', lambda t: fmt_c(t['cost'])),
-            ('Register', lambda t: fmt_n(t['register'])),
             ('FTD', lambda t: fmt_n(t['ftd'])),
+            ('FTD Recharge', lambda t: f"₱{t['ftd_recharge']:,.0f}"),
             ('Conv Rate', lambda t: f"{t['conv_rate']:.2f}%"),
             ('CPR', lambda t: fmt_c(t['cpr'])),
             ('Cost/FTD', lambda t: fmt_c(t['cost_ftd'])),
@@ -219,7 +227,7 @@ def main():
             t = type_totals[key]
             color = type_colors[key]
             with cols[idx]:
-                reg_note = ' <span style="font-size:0.7rem;">(from Roll Back)</span>' if key == 'violet' else ''
+                reg_note = ' <span style="font-size:0.7rem;">(Reg from Roll Back)</span>' if key == 'violet' else ''
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, {color}cc 0%, {color}99 100%); padding: 1.2rem; border-radius: 12px; color: white;">
                     <h3 style="margin: 0;">{label}</h3>{reg_note}
@@ -311,16 +319,21 @@ def main():
 
         # Metric definitions for chart selector
         METRIC_DEFS = {
-            'FTD': {'col': 'ftd', 'fmt': '', 'label': 'FTD'},
-            'Register': {'col': 'register', 'fmt': '', 'label': 'Register'},
-            'Cost': {'col': 'cost', 'fmt': '$', 'label': 'Cost ($)'},
-            'Conv Rate': {'col': 'conv_rate', 'fmt': '%', 'label': 'Conv Rate (%)'},
-            'ROAS': {'col': 'roas', 'fmt': 'x', 'label': 'ROAS'},
-            'ARPPU': {'col': 'arppu', 'fmt': '₱', 'label': 'ARPPU (₱)'},
+            'FTD': {'col': 'ftd', 'label': 'FTD'},
+            'Register': {'col': 'register', 'label': 'Register'},
+            'Cost': {'col': 'cost', 'label': 'Cost ($)'},
+            'FTD Recharge': {'col': 'ftd_recharge', 'label': 'FTD Recharge (₱)'},
+            'Conv Rate': {'col': 'conv_rate', 'label': 'Conv Rate (%)'},
+            'CPR': {'col': 'cpr', 'label': 'CPR ($)'},
+            'Cost/FTD': {'col': 'cost_ftd', 'label': 'Cost/FTD ($)'},
+            'ROAS': {'col': 'roas', 'label': 'ROAS'},
+            'ARPPU': {'col': 'arppu', 'label': 'ARPPU (₱)'},
         }
         LINE_COLORS = {
             'FTD': '#10b981', 'Register': '#6366f1', 'Cost': '#ef4444',
-            'Conv Rate': '#f97316', 'ROAS': '#14b8a6', 'ARPPU': '#ec4899',
+            'FTD Recharge': '#a855f7', 'Conv Rate': '#f97316',
+            'CPR': '#64748b', 'Cost/FTD': '#78716c',
+            'ROAS': '#14b8a6', 'ARPPU': '#ec4899',
         }
 
         # ---- Shared chart builder: bars + multi-line overlay ----
