@@ -110,7 +110,7 @@ st.markdown("""
 
 def calculate_change(current, previous, key):
     """Calculate change between current and previous values"""
-    if previous is None:
+    if not previous or key not in previous:
         return None, "─"
 
     prev_val = previous.get(key, 0)
@@ -252,6 +252,8 @@ def main():
         st.caption(f"vs {yesterday_date.strftime('%b %d, %Y')}")
     else:
         st.caption("No previous day data for comparison")
+
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
         spend_diff, spend_change = calculate_change(team_totals['spend'], prev_totals, 'spend')
