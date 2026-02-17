@@ -27,9 +27,13 @@ from config import (
     REPORT_CAMPAIGN_INDICATORS,
     FACEBOOK_ADS_PERSONS,
     EXCLUDED_FROM_REPORTING,
+    SIDEBAR_HIDE_CSS,
 )
 
 st.set_page_config(page_title="Reporting Accuracy", page_icon="📝", layout="wide")
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Railway API config
 CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production-713f.up.railway.app")

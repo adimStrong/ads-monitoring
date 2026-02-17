@@ -17,6 +17,7 @@ from channel_data_loader import load_agent_performance_data
 from config import (
     LOW_SPEND_THRESHOLD_USD,
     EXCLUDED_PERSONS,
+    SIDEBAR_HIDE_CSS,
 )
 
 st.set_page_config(
@@ -105,6 +106,9 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 
 

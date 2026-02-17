@@ -14,7 +14,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
-from config import CHANNEL_ROI_ENABLED
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 st.set_page_config(page_title="Team Channel by Team", page_icon="👥", layout="wide")
 
@@ -24,12 +24,11 @@ st.markdown("""
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: white; padding: 15px; border-radius: 10px; margin: 20px 0 10px 0;
     }
-    /* Hide Team_Channel page from sidebar (accessible via direct URL) */
-    [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) {
-        display: none !important;
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Channel-to-team mapping for daily data aggregation
 CHANNEL_TO_TEAM = {

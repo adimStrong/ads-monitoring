@@ -12,8 +12,11 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import AGENTS
+from config import AGENTS, SIDEBAR_HIDE_CSS
 from data_loader import load_agent_content_data, get_date_range
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Sidebar logo
 logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.jpg")

@@ -12,7 +12,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config import SIDEBAR_HIDE_CSS
+
 st.set_page_config(page_title="Chat Monitor", page_icon="💬", layout="wide")
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Railway API config
 CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production-713f.up.railway.app")

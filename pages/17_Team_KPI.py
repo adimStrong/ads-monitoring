@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
-from config import CHANNEL_ROI_ENABLED
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 st.set_page_config(page_title="Team KPI", page_icon="🏆", layout="wide")
 
@@ -24,6 +24,9 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Team-to-channel mapping
 TEAM_CHANNEL_MAP = {

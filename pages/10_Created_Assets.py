@@ -12,6 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_created_assets_data, refresh_created_assets_data, count_created_assets
+from config import SIDEBAR_HIDE_CSS
 
 st.set_page_config(page_title="Created Assets", page_icon="🏗️", layout="wide")
 
@@ -23,6 +24,9 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 
 def main():

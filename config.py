@@ -681,3 +681,15 @@ REPORT_CAMPAIGN_INDICATORS = [
 
 # Agents excluded from reporting accuracy (boss/non-reporters)
 EXCLUDED_FROM_REPORTING = ["DER"]
+
+# ============================================================
+# SHARED SIDEBAR HIDE CSS
+# ============================================================
+SIDEBAR_HIDE_CSS = """
+<style>
+    [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Violet"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) { display: none !important; }
+</style>
+"""

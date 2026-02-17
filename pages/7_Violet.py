@@ -12,7 +12,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_fb_channel_data, load_google_channel_data, refresh_channel_data
-from config import CHANNEL_ROI_ENABLED
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 _PAGE_CSS = """
 <style>
@@ -30,6 +30,9 @@ _PAGE_CSS = """
     }
 </style>
 """
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 
 def format_currency(value):

@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_fb_channel_data, load_google_channel_data, refresh_channel_data
-from config import CHANNEL_ROI_ENABLED
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 st.set_page_config(page_title="Recharge Statistics", page_icon="💰", layout="wide")
 
@@ -28,12 +28,11 @@ st.markdown("""
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: white; padding: 15px; border-radius: 10px; margin: 20px 0 10px 0;
     }
-    /* Hide individual pages from sidebar */
-    [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Violet"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Import render functions - set flag so page modules don't auto-run main()
 st._is_recharge_import = True

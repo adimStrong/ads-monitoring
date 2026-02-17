@@ -31,6 +31,7 @@ from config import (
     KPI_ORDER,
     KPI_PHP_USD_RATE,
     EXCLUDED_FROM_REPORTING,
+    SIDEBAR_HIDE_CSS,
 )
 
 # Railway Chat Listener API config
@@ -38,6 +39,10 @@ CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "juan365chat")
 
 st.set_page_config(page_title="KPI Monitoring", page_icon="📊", layout="wide")
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
+
 st.title("📊 KPI Monitoring")
 
 # Initialize session state for manual scores

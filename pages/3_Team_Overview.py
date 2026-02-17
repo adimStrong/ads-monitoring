@@ -12,7 +12,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
-from config import CHANNEL_ROI_ENABLED
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Sidebar logo
 logo_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "logo.jpg")

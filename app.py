@@ -23,7 +23,7 @@ import random
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from config import PAGE_TITLE, PAGE_ICON, AGENTS, SMS_TYPES
+from config import PAGE_TITLE, PAGE_ICON, AGENTS, SMS_TYPES, SIDEBAR_HIDE_CSS
 from data_loader import load_all_data, get_date_range
 from channel_data_loader import load_agent_performance_data as load_ptab_data
 
@@ -63,15 +63,11 @@ st.markdown("""
         padding: 1rem;
         border-radius: 8px;
     }
-    /* Hide individual pages from sidebar (accessible via direct URL) */
-    [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) {
-        display: none !important;
-    }
-    [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Violet"] { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 
 def load_sample_data():

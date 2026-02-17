@@ -13,11 +13,14 @@ import os
 import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import AGENTS, SMS_TYPES, FACEBOOK_ADS_PERSONS, EXCLUDED_PERSONS
+from config import AGENTS, SMS_TYPES, FACEBOOK_ADS_PERSONS, EXCLUDED_PERSONS, SIDEBAR_HIDE_CSS
 from data_loader import load_agent_performance_data, load_agent_content_data, get_date_range
 from channel_data_loader import (
     load_agent_performance_data as load_ptab_data, refresh_agent_performance_data,
 )
+
+# Apply shared sidebar hide CSS
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 
 # Map FACEBOOK_ADS_PERSONS (uppercase) to P-tab agent names (title case)
 PTAB_AGENT_MAP = {
