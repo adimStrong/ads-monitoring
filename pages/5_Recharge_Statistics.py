@@ -3,6 +3,8 @@ Recharge Statistics - Combined view of Daily ROI, Roll Back, and Violet
 """
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 import sys
 import os
@@ -264,25 +266,6 @@ def main():
             agg_df['arppu'] = agg_df.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
             return agg_df
 
-        def _format_table(df, period_col, period_label):
-            """Format an aggregated df for display."""
-            disp = df.copy()
-            disp['cost'] = disp['cost'].apply(lambda x: f"${x:,.2f}")
-            disp['register'] = disp['register'].apply(lambda x: f"{int(x):,}")
-            disp['ftd'] = disp['ftd'].apply(lambda x: f"{int(x):,}")
-            disp['cpr'] = disp['cpr'].apply(lambda x: f"${x:,.2f}")
-            disp['cost_ftd'] = disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
-            disp['conv_rate'] = disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
-            disp['roas'] = disp['roas'].apply(lambda x: f"{x:.2f}x")
-            disp['arppu'] = disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
-            disp = disp.drop(columns=['ftd_recharge'], errors='ignore')
-            disp = disp.rename(columns={
-                period_col: period_label, 'cost': 'Cost', 'register': 'Register',
-                'ftd': 'FTD', 'cpr': 'CPR',
-                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
-            })
-            return disp
-
         def _weekly_agg(daily_df):
             """Aggregate daily df into weekly rows."""
             if daily_df.empty:
@@ -321,30 +304,75 @@ def main():
             'violet': _build_daily('violet', use_rb_register=True),
         }
 
-        # ---- Weekly Tables: one per view ----
-        st.subheader("Weekly Summary")
-        for key, label in type_labels.items():
-            color = type_colors[key]
-            wagg = _weekly_agg(view_daily[key])
-            with st.expander(f"{label} — Weekly", expanded=True):
-                if wagg.empty:
-                    st.info(f"No {label} data for weekly summary.")
+        # ---- Shared chart builder: FTD bars + Cost line ----
+        def _ftd_cost_chart(df, x_col, title, color, chart_key):
+            """Dual-axis chart: FTD bars (left) + Cost line (right)."""
+            if df.empty:
+                st.info(f"No data for {title}.")
+                return
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(
+                go.Bar(x=df[x_col], y=df['ftd'], name='FTD',
+                       marker_color=color, opacity=0.85),
+                secondary_y=False,
+            )
+            fig.add_trace(
+                go.Scatter(x=df[x_col], y=df['cost'], name='Cost',
+                           mode='lines+markers', line=dict(color='#ef4444', width=2),
+                           marker=dict(size=5)),
+                secondary_y=True,
+            )
+            fig.update_layout(
+                title=title, height=340,
+                legend=dict(orientation='h', yanchor='bottom', y=-0.28),
+                margin=dict(l=40, r=40, t=50, b=60),
+                hovermode='x unified',
+            )
+            fig.update_yaxes(title_text='FTD', secondary_y=False)
+            fig.update_yaxes(title_text='Cost ($)', secondary_y=True)
+            fig.update_xaxes(title_text='')
+            st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+        # ---- Daily Trend Charts ----
+        st.subheader("Daily Trend")
+        d_cols = st.columns(3)
+        for idx, (key, label) in enumerate(type_labels.items()):
+            daily = view_daily[key]
+            with d_cols[idx]:
+                if daily.empty:
+                    st.info(f"No {label} daily data.")
                 else:
-                    disp = _format_table(wagg.drop(columns=['week_sort']), 'week_label', 'Week')
-                    st.dataframe(disp, use_container_width=True, hide_index=True, key=f"co_w_{key}")
+                    dd = daily.copy()
+                    dd['date'] = pd.to_datetime(dd['date'])
+                    dd = dd.sort_values('date')
+                    dd['date_label'] = dd['date'].dt.strftime('%b %d')
+                    _ftd_cost_chart(dd, 'date_label', label, type_colors[key], f"co_d_{key}")
 
         st.divider()
 
-        # ---- Monthly Tables: one per view ----
-        st.subheader("Monthly Summary")
-        for key, label in type_labels.items():
-            magg = _monthly_agg(view_daily[key])
-            with st.expander(f"{label} — Monthly", expanded=True):
-                if magg.empty:
-                    st.info(f"No {label} data for monthly summary.")
+        # ---- Weekly Charts ----
+        st.subheader("Weekly Summary")
+        w_cols = st.columns(3)
+        for idx, (key, label) in enumerate(type_labels.items()):
+            wagg = _weekly_agg(view_daily[key])
+            with w_cols[idx]:
+                if wagg.empty:
+                    st.info(f"No {label} weekly data.")
                 else:
-                    disp = _format_table(magg, 'month', 'Month')
-                    st.dataframe(disp, use_container_width=True, hide_index=True, key=f"co_m_{key}")
+                    _ftd_cost_chart(wagg, 'week_label', label, type_colors[key], f"co_w_{key}")
+
+        st.divider()
+
+        # ---- Monthly Charts ----
+        st.subheader("Monthly Summary")
+        m_cols = st.columns(3)
+        for idx, (key, label) in enumerate(type_labels.items()):
+            magg = _monthly_agg(view_daily[key])
+            with m_cols[idx]:
+                if magg.empty:
+                    st.info(f"No {label} monthly data.")
+                else:
+                    _ftd_cost_chart(magg, 'month', label, type_colors[key], f"co_m_{key}")
 
         st.divider()
 
@@ -361,7 +389,6 @@ def main():
                     mime="text/csv", key=f"co_dl_{key}")
             else:
                 exp_cols[idx].write(f"No {label} data")
-        # Combined CSV with Type column
         combined_parts = []
         for key, label in type_labels.items():
             daily = view_daily[key]
