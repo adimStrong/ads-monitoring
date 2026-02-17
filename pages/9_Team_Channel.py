@@ -583,10 +583,32 @@ def main():
             data_max_date = daily_df['date'].max().date()
 
             default_start = max(data_min_date, data_max_date - timedelta(days=30))
-            date_from = st.date_input("From", value=default_start,
-                                      min_value=data_min_date, max_value=data_max_date)
-            date_to = st.date_input("To", value=data_max_date,
-                                    min_value=data_min_date, max_value=data_max_date)
+
+            # Session state for All Dates button
+            if 'tc_start' not in st.session_state:
+                st.session_state.tc_start = default_start
+            if 'tc_end' not in st.session_state:
+                st.session_state.tc_end = data_max_date
+
+            if st.button("📅 All Dates", use_container_width=True):
+                st.session_state.tc_start = data_min_date
+                st.session_state.tc_end = data_max_date
+                st.rerun()
+
+            col1, col2 = st.columns(2)
+            with col1:
+                date_from = st.date_input("From", value=st.session_state.tc_start,
+                                          min_value=data_min_date, max_value=data_max_date,
+                                          key='tc_from')
+            with col2:
+                date_to = st.date_input("To", value=st.session_state.tc_end,
+                                        min_value=data_min_date, max_value=data_max_date,
+                                        key='tc_to')
+
+            st.session_state.tc_start = date_from
+            st.session_state.tc_end = date_to
+
+            st.caption(f"Data: {data_min_date.strftime('%b %d')} – {data_max_date.strftime('%b %d, %Y')}")
 
         # Team filter for overall section
         if has_overall:
@@ -601,10 +623,6 @@ def main():
         st.markdown("📈 [Counterpart](/Counterpart_Performance)")
 
     # Apply filters
-    filtered_overall = overall_df.copy()
-    if has_overall and selected_team != "All Teams":
-        filtered_overall = filtered_overall[filtered_overall['team'] == selected_team]
-
     filtered_daily = daily_df.copy()
     if has_daily:
         if selected_channels:
@@ -613,6 +631,21 @@ def main():
             (filtered_daily['date'].dt.date >= date_from) &
             (filtered_daily['date'].dt.date <= date_to)
         ]
+
+    # Build filtered_overall from daily data so it responds to date filter
+    if has_daily and not filtered_daily.empty:
+        filtered_overall = filtered_daily.groupby(['team', 'channel']).agg({
+            'cost': 'sum',
+            'registrations': 'sum',
+            'first_recharge': 'sum',
+            'total_amount': 'sum',
+            'arppu': 'mean',
+        }).reset_index()
+    else:
+        filtered_overall = overall_df.copy()
+
+    if has_overall and selected_team != "All Teams":
+        filtered_overall = filtered_overall[filtered_overall['team'] == selected_team]
 
     # Render sections
     render_overall_summary(filtered_overall)
