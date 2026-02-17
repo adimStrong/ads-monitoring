@@ -293,32 +293,18 @@ def main():
         else:
             available_dates = [max_date]
 
-        # Date range mode: single day or range
-        date_mode = st.sidebar.radio("Date Mode", ["Single Day", "Date Range"], horizontal=True)
-
-        if date_mode == "Single Day":
-            # Dropdown with only dates that have data
-            date_labels = [d.strftime('%b %d, %Y') for d in available_dates]
-            default_idx = len(available_dates) - 1  # latest date
-            selected_label = st.sidebar.selectbox(
-                "Select Date", date_labels, index=default_idx
-            )
-            selected_date = available_dates[date_labels.index(selected_label)]
-            start_date = selected_date
-            end_date = selected_date
+        # Default: show all data, with optional date range filter
+        date_range = st.sidebar.date_input(
+            "Date Range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
+        )
+        if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+            start_date, end_date = date_range
         else:
-            # Date range with min/max constrained to available data
-            date_range = st.sidebar.date_input(
-                "Select Range",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date,
-            )
-            if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
-                start_date, end_date = date_range
-            else:
-                start_date = date_range[0] if isinstance(date_range, (list, tuple)) else date_range
-                end_date = start_date
+            start_date = date_range[0] if isinstance(date_range, (list, tuple)) else date_range
+            end_date = start_date
 
         st.sidebar.caption(f"Data available: {min_date.strftime('%b %d')} - {max_date.strftime('%b %d, %Y')} ({len(available_dates)} days)")
     else:
