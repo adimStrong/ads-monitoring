@@ -634,7 +634,14 @@ def main():
 
     # Build filtered_overall from daily data so it responds to date filter
     if has_daily and not filtered_daily.empty:
-        filtered_overall = filtered_daily.groupby(['team', 'channel']).agg({
+        # Map channel → team from overall_df (daily_df team column is 'All')
+        channel_team_map = {}
+        if has_overall:
+            channel_team_map = overall_df.set_index('channel')['team'].to_dict()
+        fd = filtered_daily.copy()
+        fd['team'] = fd['channel'].map(channel_team_map).fillna('Unknown')
+
+        filtered_overall = fd.groupby(['team', 'channel']).agg({
             'cost': 'sum',
             'registrations': 'sum',
             'first_recharge': 'sum',
