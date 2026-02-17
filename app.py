@@ -63,6 +63,10 @@ st.markdown("""
         padding: 1rem;
         border-radius: 8px;
     }
+    /* Hide Team_Channel page from sidebar (accessible via direct URL) */
+    [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 

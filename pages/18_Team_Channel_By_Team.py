@@ -24,6 +24,10 @@ st.markdown("""
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
         color: white; padding: 15px; border-radius: 10px; margin: 20px 0 10px 0;
     }
+    /* Hide Team_Channel page from sidebar (accessible via direct URL) */
+    [data-testid="stSidebarNav"] a[href*="Team_Channel"]:not([href*="Team_Channel_By_Team"]) {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
