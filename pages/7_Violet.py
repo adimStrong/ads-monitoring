@@ -14,9 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel_data_loader import load_fb_channel_data, load_google_channel_data, refresh_channel_data
 from config import CHANNEL_ROI_ENABLED
 
-st.set_page_config(page_title="Violet", page_icon="💜", layout="wide")
-
-st.markdown("""
+_PAGE_CSS = """
 <style>
     .fb-card {
         background: linear-gradient(135deg, #1877f2 0%, #42a5f5 100%);
@@ -31,7 +29,7 @@ st.markdown("""
         color: white; padding: 15px; border-radius: 10px; margin: 20px 0 10px 0;
     }
 </style>
-""", unsafe_allow_html=True)
+"""
 
 
 def format_currency(value):
@@ -46,91 +44,13 @@ def format_number(value):
     return f"{int(value):,}"
 
 
-def main():
-    st.title("💜 Violet Dashboard")
-    st.markdown("Facebook vs Google - Violet Performance Comparison")
-
-    if not CHANNEL_ROI_ENABLED:
-        st.warning("Channel ROI Dashboard is disabled.")
-        return
-
-    # Load data
-    with st.spinner("Loading data..."):
-        fb_data = load_fb_channel_data()
-        google_data = load_google_channel_data()
-        fb_df = fb_data.get('violet', pd.DataFrame())
-        google_df = google_data.get('violet', pd.DataFrame())
-        fb_rb_df = fb_data.get('roll_back', pd.DataFrame())
-        google_rb_df = google_data.get('roll_back', pd.DataFrame())
-
-    has_fb = not fb_df.empty
-    has_google = not google_df.empty
-
-    if not has_fb and not has_google:
-        st.error("No Violet data available.")
-        return
-
-    # Prepare Roll Back dates
-    if not fb_rb_df.empty:
-        fb_rb_df['date'] = pd.to_datetime(fb_rb_df['date'])
-    if not google_rb_df.empty:
-        google_rb_df['date'] = pd.to_datetime(google_rb_df['date'])
-
-    # Prepare dates
-    all_dates = []
-    if has_fb:
-        fb_df['date'] = pd.to_datetime(fb_df['date'])
-        all_dates.extend(fb_df['date'].tolist())
-    if has_google:
-        google_df['date'] = pd.to_datetime(google_df['date'])
-        all_dates.extend(google_df['date'].tolist())
-
-    data_min_date = min(all_dates).date()
-    data_max_date = max(all_dates).date()
-    yesterday = datetime.now().date() - timedelta(days=1)
-    max_selectable_date = min(data_max_date, yesterday)
-
-    # Sidebar
-    with st.sidebar:
-        st.header("Controls")
-
-        if st.button("🔄 Refresh", type="primary", use_container_width=True):
-            refresh_channel_data()
-            st.cache_data.clear()
-            st.rerun()
-
-        st.markdown("---")
-        st.subheader("📅 Date Range")
-        default_start = max(data_min_date, max_selectable_date - timedelta(days=30))
-        date_from = st.date_input("From", value=default_start, min_value=data_min_date, max_value=max_selectable_date)
-        date_to = st.date_input("To", value=max_selectable_date, min_value=data_min_date, max_value=max_selectable_date)
-
-        st.markdown("---")
-        st.subheader("Channel Filter")
-        channel_filter = st.selectbox("Select Channel", ["All", "Facebook", "Google"])
-
-        st.markdown("---")
-        st.subheader("Other Reports")
-        st.page_link("pages/5_Daily_ROI.py", label="📊 Daily ROI", icon="📈")
-        st.page_link("pages/6_Roll_Back.py", label="🔄 Roll Back", icon="📈")
-
-    # Filter by date
-    if has_fb:
-        fb_df = fb_df[(fb_df['date'].dt.date >= date_from) & (fb_df['date'].dt.date <= date_to)]
-    if has_google:
-        google_df = google_df[(google_df['date'].dt.date >= date_from) & (google_df['date'].dt.date <= date_to)]
-    if not fb_rb_df.empty:
-        fb_rb_df = fb_rb_df[(fb_rb_df['date'].dt.date >= date_from) & (fb_rb_df['date'].dt.date <= date_to)]
-    if not google_rb_df.empty:
-        google_rb_df = google_rb_df[(google_rb_df['date'].dt.date >= date_from) & (google_rb_df['date'].dt.date <= date_to)]
-
-    # Apply channel filter
-    show_fb = channel_filter in ["All", "Facebook"] and has_fb and not fb_df.empty
-    show_google = channel_filter in ["All", "Google"] and has_google and not google_df.empty
-
-    if not show_fb and not show_google:
-        st.warning("No data in selected date range or channel.")
-        return
+def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
+                    fb_rb_df=None, google_rb_df=None, key_prefix="vi"):
+    """Render Violet content. Can be called standalone or from a wrapper page."""
+    if fb_rb_df is None:
+        fb_rb_df = pd.DataFrame()
+    if google_rb_df is None:
+        google_rb_df = pd.DataFrame()
 
     # Summary with 5 metrics (registration from Roll Back)
     st.markdown('<div class="section-header"><h3>💜 VIOLET SUMMARY</h3></div>', unsafe_allow_html=True)
@@ -332,7 +252,7 @@ def main():
             display_df = display_df.sort_values('date', ascending=False)
             display_df.columns = ['Date', 'First Recharge', 'Recharge Amount', 'Cost (USD)', 'Cost/Recharge', 'ROAS']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download FB CSV", display_df.to_csv(index=False), f"fb_violet_{datetime.now():%Y%m%d}.csv")
+            st.download_button("📥 Download FB CSV", display_df.to_csv(index=False), f"fb_violet_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_fb")
         else:
             st.info("No Facebook data available")
 
@@ -343,12 +263,90 @@ def main():
             display_df = display_df.sort_values('date', ascending=False)
             display_df.columns = ['Date', 'First Recharge', 'Recharge Amount', 'Cost (USD)', 'Cost/Recharge', 'ROAS']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Google CSV", display_df.to_csv(index=False), f"google_violet_{datetime.now():%Y%m%d}.csv")
+            st.download_button("📥 Download Google CSV", display_df.to_csv(index=False), f"google_violet_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_g")
         else:
             st.info("No Google data available")
 
     st.caption(f"Violet Dashboard | {date_from} to {date_to}")
 
 
-if __name__ == "__main__":
+def main():
+    st.set_page_config(page_title="Violet", page_icon="💜", layout="wide")
+    st.markdown(_PAGE_CSS, unsafe_allow_html=True)
+    st.title("💜 Violet Dashboard")
+    st.markdown("Facebook vs Google - Violet Performance Comparison")
+
+    if not CHANNEL_ROI_ENABLED:
+        st.warning("Channel ROI Dashboard is disabled.")
+        return
+
+    with st.spinner("Loading data..."):
+        fb_data = load_fb_channel_data()
+        google_data = load_google_channel_data()
+        fb_df = fb_data.get('violet', pd.DataFrame())
+        google_df = google_data.get('violet', pd.DataFrame())
+        fb_rb_df = fb_data.get('roll_back', pd.DataFrame())
+        google_rb_df = google_data.get('roll_back', pd.DataFrame())
+
+    has_fb = not fb_df.empty
+    has_google = not google_df.empty
+
+    if not has_fb and not has_google:
+        st.error("No Violet data available.")
+        return
+
+    if not fb_rb_df.empty:
+        fb_rb_df['date'] = pd.to_datetime(fb_rb_df['date'])
+    if not google_rb_df.empty:
+        google_rb_df['date'] = pd.to_datetime(google_rb_df['date'])
+
+    all_dates = []
+    if has_fb:
+        fb_df['date'] = pd.to_datetime(fb_df['date'])
+        all_dates.extend(fb_df['date'].tolist())
+    if has_google:
+        google_df['date'] = pd.to_datetime(google_df['date'])
+        all_dates.extend(google_df['date'].tolist())
+
+    data_min_date = min(all_dates).date()
+    data_max_date = max(all_dates).date()
+    yesterday = datetime.now().date() - timedelta(days=1)
+    max_selectable_date = min(data_max_date, yesterday)
+
+    with st.sidebar:
+        st.header("Controls")
+        if st.button("🔄 Refresh", type="primary", use_container_width=True):
+            refresh_channel_data()
+            st.cache_data.clear()
+            st.rerun()
+        st.markdown("---")
+        st.subheader("📅 Date Range")
+        default_start = max(data_min_date, max_selectable_date - timedelta(days=30))
+        date_from = st.date_input("From", value=default_start, min_value=data_min_date, max_value=max_selectable_date)
+        date_to = st.date_input("To", value=max_selectable_date, min_value=data_min_date, max_value=max_selectable_date)
+        st.markdown("---")
+        st.subheader("Channel Filter")
+        channel_filter = st.selectbox("Select Channel", ["All", "Facebook", "Google"])
+
+    if has_fb:
+        fb_df = fb_df[(fb_df['date'].dt.date >= date_from) & (fb_df['date'].dt.date <= date_to)]
+    if has_google:
+        google_df = google_df[(google_df['date'].dt.date >= date_from) & (google_df['date'].dt.date <= date_to)]
+    if not fb_rb_df.empty:
+        fb_rb_df = fb_rb_df[(fb_rb_df['date'].dt.date >= date_from) & (fb_rb_df['date'].dt.date <= date_to)]
+    if not google_rb_df.empty:
+        google_rb_df = google_rb_df[(google_rb_df['date'].dt.date >= date_from) & (google_rb_df['date'].dt.date <= date_to)]
+
+    show_fb = channel_filter in ["All", "Facebook"] and has_fb and not fb_df.empty
+    show_google = channel_filter in ["All", "Google"] and has_google and not google_df.empty
+
+    if not show_fb and not show_google:
+        st.warning("No data in selected date range or channel.")
+        return
+
+    render_content(fb_df, google_df, show_fb, show_google, date_from, date_to, fb_rb_df, google_rb_df)
+
+
+# Run when accessed as a Streamlit page (not when imported)
+if not hasattr(st, '_is_recharge_import'):
     main()
