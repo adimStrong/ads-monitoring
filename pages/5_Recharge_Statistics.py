@@ -304,34 +304,70 @@ def main():
             'violet': _build_daily('violet', use_rb_register=True),
         }
 
-        # ---- Shared chart builder: FTD bars + Cost line ----
-        def _ftd_cost_chart(df, x_col, title, color, chart_key):
-            """Dual-axis chart: FTD bars (left) + Cost line (right)."""
+        # Ensure daily data has derived columns too
+        for key in view_daily:
+            if not view_daily[key].empty:
+                view_daily[key] = _add_derived_cols(view_daily[key])
+
+        # Metric definitions for chart selector
+        METRIC_DEFS = {
+            'FTD': {'col': 'ftd', 'fmt': '', 'label': 'FTD'},
+            'Register': {'col': 'register', 'fmt': '', 'label': 'Register'},
+            'Cost': {'col': 'cost', 'fmt': '$', 'label': 'Cost ($)'},
+            'Conv Rate': {'col': 'conv_rate', 'fmt': '%', 'label': 'Conv Rate (%)'},
+            'ROAS': {'col': 'roas', 'fmt': 'x', 'label': 'ROAS'},
+            'ARPPU': {'col': 'arppu', 'fmt': '₱', 'label': 'ARPPU (₱)'},
+        }
+        LINE_COLORS = {
+            'FTD': '#10b981', 'Register': '#6366f1', 'Cost': '#ef4444',
+            'Conv Rate': '#f97316', 'ROAS': '#14b8a6', 'ARPPU': '#ec4899',
+        }
+
+        # ---- Shared chart builder: bars + multi-line overlay ----
+        def _metric_chart(df, x_col, title, bar_color, bar_metric, line_metrics, chart_key):
+            """Dual-axis chart: selected bar metric (left) + line metrics (right)."""
             if df.empty:
                 st.info(f"No data for {title}.")
                 return
+            bar_def = METRIC_DEFS[bar_metric]
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             fig.add_trace(
-                go.Bar(x=df[x_col], y=df['ftd'], name='FTD',
-                       marker_color=color, opacity=0.85),
+                go.Bar(x=df[x_col], y=df[bar_def['col']], name=bar_metric,
+                       marker_color=bar_color, opacity=0.85),
                 secondary_y=False,
             )
-            fig.add_trace(
-                go.Scatter(x=df[x_col], y=df['cost'], name='Cost',
-                           mode='lines+markers', line=dict(color='#ef4444', width=2),
-                           marker=dict(size=5)),
-                secondary_y=True,
-            )
+            for lm in line_metrics:
+                ldef = METRIC_DEFS[lm]
+                fig.add_trace(
+                    go.Scatter(x=df[x_col], y=df[ldef['col']], name=lm,
+                               mode='lines+markers',
+                               line=dict(color=LINE_COLORS[lm], width=2),
+                               marker=dict(size=4)),
+                    secondary_y=True,
+                )
             fig.update_layout(
-                title=title, height=340,
-                legend=dict(orientation='h', yanchor='bottom', y=-0.28),
-                margin=dict(l=40, r=40, t=50, b=60),
+                title=title, height=360,
+                legend=dict(orientation='h', yanchor='bottom', y=-0.32, font=dict(size=10)),
+                margin=dict(l=40, r=40, t=50, b=70),
                 hovermode='x unified',
             )
-            fig.update_yaxes(title_text='FTD', secondary_y=False)
-            fig.update_yaxes(title_text='Cost ($)', secondary_y=True)
+            fig.update_yaxes(title_text=bar_def['label'], secondary_y=False)
+            if len(line_metrics) == 1:
+                fig.update_yaxes(title_text=METRIC_DEFS[line_metrics[0]]['label'], secondary_y=True)
+            else:
+                fig.update_yaxes(title_text='Metrics', secondary_y=True)
             fig.update_xaxes(title_text='')
             st.plotly_chart(fig, use_container_width=True, key=chart_key)
+
+        # ---- Metric selector ----
+        all_metrics = list(METRIC_DEFS.keys())
+        sel_c1, sel_c2 = st.columns(2)
+        with sel_c1:
+            bar_choice = st.selectbox("Bar Metric", all_metrics, index=0, key="co_bar_metric")
+        with sel_c2:
+            line_options = [m for m in all_metrics if m != bar_choice]
+            line_choice = st.multiselect("Line Metrics", line_options,
+                                         default=['Cost'], key="co_line_metrics")
 
         # ---- Daily Trend Charts ----
         st.subheader("Daily Trend")
@@ -346,7 +382,8 @@ def main():
                     dd['date'] = pd.to_datetime(dd['date'])
                     dd = dd.sort_values('date')
                     dd['date_label'] = dd['date'].dt.strftime('%b %d')
-                    _ftd_cost_chart(dd, 'date_label', label, type_colors[key], f"co_d_{key}")
+                    _metric_chart(dd, 'date_label', label, type_colors[key],
+                                  bar_choice, line_choice, f"co_d_{key}")
 
         st.divider()
 
@@ -359,7 +396,8 @@ def main():
                 if wagg.empty:
                     st.info(f"No {label} weekly data.")
                 else:
-                    _ftd_cost_chart(wagg, 'week_label', label, type_colors[key], f"co_w_{key}")
+                    _metric_chart(wagg, 'week_label', label, type_colors[key],
+                                  bar_choice, line_choice, f"co_w_{key}")
 
         st.divider()
 
@@ -372,7 +410,8 @@ def main():
                 if magg.empty:
                     st.info(f"No {label} monthly data.")
                 else:
-                    _ftd_cost_chart(magg, 'month', label, type_colors[key], f"co_m_{key}")
+                    _metric_chart(magg, 'month', label, type_colors[key],
+                                  bar_choice, line_choice, f"co_m_{key}")
 
         st.divider()
 
