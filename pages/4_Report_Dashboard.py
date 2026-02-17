@@ -10,13 +10,12 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import sys
 import os
-import json
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_agent_performance_data
 from config import (
-    LOW_SPEND_THRESHOLD_USD, LAST_REPORT_DATA_FILE,
+    LOW_SPEND_THRESHOLD_USD,
     EXCLUDED_PERSONS,
 )
 
@@ -107,17 +106,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-def load_last_report_data():
-    """Load previous report data for change detection"""
-    try:
-        report_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), LAST_REPORT_DATA_FILE)
-        if os.path.exists(report_file):
-            with open(report_file, 'r') as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"Error loading last report data: {e}")
-    return None
 
 
 def calculate_change(current, previous, key):
@@ -227,8 +215,9 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Load previous report for change detection
-    previous_data = load_last_report_data()
+    # Get yesterday's data for change detection
+    yesterday_date = selected_date - timedelta(days=1)
+    yesterday_data = daily_df[daily_df['date_only'] == yesterday_date]
 
     # Calculate team totals
     team_totals = {
@@ -245,13 +234,24 @@ def main():
     team_totals['ctr'] = (team_totals['clicks'] / team_totals['impressions'] * 100) if team_totals['impressions'] > 0 else 0
     team_totals['conv_rate'] = (team_totals['ftd'] / team_totals['register'] * 100) if team_totals['register'] > 0 else 0
 
+    # Yesterday's team totals for comparison
+    if not yesterday_data.empty:
+        prev_totals = {
+            'spend': yesterday_data['cost'].sum(),
+            'register': int(yesterday_data['register'].sum()),
+            'ftd': int(yesterday_data['ftd'].sum()),
+            'impressions': int(yesterday_data['impressions'].sum()),
+            'clicks': int(yesterday_data['clicks'].sum()),
+        }
+    else:
+        prev_totals = {}
+
     # SECTION 1: Team Totals
     st.markdown("### 💰 TEAM TOTALS")
-
-    col1, col2, col3, col4, col5 = st.columns(5)
-
-    # Get previous totals for comparison
-    prev_totals = previous_data.get('team_totals', {}) if previous_data else {}
+    if prev_totals:
+        st.caption(f"vs {yesterday_date.strftime('%b %d, %Y')}")
+    else:
+        st.caption("No previous day data for comparison")
 
     with col1:
         spend_diff, spend_change = calculate_change(team_totals['spend'], prev_totals, 'spend')
@@ -321,8 +321,19 @@ def main():
     # Sort by cost descending
     agent_data = agent_data.sort_values('cost', ascending=False)
 
-    # Get previous agent data
-    prev_agents = previous_data.get('agents', {}) if previous_data else {}
+    # Get previous agent data from yesterday's P-tab data
+    prev_agents = {}
+    if not yesterday_data.empty:
+        yest_agent_data = yesterday_data.groupby('agent').agg({
+            'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
+            'impressions': 'sum', 'clicks': 'sum'
+        }).reset_index()
+        for _, row in yest_agent_data.iterrows():
+            prev_agents[row['agent']] = {
+                'spend': row['cost'], 'register': int(row['register']),
+                'ftd': int(row['ftd']), 'impressions': int(row['impressions']),
+                'clicks': int(row['clicks']),
+            }
 
     # Check for low spend and no change alerts
     low_spend_agents = []
