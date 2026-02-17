@@ -3,8 +3,6 @@ Recharge Statistics - Combined view of Daily ROI, Roll Back, and Violet
 """
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import sys
 import os
@@ -131,13 +129,15 @@ def main():
         cost = reg = ftd = rech = 0
         if show_fb and not fb_df.empty:
             cost += fb_df['cost'].sum()
-            reg += fb_df['register'].sum()
+            if 'register' in fb_df.columns:
+                reg += fb_df['register'].sum()
             ftd += fb_df['ftd'].sum()
             if 'ftd_recharge' in fb_df.columns:
                 rech += fb_df['ftd_recharge'].sum()
         if show_g and not g_df.empty:
             cost += g_df['cost'].sum()
-            reg += g_df['register'].sum()
+            if 'register' in g_df.columns:
+                reg += g_df['register'].sum()
             ftd += g_df['ftd'].sum()
             if 'ftd_recharge' in g_df.columns:
                 rech += g_df['ftd_recharge'].sum()
@@ -150,13 +150,6 @@ def main():
             'roas': rech / cost if cost > 0 else 0,
             'arppu': rech / ftd if ftd > 0 else 0,
         }
-
-    def calc_channel_totals(fb_df, g_df):
-        fb_cost = fb_df['cost'].sum() if not fb_df.empty else 0
-        fb_ftd = int(fb_df['ftd'].sum()) if not fb_df.empty else 0
-        g_cost = g_df['cost'].sum() if not g_df.empty else 0
-        g_ftd = int(g_df['ftd'].sum()) if not g_df.empty else 0
-        return fb_cost, fb_ftd, g_cost, g_ftd
 
     # Pre-filter all datasets
     filtered = {}
@@ -178,24 +171,27 @@ def main():
         fmt_c = lambda v: f"${v:,.2f}" if v else "$0.00"
         fmt_n = lambda v: f"{int(v):,}"
 
-        # Compute per-type totals
         type_labels = {'daily_roi': 'Daily ROI', 'roll_back': 'Roll Back', 'violet': 'Violet'}
         type_colors = {'daily_roi': '#3b82f6', 'roll_back': '#f59e0b', 'violet': '#9333ea'}
-        type_totals = {}
-        for key, label in type_labels.items():
-            d = filtered[key]
-            type_totals[key] = calc_totals(d['fb'], d['google'], d['show_fb'], d['show_g'])
 
-        # Grand totals
-        grand_cost = sum(t['cost'] for t in type_totals.values())
-        grand_reg = sum(t['register'] for t in type_totals.values())
-        grand_ftd = sum(t['ftd'] for t in type_totals.values())
-        grand_rech = sum(t['ftd_recharge'] for t in type_totals.values())
-        grand_cpr = grand_cost / grand_reg if grand_reg > 0 else 0
-        grand_cpf = grand_cost / grand_ftd if grand_ftd > 0 else 0
-        grand_conv = (grand_ftd / grand_reg * 100) if grand_reg > 0 else 0
-        grand_roas = grand_rech / grand_cost if grand_cost > 0 else 0
-        grand_arppu = grand_rech / grand_ftd if grand_ftd > 0 else 0
+        # Get Roll Back register for Violet's metrics
+        rb = filtered['roll_back']
+        rb_reg = 0
+        if rb['show_fb'] and not rb['fb'].empty:
+            rb_reg += rb['fb']['register'].sum()
+        if rb['show_g'] and not rb['google'].empty:
+            rb_reg += rb['google']['register'].sum()
+
+        # Compute per-type totals (Violet uses Roll Back register)
+        type_totals = {}
+        for key in type_labels:
+            d = filtered[key]
+            t = calc_totals(d['fb'], d['google'], d['show_fb'], d['show_g'])
+            if key == 'violet':
+                t['register'] = int(rb_reg)
+                t['conv_rate'] = (t['ftd'] / rb_reg * 100) if rb_reg > 0 else 0
+                t['cpr'] = t['cost'] / rb_reg if rb_reg > 0 else 0
+            type_totals[key] = t
 
         # Executive Header
         st.markdown(f"""
@@ -205,199 +201,93 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # Grand Total KPI Cards - Row 1
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total Cost", fmt_c(grand_cost))
-        c2.metric("Total Register", fmt_n(grand_reg))
-        c3.metric("Total FTD", fmt_n(grand_ftd))
-        c4.metric("FTD Recharge", f"₱{grand_rech:,.2f}")
-        # Row 2
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("Avg CPR", fmt_c(grand_cpr))
-        c2.metric("Avg Cost/FTD", fmt_c(grand_cpf))
-        c3.metric("Conv Rate", f"{grand_conv:.2f}%")
-        c4.metric("ROAS", f"{grand_roas:.2f}x")
-        c5.metric("ARPPU", f"₱{grand_arppu:,.2f}")
-
-        st.divider()
-
-        # ---- Breakdown by Report Type ----
-        st.subheader("Breakdown by Report Type")
-
+        # ---- KPI Cards: 3 columns side-by-side ----
         cols = st.columns(3)
+        metric_rows = [
+            ('Cost', lambda t: fmt_c(t['cost'])),
+            ('Register', lambda t: fmt_n(t['register'])),
+            ('FTD', lambda t: fmt_n(t['ftd'])),
+            ('Conv Rate', lambda t: f"{t['conv_rate']:.2f}%"),
+            ('CPR', lambda t: fmt_c(t['cpr'])),
+            ('Cost/FTD', lambda t: fmt_c(t['cost_ftd'])),
+            ('ROAS', lambda t: f"{t['roas']:.2f}x"),
+            ('ARPPU', lambda t: f"₱{t['arppu']:,.2f}"),
+        ]
         for idx, (key, label) in enumerate(type_labels.items()):
             t = type_totals[key]
             color = type_colors[key]
-            pct_cost = (t['cost'] / grand_cost * 100) if grand_cost > 0 else 0
             with cols[idx]:
+                reg_note = ' <span style="font-size:0.7rem;">(from Roll Back)</span>' if key == 'violet' else ''
                 st.markdown(f"""
                 <div style="background: linear-gradient(135deg, {color}cc 0%, {color}99 100%); padding: 1.2rem; border-radius: 12px; color: white;">
-                    <h3 style="margin: 0;">{label}</h3>
-                    <p style="margin: 4px 0 0 0; font-size: 0.8rem; opacity: 0.85;">{pct_cost:.1f}% of total cost</p>
+                    <h3 style="margin: 0;">{label}</h3>{reg_note}
                 </div>
                 """, unsafe_allow_html=True)
-                st.metric("Cost", fmt_c(t['cost']), label_visibility="visible")
-                st.metric("Register", fmt_n(t['register']))
-                st.metric("FTD", fmt_n(t['ftd']))
-                st.metric("CPR", fmt_c(t['cpr']))
-                st.metric("Cost/FTD", fmt_c(t['cost_ftd']))
-                st.metric("Conv Rate", f"{t['conv_rate']:.2f}%")
-                st.metric("ROAS", f"{t['roas']:.2f}x")
-                st.metric("ARPPU", f"₱{t['arppu']:,.2f}")
+                for m_label, m_fn in metric_rows:
+                    st.metric(m_label, m_fn(t))
 
         st.divider()
 
-        # ---- Charts Row 1: Cost & FTD by Type ----
-        col1, col2 = st.columns(2)
-
-        with col1:
-            chart_data = pd.DataFrame([
-                {'Type': type_labels[k], 'Cost': type_totals[k]['cost'], 'color': type_colors[k]}
-                for k in type_labels
-            ])
-            fig = px.bar(chart_data, x='Type', y='Cost', color='Type',
-                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
-                         title='Cost by Report Type', text_auto='$.4s')
-            fig.update_layout(height=380, showlegend=False, yaxis_title='Cost (USD)')
-            fig.update_traces(textposition='outside')
-            st.plotly_chart(fig, use_container_width=True, key="co_cost_type")
-
-        with col2:
-            chart_data = pd.DataFrame([
-                {'Type': type_labels[k], 'FTD': type_totals[k]['ftd']}
-                for k in type_labels
-            ])
-            fig = px.bar(chart_data, x='Type', y='FTD', color='Type',
-                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
-                         title='FTD by Report Type', text_auto=',')
-            fig.update_layout(height=380, showlegend=False, yaxis_title='FTD Count')
-            fig.update_traces(textposition='outside')
-            st.plotly_chart(fig, use_container_width=True, key="co_ftd_type")
-
-        # ---- Charts Row 2: Channel Split ----
-        st.subheader("Channel Comparison")
-        col1, col2 = st.columns(2)
-
-        # Aggregate FB vs Google across all types
-        total_fb_cost = total_fb_ftd = total_g_cost = total_g_ftd = 0
-        for key in type_labels:
+        # ---- Helper: build daily df for one view ----
+        def _build_daily(key, use_rb_register=False):
+            """Build daily aggregated df for a single view. Returns df with date/cost/register/ftd/ftd_recharge."""
             d = filtered[key]
-            fc, ff, gc, gf = calc_channel_totals(d['fb'], d['google'])
-            if d['show_fb']:
-                total_fb_cost += fc
-                total_fb_ftd += ff
-            if d['show_g']:
-                total_g_cost += gc
-                total_g_ftd += gf
-
-        with col1:
-            pie_data = pd.DataFrame([
-                {'Channel': 'Facebook', 'Cost': total_fb_cost},
-                {'Channel': 'Google', 'Cost': total_g_cost},
-            ])
-            fig = px.pie(pie_data, names='Channel', values='Cost', title='Cost Distribution by Channel',
-                         color='Channel', color_discrete_map={'Facebook': '#1877f2', 'Google': '#ea4335'},
-                         hole=0.4)
-            fig.update_layout(height=380)
-            st.plotly_chart(fig, use_container_width=True, key="co_pie_cost")
-
-        with col2:
-            bar_data = pd.DataFrame([
-                {'Channel': 'Facebook', 'FTD': total_fb_ftd},
-                {'Channel': 'Google', 'FTD': total_g_ftd},
-            ])
-            fig = px.bar(bar_data, x='Channel', y='FTD', color='Channel',
-                         color_discrete_map={'Facebook': '#1877f2', 'Google': '#ea4335'},
-                         title='FTD by Channel', text_auto=',')
-            fig.update_layout(height=380, showlegend=False)
-            fig.update_traces(textposition='outside')
-            st.plotly_chart(fig, use_container_width=True, key="co_bar_ftd_ch")
-
-        st.divider()
-
-        # ---- Daily Combined Trend ----
-        st.subheader("Daily Cost Trend (All Types)")
-
-        trend_rows = []
-        for key, label in type_labels.items():
-            d = filtered[key]
-            for source, sdf, show in [('fb', d['fb'], d['show_fb']), ('google', d['google'], d['show_g'])]:
+            parts = []
+            for sdf, show in [(d['fb'], d['show_fb']), (d['google'], d['show_g'])]:
                 if show and not sdf.empty:
-                    daily = sdf.groupby(sdf['date'].dt.date)['cost'].sum().reset_index()
-                    daily.columns = ['date', 'cost']
-                    daily['type'] = label
-                    trend_rows.append(daily)
+                    agg_cols = {'cost': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum'}
+                    if 'register' in sdf.columns:
+                        agg_cols['register'] = 'sum'
+                    tmp = sdf.groupby(sdf['date'].dt.date).agg(agg_cols).reset_index()
+                    if 'register' not in tmp.columns:
+                        tmp['register'] = 0
+                    parts.append(tmp)
+            if not parts:
+                return pd.DataFrame()
+            df = pd.concat(parts, ignore_index=True).groupby('date').sum().reset_index()
+            # For Violet, replace register with Roll Back's daily register
+            if use_rb_register:
+                rb_daily = _build_daily('roll_back')
+                if not rb_daily.empty:
+                    rb_reg_map = rb_daily.set_index('date')['register']
+                    df['register'] = df['date'].map(rb_reg_map).fillna(0).astype(int)
+                else:
+                    df['register'] = 0
+            return df
 
-        if trend_rows:
-            trend_df = pd.concat(trend_rows, ignore_index=True)
-            trend_agg = trend_df.groupby(['date', 'type'])['cost'].sum().reset_index()
-            fig = px.line(trend_agg, x='date', y='cost', color='type',
-                          color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
-                          title='Daily Cost by Report Type', markers=True)
-            fig.update_layout(height=400, legend=dict(orientation='h', yanchor='bottom', y=-0.25),
-                              xaxis_title='', yaxis_title='Cost (USD)')
-            st.plotly_chart(fig, use_container_width=True, key="co_trend")
-        else:
-            st.info("No daily data available for trend.")
+        def _add_derived_cols(agg_df):
+            """Add CPR, Cost/FTD, Conv%, ROAS, ARPPU to an aggregated df."""
+            agg_df['cpr'] = agg_df.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            agg_df['cost_ftd'] = agg_df.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            agg_df['conv_rate'] = agg_df.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
+            agg_df['roas'] = agg_df.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
+            agg_df['arppu'] = agg_df.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            return agg_df
 
-        st.divider()
-
-        # ---- Helper: combine all types into one daily df ----
-        def _combine_all_daily():
-            """Merge FB+Google across all 3 types into a single daily df with type column."""
-            rows = []
-            for key, label in type_labels.items():
-                d = filtered[key]
-                for src, sdf, show in [('fb', d['fb'], d['show_fb']), ('google', d['google'], d['show_g'])]:
-                    if show and not sdf.empty:
-                        tmp = sdf.groupby(sdf['date'].dt.date).agg({
-                            'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
-                            'ftd_recharge': 'sum',
-                        }).reset_index()
-                        tmp['type'] = label
-                        rows.append(tmp)
-            if rows:
-                return pd.concat(rows, ignore_index=True)
-            return pd.DataFrame()
-
-        all_daily = _combine_all_daily()
-
-        def _agg_period(df, group_col):
-            """Aggregate a df by group_col across all types, computing derived metrics."""
-            agg = df.groupby(group_col).agg({
-                'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
-            }).reset_index()
-            agg['cpr'] = agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
-            agg['cost_ftd'] = agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
-            agg['conv_rate'] = agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
-            agg['roas'] = agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
-            agg['arppu'] = agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
-            return agg
-
-        def _format_period_table(df, period_col):
-            """Format a period aggregation df for display."""
+        def _format_table(df, period_col, period_label):
+            """Format an aggregated df for display."""
             disp = df.copy()
             disp['cost'] = disp['cost'].apply(lambda x: f"${x:,.2f}")
             disp['register'] = disp['register'].apply(lambda x: f"{int(x):,}")
             disp['ftd'] = disp['ftd'].apply(lambda x: f"{int(x):,}")
-            disp['ftd_recharge'] = disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
             disp['cpr'] = disp['cpr'].apply(lambda x: f"${x:,.2f}")
             disp['cost_ftd'] = disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
             disp['conv_rate'] = disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
             disp['roas'] = disp['roas'].apply(lambda x: f"{x:.2f}x")
             disp['arppu'] = disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
+            disp = disp.drop(columns=['ftd_recharge'], errors='ignore')
             disp = disp.rename(columns={
-                period_col: period_col.title(), 'cost': 'Cost', 'register': 'Register',
-                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
+                period_col: period_label, 'cost': 'Cost', 'register': 'Register',
+                'ftd': 'FTD', 'cpr': 'CPR',
                 'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
             })
             return disp
 
-        # ---- Weekly Summary ----
-        st.subheader("📆 Weekly Summary")
-
-        if not all_daily.empty:
-            wd = all_daily.copy()
+        def _weekly_agg(daily_df):
+            """Aggregate daily df into weekly rows."""
+            if daily_df.empty:
+                return pd.DataFrame()
+            wd = daily_df.copy()
             wd['date'] = pd.to_datetime(wd['date'])
             wd['week'] = wd['date'].dt.isocalendar().week
             wd['year'] = wd['date'].dt.isocalendar().year
@@ -405,153 +295,86 @@ def main():
             wd['week_start'] = wd.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 1), axis=1)
             wd['week_end'] = wd.apply(lambda x: datetime.fromisocalendar(int(x['year']), int(x['week']), 7), axis=1)
             wd['week_label'] = wd.apply(lambda x: f"{x['week_start'].strftime('%b %d')} - {x['week_end'].strftime('%b %d')}", axis=1)
-
-            # Aggregate across all types per week
-            weekly_agg = wd.groupby(['week_sort', 'week_label']).agg({
+            wagg = wd.groupby(['week_sort', 'week_label']).agg({
                 'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
             }).reset_index().sort_values('week_sort')
-            weekly_agg['cpr'] = weekly_agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
-            weekly_agg['cost_ftd'] = weekly_agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
-            weekly_agg['conv_rate'] = weekly_agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
-            weekly_agg['roas'] = weekly_agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
-            weekly_agg['arppu'] = weekly_agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            wagg = _add_derived_cols(wagg)
+            return wagg
 
-            # Chart: weekly cost by type
-            weekly_by_type = wd.groupby(['week_label', 'week_sort', 'type'])['cost'].sum().reset_index().sort_values('week_sort')
-            fig = px.bar(weekly_by_type, x='week_label', y='cost', color='type', barmode='group',
-                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
-                         title='Weekly Cost by Report Type')
-            fig.update_layout(height=380, xaxis_title='', yaxis_title='Cost (USD)',
-                              legend=dict(orientation='h', yanchor='bottom', y=-0.25))
-            st.plotly_chart(fig, use_container_width=True, key="co_weekly_chart")
-
-            # Table
-            w_disp = weekly_agg.drop(columns=['week_sort']).copy()
-            w_disp['cost'] = w_disp['cost'].apply(lambda x: f"${x:,.2f}")
-            w_disp['register'] = w_disp['register'].apply(lambda x: f"{int(x):,}")
-            w_disp['ftd'] = w_disp['ftd'].apply(lambda x: f"{int(x):,}")
-            w_disp['ftd_recharge'] = w_disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
-            w_disp['cpr'] = w_disp['cpr'].apply(lambda x: f"${x:,.2f}")
-            w_disp['cost_ftd'] = w_disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
-            w_disp['conv_rate'] = w_disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
-            w_disp['roas'] = w_disp['roas'].apply(lambda x: f"{x:.2f}x")
-            w_disp['arppu'] = w_disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
-            w_disp = w_disp.rename(columns={
-                'week_label': 'Week', 'cost': 'Cost', 'register': 'Register',
-                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
-                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
-            })
-            st.dataframe(w_disp, use_container_width=True, hide_index=True, key="co_weekly_tbl")
-        else:
-            st.info("No data available for weekly summary.")
-
-        st.divider()
-
-        # ---- Monthly Summary ----
-        st.subheader("📊 Monthly Summary")
-
-        if not all_daily.empty:
-            md = all_daily.copy()
+        def _monthly_agg(daily_df):
+            """Aggregate daily df into monthly rows."""
+            if daily_df.empty:
+                return pd.DataFrame()
+            md = daily_df.copy()
             md['date'] = pd.to_datetime(md['date'])
             md['month'] = md['date'].dt.to_period('M').astype(str)
-
-            # Aggregate across all types per month
-            monthly_agg = md.groupby('month').agg({
+            magg = md.groupby('month').agg({
                 'cost': 'sum', 'register': 'sum', 'ftd': 'sum', 'ftd_recharge': 'sum',
             }).reset_index().sort_values('month')
-            monthly_agg['cpr'] = monthly_agg.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
-            monthly_agg['cost_ftd'] = monthly_agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
-            monthly_agg['conv_rate'] = monthly_agg.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
-            monthly_agg['roas'] = monthly_agg.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
-            monthly_agg['arppu'] = monthly_agg.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            magg = _add_derived_cols(magg)
+            return magg
 
-            # Chart: monthly cost by type
-            monthly_by_type = md.groupby(['month', 'type'])['cost'].sum().reset_index().sort_values('month')
-            fig = px.bar(monthly_by_type, x='month', y='cost', color='type', barmode='group',
-                         color_discrete_map={type_labels[k]: type_colors[k] for k in type_labels},
-                         title='Monthly Cost by Report Type')
-            fig.update_layout(height=380, xaxis_title='', yaxis_title='Cost (USD)',
-                              legend=dict(orientation='h', yanchor='bottom', y=-0.25))
-            st.plotly_chart(fig, use_container_width=True, key="co_monthly_chart")
+        # Build daily data per view
+        view_daily = {
+            'daily_roi': _build_daily('daily_roi'),
+            'roll_back': _build_daily('roll_back'),
+            'violet': _build_daily('violet', use_rb_register=True),
+        }
 
-            # Table
-            m_disp = monthly_agg.copy()
-            m_disp['cost'] = m_disp['cost'].apply(lambda x: f"${x:,.2f}")
-            m_disp['register'] = m_disp['register'].apply(lambda x: f"{int(x):,}")
-            m_disp['ftd'] = m_disp['ftd'].apply(lambda x: f"{int(x):,}")
-            m_disp['ftd_recharge'] = m_disp['ftd_recharge'].apply(lambda x: f"₱{x:,.2f}")
-            m_disp['cpr'] = m_disp['cpr'].apply(lambda x: f"${x:,.2f}")
-            m_disp['cost_ftd'] = m_disp['cost_ftd'].apply(lambda x: f"${x:,.2f}")
-            m_disp['conv_rate'] = m_disp['conv_rate'].apply(lambda x: f"{x:.2f}%")
-            m_disp['roas'] = m_disp['roas'].apply(lambda x: f"{x:.2f}x")
-            m_disp['arppu'] = m_disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
-            m_disp = m_disp.rename(columns={
-                'month': 'Month', 'cost': 'Cost', 'register': 'Register',
-                'ftd': 'FTD', 'ftd_recharge': 'Recharge', 'cpr': 'CPR',
-                'cost_ftd': 'Cost/FTD', 'conv_rate': 'Conv %', 'roas': 'ROAS', 'arppu': 'ARPPU',
-            })
-            st.dataframe(m_disp, use_container_width=True, hide_index=True, key="co_monthly_tbl")
-        else:
-            st.info("No data available for monthly summary.")
+        # ---- Weekly Tables: one per view ----
+        st.subheader("Weekly Summary")
+        for key, label in type_labels.items():
+            color = type_colors[key]
+            wagg = _weekly_agg(view_daily[key])
+            with st.expander(f"{label} — Weekly", expanded=True):
+                if wagg.empty:
+                    st.info(f"No {label} data for weekly summary.")
+                else:
+                    disp = _format_table(wagg.drop(columns=['week_sort']), 'week_label', 'Week')
+                    st.dataframe(disp, use_container_width=True, hide_index=True, key=f"co_w_{key}")
 
         st.divider()
 
-        # ---- Summary Table ----
-        st.subheader("Summary Table")
-        summary_rows = []
+        # ---- Monthly Tables: one per view ----
+        st.subheader("Monthly Summary")
         for key, label in type_labels.items():
-            t = type_totals[key]
-            d = filtered[key]
-            fc, ff, gc, gf = calc_channel_totals(d['fb'], d['google'])
-            summary_rows.append({
-                'Report Type': label,
-                'FB Cost': fc if d['show_fb'] else 0,
-                'Google Cost': gc if d['show_g'] else 0,
-                'Total Cost': t['cost'],
-                'Register': t['register'],
-                'FTD': t['ftd'],
-                'Recharge': t['ftd_recharge'],
-                'CPR': t['cpr'],
-                'Cost/FTD': t['cost_ftd'],
-                'Conv %': t['conv_rate'],
-                'ROAS': t['roas'],
-                'ARPPU': t['arppu'],
-            })
-        # Grand total row
-        summary_rows.append({
-            'Report Type': 'TOTAL',
-            'FB Cost': total_fb_cost,
-            'Google Cost': total_g_cost,
-            'Total Cost': grand_cost,
-            'Register': grand_reg,
-            'FTD': grand_ftd,
-            'Recharge': grand_rech,
-            'CPR': grand_cpr,
-            'Cost/FTD': grand_cpf,
-            'Conv %': grand_conv,
-            'ROAS': grand_roas,
-            'ARPPU': grand_arppu,
-        })
-        summary_df = pd.DataFrame(summary_rows)
+            magg = _monthly_agg(view_daily[key])
+            with st.expander(f"{label} — Monthly", expanded=True):
+                if magg.empty:
+                    st.info(f"No {label} data for monthly summary.")
+                else:
+                    disp = _format_table(magg, 'month', 'Month')
+                    st.dataframe(disp, use_container_width=True, hide_index=True, key=f"co_m_{key}")
 
-        # Format for display
-        disp = summary_df.copy()
-        for col in ['FB Cost', 'Google Cost', 'Total Cost', 'CPR', 'Cost/FTD']:
-            disp[col] = disp[col].apply(lambda x: f"${x:,.2f}")
-        disp['Register'] = disp['Register'].apply(lambda x: f"{int(x):,}")
-        disp['FTD'] = disp['FTD'].apply(lambda x: f"{int(x):,}")
-        disp['Recharge'] = disp['Recharge'].apply(lambda x: f"₱{x:,.2f}")
-        disp['Conv %'] = disp['Conv %'].apply(lambda x: f"{x:.2f}%")
-        disp['ROAS'] = disp['ROAS'].apply(lambda x: f"{x:.2f}x")
-        disp['ARPPU'] = disp['ARPPU'].apply(lambda x: f"₱{x:,.2f}")
+        st.divider()
 
-        st.dataframe(disp, use_container_width=True, hide_index=True, key="co_summary_tbl")
-
-        # Export
-        csv = summary_df.to_csv(index=False)
-        st.download_button("Download Summary CSV", data=csv,
-                           file_name=f"recharge_summary_{date_from}_{date_to}.csv",
-                           mime="text/csv", key="co_dl")
+        # ---- CSV Export: one per view + combined ----
+        st.subheader("Export")
+        exp_cols = st.columns(4)
+        for idx, (key, label) in enumerate(type_labels.items()):
+            daily = view_daily[key]
+            if not daily.empty:
+                csv = daily.to_csv(index=False)
+                exp_cols[idx].download_button(
+                    f"Download {label} CSV", data=csv,
+                    file_name=f"{key}_{date_from}_{date_to}.csv",
+                    mime="text/csv", key=f"co_dl_{key}")
+            else:
+                exp_cols[idx].write(f"No {label} data")
+        # Combined CSV with Type column
+        combined_parts = []
+        for key, label in type_labels.items():
+            daily = view_daily[key]
+            if not daily.empty:
+                tmp = daily.copy()
+                tmp['type'] = label
+                combined_parts.append(tmp)
+        if combined_parts:
+            combined_csv = pd.concat(combined_parts, ignore_index=True).to_csv(index=False)
+            exp_cols[3].download_button(
+                "Download All CSV", data=combined_csv,
+                file_name=f"recharge_all_{date_from}_{date_to}.csv",
+                mime="text/csv", key="co_dl_all")
 
     # ================================================================
     # TAB: DAILY ROI
