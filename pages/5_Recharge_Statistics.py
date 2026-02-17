@@ -203,38 +203,51 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
-        # ---- Shared Cost (same across all views) + Register ----
-        shared_cost = type_totals['daily_roi']['cost']  # identical across views
-        shared_reg = type_totals['daily_roi']['register']  # DR & RB same, Violet uses RB
-        sc1, sc2 = st.columns(2)
-        sc1.metric("Total Ad Spend (shared)", fmt_c(shared_cost))
-        sc2.metric("Total Register (Daily ROI / Roll Back)", fmt_n(shared_reg))
+        # ---- Shared Cost ----
+        shared_cost = type_totals['daily_roi']['cost']
+        shared_reg = type_totals['daily_roi']['register']
 
-        st.divider()
-
-        # ---- KPI Cards: 3 columns side-by-side (metrics that DIFFER) ----
-        cols = st.columns(3)
-        metric_rows = [
+        # ---- Horizontal KPI Table: views as rows, metrics as columns ----
+        metric_cols = [
+            ('Cost', lambda t: fmt_c(shared_cost)),
+            ('Register', lambda t: fmt_n(t['register'])),
             ('FTD', lambda t: fmt_n(t['ftd'])),
-            ('FTD Recharge', lambda t: f"₱{t['ftd_recharge']:,.0f}"),
-            ('Conv Rate', lambda t: f"{t['conv_rate']:.2f}%"),
+            ('Recharge', lambda t: f"₱{t['ftd_recharge']:,.0f}"),
+            ('Conv %', lambda t: f"{t['conv_rate']:.2f}%"),
             ('CPR', lambda t: fmt_c(t['cpr'])),
             ('Cost/FTD', lambda t: fmt_c(t['cost_ftd'])),
             ('ROAS', lambda t: f"{t['roas']:.2f}x"),
             ('ARPPU', lambda t: f"₱{t['arppu']:,.2f}"),
         ]
-        for idx, (key, label) in enumerate(type_labels.items()):
+        header_cells = ''.join(f'<th style="padding:8px 12px;text-align:right;font-size:0.8rem;color:#94a3b8;font-weight:600;">{m[0]}</th>' for m in metric_cols)
+        body_rows = ''
+        for key, label in type_labels.items():
             t = type_totals[key]
             color = type_colors[key]
-            with cols[idx]:
-                reg_note = ' <span style="font-size:0.7rem;">(Reg from Roll Back)</span>' if key == 'violet' else ''
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, {color}cc 0%, {color}99 100%); padding: 1.2rem; border-radius: 12px; color: white;">
-                    <h3 style="margin: 0;">{label}</h3>{reg_note}
-                </div>
-                """, unsafe_allow_html=True)
-                for m_label, m_fn in metric_rows:
-                    st.metric(m_label, m_fn(t))
+            note = ' <span style="font-size:0.65rem;opacity:0.7;">(Reg=RB)</span>' if key == 'violet' else ''
+            val_cells = ''.join(
+                f'<td style="padding:8px 12px;text-align:right;font-size:1rem;font-weight:700;color:white;">{m[1](t)}</td>'
+                for m in metric_cols
+            )
+            body_rows += f'''<tr>
+                <td style="padding:8px 12px;white-space:nowrap;">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:8px;vertical-align:middle;"></span>
+                    <span style="font-weight:700;font-size:0.95rem;color:white;">{label}</span>{note}
+                </td>
+                {val_cells}
+            </tr>'''
+
+        st.markdown(f"""
+        <div style="overflow-x:auto;margin-bottom:1rem;">
+        <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden;">
+            <thead><tr>
+                <th style="padding:8px 12px;text-align:left;font-size:0.8rem;color:#94a3b8;font-weight:600;">View</th>
+                {header_cells}
+            </tr></thead>
+            <tbody>{body_rows}</tbody>
+        </table>
+        </div>
+        """, unsafe_allow_html=True)
 
         st.divider()
 
