@@ -340,6 +340,69 @@ def get_tue_mon_week(date):
     return year, week_num
 
 
+def render_weekly_trends(df, channel_name):
+    """Render weekly trends with grouped bar charts showing all weeks side-by-side (Tue-Mon weeks)."""
+    st.markdown('<div class="section-header"><h3>📊 WEEKLY TRENDS BY CHANNEL SOURCE (Tue-Mon)</h3></div>', unsafe_allow_html=True)
+
+    if df.empty:
+        st.warning("No data available for weekly trends")
+        return
+
+    df_filtered = df[~df['channel'].str.contains('平均|总计|Average|Total', case=False, na=False)].copy()
+    if df_filtered.empty:
+        st.warning("No data available for weekly trends")
+        return
+
+    df_filtered['date'] = pd.to_datetime(df_filtered['date'])
+    df_filtered['week_info'] = df_filtered['date'].apply(get_tue_mon_week)
+    df_filtered['year'] = df_filtered['week_info'].apply(lambda x: x[0])
+    df_filtered['week'] = df_filtered['week_info'].apply(lambda x: x[1])
+    df_filtered['week_key'] = df_filtered.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
+
+    # Build week labels with date ranges
+    weeks_info = df_filtered.groupby('week_key').agg(date_start=('date', 'min'), date_end=('date', 'max')).reset_index()
+    weeks_info['week_label'] = weeks_info.apply(
+        lambda x: f"{x['date_start'].strftime('%b %d')} - {x['date_end'].strftime('%b %d')}", axis=1)
+    weeks_info['days_count'] = weeks_info.apply(lambda x: (x['date_end'] - x['date_start']).days + 1, axis=1)
+    weeks_info = weeks_info.sort_values('week_key')
+    week_label_map = dict(zip(weeks_info['week_key'], weeks_info['week_label']))
+
+    # Warn about incomplete last week
+    last_week = weeks_info.iloc[-1]
+    if last_week['days_count'] < 7:
+        st.warning(f"⚠️ Last week ({last_week['week_label']}) is incomplete ({int(last_week['days_count'])}/7 days)")
+
+    # Aggregate by week + channel source
+    weekly_agg = df_filtered.groupby(['week_key', 'channel']).agg(
+        first_recharge=('first_recharge', 'sum'),
+        total_amount=('total_amount', 'sum'),
+        spending=('spending', 'sum'),
+    ).reset_index()
+    weekly_agg['roas'] = weekly_agg.apply(
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge']))
+        if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
+    weekly_agg['week_label'] = weekly_agg['week_key'].map(week_label_map)
+    weekly_agg = weekly_agg.sort_values('week_key')
+
+    # 2x2 grouped bar charts
+    chart_configs = [
+        ('first_recharge', 'First Recharge by Channel Source', None),
+        ('total_amount', 'Total Recharge Amount by Channel Source', '₱'),
+        ('spending', 'Spending by Channel Source', '$'),
+        ('roas', 'ROAS by Channel Source', None),
+    ]
+    for row_start in range(0, 4, 2):
+        col1, col2 = st.columns(2)
+        for col, idx in zip([col1, col2], [row_start, row_start + 1]):
+            metric, title, prefix = chart_configs[idx]
+            with col:
+                fig = px.bar(weekly_agg, x='week_label', y=metric, color='channel',
+                             barmode='group', title=title)
+                fig.update_layout(height=380, xaxis_title="Week", yaxis_title=metric.replace('_', ' ').title(),
+                                  legend=dict(orientation="h", yanchor="bottom", y=-0.35))
+                st.plotly_chart(fig, use_container_width=True)
+
+
 def render_weekly_summary(df, channel_name):
     """Render weekly summary with pie charts comparing channel sources (Tue-Mon weeks)."""
     st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY BY CHANNEL SOURCE (Tue-Mon)</h3></div>', unsafe_allow_html=True)
@@ -624,6 +687,9 @@ def main():
 
     st.divider()
     render_daily_trends(filtered_df, selected_channel)
+
+    st.divider()
+    render_weekly_trends(filtered_df, selected_channel)
 
     st.divider()
     render_weekly_summary(filtered_df, selected_channel)
