@@ -67,7 +67,7 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
             'cost_reg': cost / register if register > 0 else 0,
             'cost_ftd': cost / ftd if ftd > 0 else 0,
             'arppu': ftd_recharge / ftd if ftd > 0 else 0,
-            'roas': ftd_recharge / cost if cost > 0 else 0,
+            'roas': ((ftd_recharge / ftd) / 57.7 / (cost / ftd)) if ftd > 0 and cost > 0 else 0,
             'conv_rate': (ftd / register) * 100 if register > 0 else 0,
         }
 

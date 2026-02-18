@@ -273,7 +273,9 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to, k
         fb_monthly['month'] = fb_monthly['date'].dt.to_period('M').astype(str)
         fb_m = fb_monthly.groupby('month').agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum', 'ftd_recharge': 'sum'}).reset_index()
         fb_m['channel'] = 'Facebook'
-        fb_m['roas'] = fb_m.apply(lambda x: x['ftd_recharge'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+        fb_m['arppu'] = fb_m.apply(lambda x: x['ftd_recharge'] / x['ftd'] if x['ftd'] > 0 else 0, axis=1)
+        fb_m['cost_ftd'] = fb_m.apply(lambda x: x['cost'] / x['ftd'] if x['ftd'] > 0 else 0, axis=1)
+        fb_m['roas'] = fb_m.apply(lambda x: (x['arppu'] / 57.7 / x['cost_ftd']) if x['cost_ftd'] > 0 else 0, axis=1)
         monthly_data.append(fb_m)
 
     if show_google:
@@ -281,7 +283,9 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to, k
         g_monthly['month'] = g_monthly['date'].dt.to_period('M').astype(str)
         g_m = g_monthly.groupby('month').agg({'cost': 'sum', 'ftd': 'sum', 'register': 'sum', 'ftd_recharge': 'sum'}).reset_index()
         g_m['channel'] = 'Google'
-        g_m['roas'] = g_m.apply(lambda x: x['ftd_recharge'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+        g_m['arppu'] = g_m.apply(lambda x: x['ftd_recharge'] / x['ftd'] if x['ftd'] > 0 else 0, axis=1)
+        g_m['cost_ftd'] = g_m.apply(lambda x: x['cost'] / x['ftd'] if x['ftd'] > 0 else 0, axis=1)
+        g_m['roas'] = g_m.apply(lambda x: (x['arppu'] / 57.7 / x['cost_ftd']) if x['cost_ftd'] > 0 else 0, axis=1)
         monthly_data.append(g_m)
 
     if monthly_data:

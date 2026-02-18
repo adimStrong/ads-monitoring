@@ -149,7 +149,7 @@ def main():
             'cpr': cost / reg if reg > 0 else 0,
             'cost_ftd': cost / ftd if ftd > 0 else 0,
             'conv_rate': (ftd / reg * 100) if reg > 0 else 0,
-            'roas': rech / cost if cost > 0 else 0,
+            'roas': (rech / ftd / 57.7 / (cost / ftd)) if ftd > 0 and cost > 0 else 0,
             'arppu': rech / ftd if ftd > 0 else 0,
         }
 
@@ -283,8 +283,8 @@ def main():
             agg_df['cpr'] = agg_df.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
             agg_df['cost_ftd'] = agg_df.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
             agg_df['conv_rate'] = agg_df.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
-            agg_df['roas'] = agg_df.apply(lambda r: r['ftd_recharge'] / r['cost'] if r['cost'] > 0 else 0, axis=1)
             agg_df['arppu'] = agg_df.apply(lambda r: r['ftd_recharge'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            agg_df['roas'] = agg_df.apply(lambda r: (r['arppu'] / 57.7 / r['cost_ftd']) if r['cost_ftd'] > 0 else 0, axis=1)
             return agg_df
 
         def _weekly_agg(daily_df):
