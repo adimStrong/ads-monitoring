@@ -441,6 +441,113 @@ def main():
         _grouped_chart(weekly_map, 'week_label', 'Weekly: Daily ROI vs Roll Back vs Violet',
                        bar_choice, line_choice, 'co_weekly')
 
+        # ---- WoW Detailed Comparison ----
+        if weekly_map:
+            st.markdown("#### Week-over-Week Comparison")
+            for key, label in type_labels.items():
+                wagg = weekly_map.get(key)
+                if wagg is None or len(wagg) < 2:
+                    continue
+                wagg = wagg.sort_values('week_sort').reset_index(drop=True)
+                # Compare each consecutive pair of weeks
+                for i in range(len(wagg) - 1, 0, -1):
+                    curr = wagg.iloc[i]
+                    prev = wagg.iloc[i - 1]
+                    curr_label = curr['week_label']
+                    prev_label = prev['week_label']
+
+                    def _pct(c, p):
+                        if p == 0:
+                            return ("+∞" if c > 0 else "0.0%"), "green" if c > 0 else "gray"
+                        pct = (c - p) / abs(p) * 100
+                        sign = "+" if pct >= 0 else ""
+                        return f"{sign}{pct:.1f}%", None
+
+                    def _arrow_color(curr_val, prev_val, higher_is_better=True):
+                        """Return arrow + color for a metric change."""
+                        if prev_val == 0:
+                            if curr_val > 0:
+                                return ("🟢 ↑", "#10b981") if higher_is_better else ("🔴 ↑", "#ef4444")
+                            return ("⚪ →", "#94a3b8")
+                        pct = (curr_val - prev_val) / abs(prev_val) * 100
+                        if abs(pct) < 0.5:
+                            return "⚪ →", "#94a3b8"
+                        went_up = pct > 0
+                        if (went_up and higher_is_better) or (not went_up and not higher_is_better):
+                            arrow = "🟢 ↑" if went_up else "🟢 ↓"
+                            color = "#10b981"
+                        else:
+                            arrow = "🔴 ↑" if went_up else "🔴 ↓"
+                            color = "#ef4444"
+                        return arrow, color
+
+                    # Metrics to compare: (label, key, format_fn, higher_is_better)
+                    wow_metrics = [
+                        ('Cost', 'cost', lambda v: f"${v:,.2f}", False),
+                        ('Register', 'register', lambda v: f"{int(v):,}", True),
+                        ('FTD', 'ftd', lambda v: f"{int(v):,}", True),
+                        ('Recharge', 'ftd_recharge', lambda v: f"₱{v:,.0f}", True),
+                        ('Conv %', 'conv_rate', lambda v: f"{v:.2f}%", True),
+                        ('CPR', 'cpr', lambda v: f"${v:,.2f}", False),
+                        ('Cost/FTD', 'cost_ftd', lambda v: f"${v:,.2f}", False),
+                        ('ROAS', 'roas', lambda v: f"{v:.2f}x", True),
+                        ('ARPPU', 'arppu', lambda v: f"₱{v:,.2f}", True),
+                    ]
+
+                    color = type_colors[key]
+                    header_cells = ''.join(
+                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#94a3b8;">{m[0]}</th>'
+                        for m in wow_metrics
+                    )
+                    # Previous week row
+                    prev_cells = ''.join(
+                        f'<td style="padding:6px 10px;text-align:right;color:#cbd5e1;">{m[2](prev[m[1]])}</td>'
+                        for m in wow_metrics
+                    )
+                    # Current week row
+                    curr_cells = ''.join(
+                        f'<td style="padding:6px 10px;text-align:right;color:white;font-weight:700;">{m[2](curr[m[1]])}</td>'
+                        for m in wow_metrics
+                    )
+                    # Change row
+                    change_cells = ''
+                    for m in wow_metrics:
+                        c_val, p_val = curr[m[1]], prev[m[1]]
+                        arrow, ac = _arrow_color(c_val, p_val, m[3])
+                        pct_str, _ = _pct(c_val, p_val)
+                        change_cells += f'<td style="padding:6px 10px;text-align:right;color:{ac};font-weight:600;font-size:0.85rem;">{arrow} {pct_str}</td>'
+
+                    st.markdown(f"""
+                    <div style="margin-bottom:1rem;">
+                    <p style="margin:0 0 4px 0;font-weight:700;color:white;">
+                        <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:6px;vertical-align:middle;"></span>
+                        {label}: {curr_label} vs {prev_label}
+                    </p>
+                    <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;font-size:0.85rem;">
+                        <thead><tr>
+                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#94a3b8;">Week</th>
+                            {header_cells}
+                        </tr></thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="padding:6px 10px;color:#94a3b8;white-space:nowrap;">{prev_label}</td>
+                                {prev_cells}
+                            </tr>
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="padding:6px 10px;color:white;font-weight:700;white-space:nowrap;">{curr_label}</td>
+                                {curr_cells}
+                            </tr>
+                            <tr>
+                                <td style="padding:6px 10px;color:#94a3b8;">WoW Δ</td>
+                                {change_cells}
+                            </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
         st.divider()
 
         # ---- Monthly Chart ----
@@ -452,6 +559,105 @@ def main():
                 monthly_map[key] = magg
         _grouped_chart(monthly_map, 'month', 'Monthly: Daily ROI vs Roll Back vs Violet',
                        bar_choice, line_choice, 'co_monthly')
+
+        # ---- MoM Detailed Comparison ----
+        if monthly_map:
+            st.markdown("#### Month-over-Month Comparison")
+            for key, label in type_labels.items():
+                magg = monthly_map.get(key)
+                if magg is None or len(magg) < 2:
+                    continue
+                magg = magg.sort_values('month').reset_index(drop=True)
+                for i in range(len(magg) - 1, 0, -1):
+                    curr = magg.iloc[i]
+                    prev = magg.iloc[i - 1]
+
+                    def _pct_m(c, p):
+                        if p == 0:
+                            return ("+∞" if c > 0 else "0.0%"), "green" if c > 0 else "gray"
+                        pct = (c - p) / abs(p) * 100
+                        sign = "+" if pct >= 0 else ""
+                        return f"{sign}{pct:.1f}%", None
+
+                    def _arrow_color_m(curr_val, prev_val, higher_is_better=True):
+                        if prev_val == 0:
+                            if curr_val > 0:
+                                return ("🟢 ↑", "#10b981") if higher_is_better else ("🔴 ↑", "#ef4444")
+                            return ("⚪ →", "#94a3b8")
+                        pct = (curr_val - prev_val) / abs(prev_val) * 100
+                        if abs(pct) < 0.5:
+                            return "⚪ →", "#94a3b8"
+                        went_up = pct > 0
+                        if (went_up and higher_is_better) or (not went_up and not higher_is_better):
+                            arrow = "🟢 ↑" if went_up else "🟢 ↓"
+                            color = "#10b981"
+                        else:
+                            arrow = "🔴 ↑" if went_up else "🔴 ↓"
+                            color = "#ef4444"
+                        return arrow, color
+
+                    mom_metrics = [
+                        ('Cost', 'cost', lambda v: f"${v:,.2f}", False),
+                        ('Register', 'register', lambda v: f"{int(v):,}", True),
+                        ('FTD', 'ftd', lambda v: f"{int(v):,}", True),
+                        ('Recharge', 'ftd_recharge', lambda v: f"₱{v:,.0f}", True),
+                        ('Conv %', 'conv_rate', lambda v: f"{v:.2f}%", True),
+                        ('CPR', 'cpr', lambda v: f"${v:,.2f}", False),
+                        ('Cost/FTD', 'cost_ftd', lambda v: f"${v:,.2f}", False),
+                        ('ROAS', 'roas', lambda v: f"{v:.2f}x", True),
+                        ('ARPPU', 'arppu', lambda v: f"₱{v:,.2f}", True),
+                    ]
+
+                    color = type_colors[key]
+                    header_cells = ''.join(
+                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#94a3b8;">{m[0]}</th>'
+                        for m in mom_metrics
+                    )
+                    prev_cells = ''.join(
+                        f'<td style="padding:6px 10px;text-align:right;color:#cbd5e1;">{m[2](prev[m[1]])}</td>'
+                        for m in mom_metrics
+                    )
+                    curr_cells = ''.join(
+                        f'<td style="padding:6px 10px;text-align:right;color:white;font-weight:700;">{m[2](curr[m[1]])}</td>'
+                        for m in mom_metrics
+                    )
+                    change_cells = ''
+                    for m in mom_metrics:
+                        c_val, p_val = curr[m[1]], prev[m[1]]
+                        arrow, ac = _arrow_color_m(c_val, p_val, m[3])
+                        pct_str, _ = _pct_m(c_val, p_val)
+                        change_cells += f'<td style="padding:6px 10px;text-align:right;color:{ac};font-weight:600;font-size:0.85rem;">{arrow} {pct_str}</td>'
+
+                    st.markdown(f"""
+                    <div style="margin-bottom:1rem;">
+                    <p style="margin:0 0 4px 0;font-weight:700;color:white;">
+                        <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:6px;vertical-align:middle;"></span>
+                        {label}: {curr['month']} vs {prev['month']}
+                    </p>
+                    <div style="overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;font-size:0.85rem;">
+                        <thead><tr>
+                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#94a3b8;">Month</th>
+                            {header_cells}
+                        </tr></thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="padding:6px 10px;color:#94a3b8;white-space:nowrap;">{prev['month']}</td>
+                                {prev_cells}
+                            </tr>
+                            <tr style="border-bottom:1px solid #334155;">
+                                <td style="padding:6px 10px;color:white;font-weight:700;white-space:nowrap;">{curr['month']}</td>
+                                {curr_cells}
+                            </tr>
+                            <tr>
+                                <td style="padding:6px 10px;color:#94a3b8;">MoM Δ</td>
+                                {change_cells}
+                            </tr>
+                        </tbody>
+                    </table>
+                    </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         st.divider()
 
