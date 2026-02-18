@@ -10,6 +10,7 @@ import sys, os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import re
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
 from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
@@ -111,16 +112,19 @@ def render_content(key_prefix="wtk"):
     with st.spinner("Loading Team Channel data..."):
         data = load_team_channel_data()
         daily_df = data.get('daily', pd.DataFrame())
-        overall_df = data.get('overall', pd.DataFrame())
+        team_actual_df = data.get('team_actual', pd.DataFrame())
 
-    # Build channel→team mapping from overall section
+    # Build channel→team mapping from Team Actual section (correct grouping)
     channel_team_map = {}
-    if not overall_df.empty:
-        for _, row in overall_df.iterrows():
-            ch = row.get('channel', '')
+    if team_actual_df is not None and not team_actual_df.empty:
+        for _, row in team_actual_df.iterrows():
             team = row.get('team', '')
-            if ch and team:
-                channel_team_map[ch] = team
+            ch_src = str(row.get('channel_source', ''))
+            if not team or not ch_src:
+                continue
+            nums = re.findall(r'(\d+)', ch_src)
+            for n in nums:
+                channel_team_map[f'FB-FB-FB-DEERPROMO{int(n):02d}'] = team
 
     weekly = build_weekly_team_df(daily_df, channel_team_map)
     if weekly.empty:

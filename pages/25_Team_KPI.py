@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 from datetime import datetime, date
 import sys
 import os
+import re
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -73,14 +74,18 @@ def render_content(key_prefix="tk"):
         st.info("Check that the 'Team Channel' sheet exists and has data.")
         return
 
-    # Build channel→team mapping from overall section for daily data re-aggregation
+    # Build channel→team mapping from Team Actual section (correct grouping)
+    # Parse "Promo - 07 - 12- 13" → DEERPROMO07, DEERPROMO12, DEERPROMO13
     channel_team_map = {}
-    if not overall_df.empty:
-        for _, row in overall_df.iterrows():
-            ch = row.get('channel', '')
+    if team_actual_df is not None and not team_actual_df.empty:
+        for _, row in team_actual_df.iterrows():
             team = row.get('team', '')
-            if ch and team:
-                channel_team_map[ch] = team
+            ch_src = str(row.get('channel_source', ''))
+            if not team or not ch_src:
+                continue
+            nums = re.findall(r'(\d+)', ch_src)
+            for n in nums:
+                channel_team_map[f'FB-FB-FB-DEERPROMO{int(n):02d}'] = team
 
     # Refresh button (moved from sidebar into content area)
     rcol1, rcol2 = st.columns([4, 1])
