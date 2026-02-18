@@ -192,21 +192,29 @@ def aggregate_monthly_counterpart(df):
     return agg_df.sort_values('month')
 
 
-def render_overall_summary(overall_df, channel_name):
-    """Render overall summary with pie charts using OVERALL PERFORMANCE data from sheet."""
+def render_overall_summary(filtered_df, channel_name):
+    """Render overall summary with pie charts computed from date-filtered daily data."""
     st.markdown(f'<div class="section-header"><h3>📊 OVERALL PERFORMANCE - {channel_name.upper()}</h3></div>', unsafe_allow_html=True)
 
-    if overall_df.empty:
-        st.info(f"No {channel_name} overall data available")
+    if filtered_df.empty:
+        st.info(f"No {channel_name} data available for selected date range")
         return
 
-    # Use the OVERALL PERFORMANCE data directly from sheet
-    channel_agg = overall_df.copy()
+    # Filter out summary rows
+    df = filtered_df[~filtered_df['channel'].str.contains('平均|总计|Average|Total', case=False, na=False)].copy()
+    if df.empty:
+        st.info(f"No {channel_name} data available for selected date range")
+        return
 
-    # Calculate ROAS if not already present
-    if 'roas' not in channel_agg.columns or channel_agg['roas'].isna().all():
-        channel_agg['roas'] = channel_agg.apply(
-            lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
+    # Aggregate by channel source from filtered daily data
+    channel_agg = df.groupby('channel').agg({
+        'first_recharge': 'sum',
+        'total_amount': 'sum',
+        'spending': 'sum',
+    }).reset_index()
+
+    channel_agg['roas'] = channel_agg.apply(
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
 
     # Display totals
     totals = {
@@ -216,7 +224,6 @@ def render_overall_summary(overall_df, channel_name):
     }
     totals['arppu'] = totals['total_amount'] / totals['first_recharge'] if totals['first_recharge'] > 0 else 0
     totals['cost_per_recharge'] = totals['spending'] / totals['first_recharge'] if totals['first_recharge'] > 0 else 0
-    # ROAS = ARPPU / 57.7 / Cost per Recharge
     totals['roas'] = (totals['arppu'] / 57.7 / totals['cost_per_recharge']) if totals['cost_per_recharge'] > 0 else 0
 
     col1, col2, col3 = st.columns(3)
@@ -252,7 +259,6 @@ def render_overall_summary(overall_df, channel_name):
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-        # Bar chart for ROAS comparison
         fig = px.bar(channel_agg.sort_values('roas', ascending=True),
                     x='roas', y='channel', orientation='h',
                     title='ROAS by Channel Source')
@@ -613,11 +619,8 @@ def main():
     channel_icon = "📘" if selected_channel == "Facebook" else "📕"
     st.markdown(f"### {channel_icon} {selected_channel} Performance Report")
 
-    # Get overall data for selected channel
-    selected_overall_df = fb_overall_df if selected_channel == "Facebook" else google_overall_df
-
-    # Render sections for single channel
-    render_overall_summary(selected_overall_df, selected_channel)
+    # Render sections for single channel (overall now computed from filtered daily data)
+    render_overall_summary(filtered_df, selected_channel)
 
     st.divider()
     render_daily_trends(filtered_df, selected_channel)
