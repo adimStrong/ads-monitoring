@@ -35,14 +35,19 @@ def get_tue_mon_week(date):
     return adjusted.isocalendar()[0], adjusted.isocalendar()[1]
 
 
-def build_weekly_team_df(daily_df):
-    """Aggregate Team Channel daily data into Tue-Mon weekly rows per team."""
+def build_weekly_team_df(daily_df, channel_team_map=None):
+    """Aggregate Team Channel daily data into Tue-Mon weekly rows per team.
+    Uses channel_team_map to assign teams since daily rows lack team names."""
     if daily_df is None or daily_df.empty:
         return pd.DataFrame()
 
     df = daily_df.copy()
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date'])
+
+    # Map channels to teams using the overall section mapping
+    if channel_team_map:
+        df['team'] = df['channel'].map(channel_team_map)
     # Only rows with a real team
     df = df[df['team'].notna() & (df['team'] != '') & (df['team'] != 'All')]
 
@@ -106,8 +111,18 @@ def render_content(key_prefix="wtk"):
     with st.spinner("Loading Team Channel data..."):
         data = load_team_channel_data()
         daily_df = data.get('daily', pd.DataFrame())
+        overall_df = data.get('overall', pd.DataFrame())
 
-    weekly = build_weekly_team_df(daily_df)
+    # Build channel→team mapping from overall section
+    channel_team_map = {}
+    if not overall_df.empty:
+        for _, row in overall_df.iterrows():
+            ch = row.get('channel', '')
+            team = row.get('team', '')
+            if ch and team:
+                channel_team_map[ch] = team
+
+    weekly = build_weekly_team_df(daily_df, channel_team_map)
     if weekly.empty:
         st.warning("No daily Team Channel data available to build weekly view.")
         st.info("The Team Channel sheet needs daily data rows with team assignments and dates.")

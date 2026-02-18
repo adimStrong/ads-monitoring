@@ -61,11 +61,26 @@ def render_content(key_prefix="tk"):
         data = load_team_channel_data()
         overall_df = data.get('overall', pd.DataFrame())
         daily_df = data.get('daily', pd.DataFrame())
+        team_actual_df = data.get('team_actual', pd.DataFrame())
 
-    if overall_df.empty and daily_df.empty:
+    # Use team_actual (PER TEAM ACTUAL section) as primary — has correct per-team aggregates including DER
+    if team_actual_df is not None and not team_actual_df.empty:
+        base_df = team_actual_df.copy()
+    elif not overall_df.empty:
+        base_df = overall_df.copy()
+    else:
         st.error("No Team Channel data available.")
         st.info("Check that the 'Team Channel' sheet exists and has data.")
         return
+
+    # Build channel→team mapping from overall section for daily data re-aggregation
+    channel_team_map = {}
+    if not overall_df.empty:
+        for _, row in overall_df.iterrows():
+            ch = row.get('channel', '')
+            team = row.get('team', '')
+            if ch and team:
+                channel_team_map[ch] = team
 
     # Refresh button (moved from sidebar into content area)
     rcol1, rcol2 = st.columns([4, 1])
@@ -79,7 +94,7 @@ def render_content(key_prefix="tk"):
     use_date_range = False
     date_from = date_to = None
     with st.expander("Custom Date Range Filter", expanded=False):
-        st.caption("When enabled, team metrics are re-aggregated from daily data within this date range.")
+        st.caption("When enabled, team metrics are re-aggregated from daily channel data within this date range.")
         dr_col1, dr_col2, dr_col3 = st.columns([2, 2, 1])
         with dr_col1:
             date_from = st.date_input("From", value=date.today().replace(day=1), key=f"{key_prefix}_dr_from")
@@ -89,35 +104,37 @@ def render_content(key_prefix="tk"):
             st.markdown("<br>", unsafe_allow_html=True)
             use_date_range = st.checkbox("Enable", key=f"{key_prefix}_dr_enable")
 
-    # If date range is enabled and we have daily data, re-aggregate
-    if use_date_range and date_from and date_to and not daily_df.empty:
-        daily_df['date'] = pd.to_datetime(daily_df['date'], errors='coerce')
-        filtered = daily_df[
-            (daily_df['date'] >= pd.Timestamp(date_from)) &
-            (daily_df['date'] <= pd.Timestamp(date_to))
+    # If date range is enabled and we have daily data, re-aggregate using channel→team mapping
+    if use_date_range and date_from and date_to and not daily_df.empty and channel_team_map:
+        filtered = daily_df.copy()
+        filtered['date'] = pd.to_datetime(filtered['date'], errors='coerce')
+        filtered = filtered[
+            (filtered['date'] >= pd.Timestamp(date_from)) &
+            (filtered['date'] <= pd.Timestamp(date_to))
         ]
         if not filtered.empty:
-            # Re-aggregate overall_df from filtered daily data
-            filtered_teams = filtered[filtered['team'].notna() & (filtered['team'] != '') & (filtered['team'] != 'All')]
-            if not filtered_teams.empty:
-                overall_df = filtered_teams.groupby('team').agg({
+            # Map channels to teams
+            filtered['team'] = filtered['channel'].map(channel_team_map)
+            filtered = filtered[filtered['team'].notna()]
+            if not filtered.empty:
+                base_df = filtered.groupby('team').agg({
                     'cost': 'sum',
                     'registrations': 'sum',
                     'first_recharge': 'sum',
                     'total_amount': 'sum',
                 }).reset_index()
                 # Recalculate derived columns
-                overall_df['cpr'] = overall_df.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
-                overall_df['cpfd'] = overall_df.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
-                overall_df['roas'] = overall_df.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
-                overall_df['arppu'] = overall_df.apply(lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+                base_df['cpr'] = base_df.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
+                base_df['cpfd'] = base_df.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+                base_df['roas'] = base_df.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+                base_df['arppu'] = base_df.apply(lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
                 st.info(f"Showing data for **{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')}**")
             else:
-                st.warning("No team-assigned daily data in selected date range.")
+                st.warning("No channels could be mapped to teams in selected date range.")
         else:
             st.warning("No data found in selected date range.")
 
-    if overall_df.empty:
+    if base_df.empty:
         st.error("No data available after filtering.")
         return
 
@@ -140,7 +157,7 @@ def render_content(key_prefix="tk"):
     st.markdown(mapping_html, unsafe_allow_html=True)
 
     # --- Aggregate by team ---
-    team_agg = overall_df.groupby('team').agg({
+    team_agg = base_df.groupby('team').agg({
         'cost': 'sum',
         'registrations': 'sum',
         'first_recharge': 'sum',
