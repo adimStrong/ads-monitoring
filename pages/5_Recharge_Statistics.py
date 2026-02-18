@@ -441,6 +441,109 @@ def main():
         _grouped_chart(weekly_map, 'week_label', 'Weekly: Daily ROI vs Roll Back vs Violet',
                        bar_choice, line_choice, 'co_weekly')
 
+        # ---- Helper: generate text explanation for WoW/MoM changes ----
+        def _build_explanation(curr, prev, curr_label, prev_label, period_type="week"):
+            """Generate plain-English explanation of metric changes between two periods."""
+            def pct_change(c, p):
+                if p == 0:
+                    return None
+                return (c - p) / abs(p) * 100
+
+            lines = []
+            highlights = []  # (priority, text) for sorting
+            warnings = []
+
+            # Cost
+            cost_pct = pct_change(curr['cost'], prev['cost'])
+            if cost_pct is not None:
+                if abs(cost_pct) >= 1:
+                    direction = "increased" if cost_pct > 0 else "decreased"
+                    lines.append(f"Ad spend {direction} by {abs(cost_pct):.1f}% (${prev['cost']:,.0f} → ${curr['cost']:,.0f}).")
+
+            # Register
+            reg_pct = pct_change(curr['register'], prev['register'])
+            if reg_pct is not None and abs(reg_pct) >= 1:
+                direction = "grew" if reg_pct > 0 else "dropped"
+                lines.append(f"Registrations {direction} by {abs(reg_pct):.1f}% ({int(prev['register']):,} → {int(curr['register']):,}).")
+
+            # FTD
+            ftd_pct = pct_change(curr['ftd'], prev['ftd'])
+            if ftd_pct is not None and abs(ftd_pct) >= 1:
+                direction = "increased" if ftd_pct > 0 else "declined"
+                emoji = "📈" if ftd_pct > 0 else "📉"
+                highlights.append((abs(ftd_pct), f"{emoji} FTD {direction} by {abs(ftd_pct):.1f}% ({int(prev['ftd']):,} → {int(curr['ftd']):,})."))
+
+            # Recharge
+            rech_pct = pct_change(curr['ftd_recharge'], prev['ftd_recharge'])
+            if rech_pct is not None and abs(rech_pct) >= 1:
+                direction = "up" if rech_pct > 0 else "down"
+                emoji = "💰" if rech_pct > 0 else "📉"
+                highlights.append((abs(rech_pct), f"{emoji} Total recharge is {direction} {abs(rech_pct):.1f}% (₱{prev['ftd_recharge']:,.0f} → ₱{curr['ftd_recharge']:,.0f})."))
+
+            # Conv Rate
+            conv_pct = pct_change(curr['conv_rate'], prev['conv_rate'])
+            if conv_pct is not None and abs(conv_pct) >= 1:
+                direction = "improved" if conv_pct > 0 else "worsened"
+                lines.append(f"Conversion rate {direction} from {prev['conv_rate']:.2f}% to {curr['conv_rate']:.2f}%.")
+
+            # ROAS
+            roas_pct = pct_change(curr['roas'], prev['roas'])
+            if roas_pct is not None and abs(roas_pct) >= 1:
+                direction = "improved" if roas_pct > 0 else "declined"
+                emoji = "✅" if roas_pct > 0 else "⚠️"
+                highlights.append((abs(roas_pct) + 50, f"{emoji} ROAS {direction} from {prev['roas']:.2f}x to {curr['roas']:.2f}x ({'+' if roas_pct > 0 else ''}{roas_pct:.1f}%)."))
+
+            # CPR
+            cpr_pct = pct_change(curr['cpr'], prev['cpr'])
+            if cpr_pct is not None and abs(cpr_pct) >= 1:
+                if cpr_pct > 0:
+                    warnings.append(f"Cost per registration rose {abs(cpr_pct):.1f}% (${prev['cpr']:,.2f} → ${curr['cpr']:,.2f}).")
+                else:
+                    lines.append(f"Cost per registration improved by {abs(cpr_pct):.1f}% (${prev['cpr']:,.2f} → ${curr['cpr']:,.2f}).")
+
+            # Cost/FTD
+            cftd_pct = pct_change(curr['cost_ftd'], prev['cost_ftd'])
+            if cftd_pct is not None and abs(cftd_pct) >= 1:
+                if cftd_pct > 0:
+                    warnings.append(f"Cost per FTD increased {abs(cftd_pct):.1f}% (${prev['cost_ftd']:,.2f} → ${curr['cost_ftd']:,.2f}).")
+                else:
+                    lines.append(f"Cost per FTD decreased by {abs(cftd_pct):.1f}% (${prev['cost_ftd']:,.2f} → ${curr['cost_ftd']:,.2f}).")
+
+            # ARPPU
+            arppu_pct = pct_change(curr['arppu'], prev['arppu'])
+            if arppu_pct is not None and abs(arppu_pct) >= 1:
+                direction = "increased" if arppu_pct > 0 else "decreased"
+                lines.append(f"Average revenue per paying user {direction} by {abs(arppu_pct):.1f}% (₱{prev['arppu']:,.2f} → ₱{curr['arppu']:,.2f}).")
+
+            # Build the summary
+            # Sort highlights by priority (biggest changes first)
+            highlights.sort(key=lambda x: -x[0])
+            highlight_lines = [h[1] for h in highlights]
+
+            # Overall verdict
+            good_count = sum(1 for h in highlights if any(e in h[1] for e in ["📈", "💰", "✅"]))
+            bad_count = sum(1 for h in highlights if any(e in h[1] for e in ["📉", "⚠️"]))
+            if good_count > bad_count:
+                verdict = f"Overall, <b style='color:#10b981;'>positive {period_type}</b> — key metrics trending in the right direction."
+            elif bad_count > good_count:
+                verdict = f"Overall, <b style='color:#ef4444;'>challenging {period_type}</b> — some metrics need attention."
+            else:
+                verdict = f"Overall, <b style='color:#f59e0b;'>mixed results</b> — improvements in some areas, declines in others."
+
+            all_lines = highlight_lines + lines
+            if warnings:
+                all_lines.append("<b>Watch out:</b> " + " ".join(warnings))
+
+            if not all_lines:
+                return ""
+
+            bullets = "".join(f"<li style='margin-bottom:4px;'>{l}</li>" for l in all_lines)
+            return f"""<div style="background:#0f172a;border-left:4px solid #3b82f6;padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0 16px 0;font-size:0.85rem;color:#e2e8f0;">
+                <p style="margin:0 0 6px 0;font-weight:600;color:white;">📝 {curr_label} vs {prev_label} — Analysis</p>
+                <ul style="margin:0;padding-left:20px;">{bullets}</ul>
+                <p style="margin:8px 0 0 0;">{verdict}</p>
+            </div>"""
+
         # ---- WoW Detailed Comparison ----
         if weekly_map:
             st.markdown("#### Week-over-Week Comparison")
@@ -547,6 +650,11 @@ def main():
                     </div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                    # Text explanation
+                    explanation = _build_explanation(curr, prev, curr_label, prev_label, "week")
+                    if explanation:
+                        st.markdown(explanation, unsafe_allow_html=True)
 
         st.divider()
 
@@ -658,6 +766,11 @@ def main():
                     </div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                    # Text explanation
+                    explanation = _build_explanation(curr, prev, curr['month'], prev['month'], "month")
+                    if explanation:
+                        st.markdown(explanation, unsafe_allow_html=True)
 
         st.divider()
 
