@@ -42,7 +42,7 @@ ALL_KPIS = {**KPI_SCORING, **KPI_MANUAL}
 MANUAL_KEYS = list(KPI_MANUAL.keys())
 
 PARAM_TEXT = {
-    'cpa': '4: $9-$9.9 | 3: $10-$13 | 2: $14-$15 | 1: >$15',
+    'cpa': '4: <=$9.99 | 3: $10-$13.99 | 2: $14-$15 | 1: >$15',
     'roas': '4: >0.40x | 3: 0.20-0.39x | 2: 0.10-0.19x | 1: <0.10x',
     'cvr': '4: 7-9% | 3: 4-6% | 2: 2-3% | 1: <2%',
     'campaign_setup': '4: 95-97% | 3: 90-94% | 2: 85-89% | 1: <85%',
@@ -282,7 +282,7 @@ Each KPI is scored **1 to 4**, then multiplied by its **weight**.
 """)
             st.markdown("#### AUTO KPIs (75% = max 3.00)")
             auto_explain = pd.DataFrame([
-                {"KPI": "CPA", "Weight": "12.5%", "Formula": "Cost / FTD", "4 (Best)": "$9-$9.99", "3": "$10-$13.99", "2": "$14-$15", "1 (Worst)": ">$15"},
+                {"KPI": "CPA", "Weight": "12.5%", "Formula": "Cost / FTD", "4 (Best)": "<=$9.99", "3": "$10-$13.99", "2": "$14-$15", "1 (Worst)": ">$15"},
                 {"KPI": "ROAS", "Weight": "12.5%", "Formula": "ARPPU / 57.7 / CPD", "4 (Best)": ">=0.40x", "3": "0.20-0.399x", "2": "0.10-0.199x", "1 (Worst)": "<0.10x"},
                 {"KPI": "CVR", "Weight": "15%", "Formula": "FTD / Register x100", "4 (Best)": ">=7%", "3": "4-6.99%", "2": "2-3.99%", "1 (Worst)": "<2%"},
                 {"KPI": "CTR", "Weight": "7.5%", "Formula": "Clicks / Impressions x100", "4 (Best)": ">=3%", "3": "2-2.99%", "2": "1-1.99%", "1 (Worst)": "<1%"},

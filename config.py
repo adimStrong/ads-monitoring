@@ -570,7 +570,7 @@ KPI_SCORING = {
         'weight': 0.125,    # 12.5% (CPA + ROAS = 25%)
         'krs': 'Revenue Generation',
         'auto': True,
-        'thresholds': [(4, 9.0, 9.99), (3, 10.0, 13.99), (2, 14.0, 15.0), (1, 15.01, float('inf'))],
+        'thresholds': [(4, 0, 9.99), (3, 10.0, 13.99), (2, 14.0, 15.0), (1, 15.01, float('inf'))],
         'direction': 'lower_better',
     },
     'roas': {
