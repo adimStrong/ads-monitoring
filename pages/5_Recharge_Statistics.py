@@ -197,9 +197,9 @@ def main():
 
         # Executive Header
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 1.5rem 2rem; border-radius: 15px; color: white; margin-bottom: 1.5rem;">
-            <h2 style="margin: 0;">Combined Recharge Overview</h2>
-            <p style="margin: 0.5rem 0 0 0; opacity: 0.8;">{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')} &bull; {channel_filter} Channel(s)</p>
+        <div style="background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 1.5rem 2rem; border-radius: 15px; color: #1e293b; margin-bottom: 1.5rem;">
+            <h2 style="margin: 0; color: #1e293b;">Combined Recharge Overview</h2>
+            <p style="margin: 0.5rem 0 0 0; color: #475569;">{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')} &bull; {channel_filter} Channel(s)</p>
         </div>
         """, unsafe_allow_html=True)
 
@@ -219,29 +219,29 @@ def main():
             ('ROAS', lambda t: f"{t['roas']:.2f}x"),
             ('ARPPU', lambda t: f"₱{t['arppu']:,.2f}"),
         ]
-        header_cells = ''.join(f'<th style="padding:8px 12px;text-align:right;font-size:0.8rem;color:#94a3b8;font-weight:600;">{m[0]}</th>' for m in metric_cols)
+        header_cells = ''.join(f'<th style="padding:8px 12px;text-align:right;font-size:0.8rem;color:#64748b;font-weight:600;">{m[0]}</th>' for m in metric_cols)
         body_rows = ''
         for key, label in type_labels.items():
             t = type_totals[key]
             color = type_colors[key]
-            note = ' <span style="font-size:0.65rem;opacity:0.7;">(Reg=RB)</span>' if key == 'violet' else ''
+            note = ' <span style="font-size:0.65rem;color:#94a3b8;">(Reg=RB)</span>' if key == 'violet' else ''
             val_cells = ''.join(
-                f'<td style="padding:8px 12px;text-align:right;font-size:1rem;font-weight:700;color:white;">{m[1](t)}</td>'
+                f'<td style="padding:8px 12px;text-align:right;font-size:1rem;font-weight:700;color:#1e293b;">{m[1](t)}</td>'
                 for m in metric_cols
             )
-            body_rows += f'''<tr>
+            body_rows += f'''<tr style="border-bottom:1px solid #e2e8f0;">
                 <td style="padding:8px 12px;white-space:nowrap;">
                     <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:8px;vertical-align:middle;"></span>
-                    <span style="font-weight:700;font-size:0.95rem;color:white;">{label}</span>{note}
+                    <span style="font-weight:700;font-size:0.95rem;color:#1e293b;">{label}</span>{note}
                 </td>
                 {val_cells}
             </tr>'''
 
         st.markdown(f"""
         <div style="overflow-x:auto;margin-bottom:1rem;">
-        <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:12px;overflow:hidden;">
-            <thead><tr>
-                <th style="padding:8px 12px;text-align:left;font-size:0.8rem;color:#94a3b8;font-weight:600;">View</th>
+        <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+            <thead><tr style="background:#f1f5f9;">
+                <th style="padding:8px 12px;text-align:left;font-size:0.8rem;color:#64748b;font-weight:600;">View</th>
                 {header_cells}
             </tr></thead>
             <tbody>{body_rows}</tbody>
@@ -538,8 +538,8 @@ def main():
                 return ""
 
             bullets = "".join(f"<li style='margin-bottom:4px;'>{l}</li>" for l in all_lines)
-            return f"""<div style="background:#0f172a;border-left:4px solid #3b82f6;padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0 16px 0;font-size:0.85rem;color:#e2e8f0;">
-                <p style="margin:0 0 6px 0;font-weight:600;color:white;">📝 {curr_label} vs {prev_label} — Analysis</p>
+            return f"""<div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:12px 16px;border-radius:0 8px 8px 0;margin:8px 0 16px 0;font-size:0.85rem;color:#334155;">
+                <p style="margin:0 0 6px 0;font-weight:600;color:#1e293b;">📝 {curr_label} vs {prev_label} — Analysis</p>
                 <ul style="margin:0;padding-left:20px;">{bullets}</ul>
                 <p style="margin:8px 0 0 0;">{verdict}</p>
             </div>"""
@@ -599,17 +599,17 @@ def main():
 
                     color = type_colors[key]
                     header_cells = ''.join(
-                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#94a3b8;">{m[0]}</th>'
+                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;">{m[0]}</th>'
                         for m in wow_metrics
                     )
                     # Previous week row
                     prev_cells = ''.join(
-                        f'<td style="padding:6px 10px;text-align:right;color:#cbd5e1;">{m[2](prev[m[1]])}</td>'
+                        f'<td style="padding:6px 10px;text-align:right;color:#64748b;">{m[2](prev[m[1]])}</td>'
                         for m in wow_metrics
                     )
                     # Current week row
                     curr_cells = ''.join(
-                        f'<td style="padding:6px 10px;text-align:right;color:white;font-weight:700;">{m[2](curr[m[1]])}</td>'
+                        f'<td style="padding:6px 10px;text-align:right;color:#1e293b;font-weight:700;">{m[2](curr[m[1]])}</td>'
                         for m in wow_metrics
                     )
                     # Change row
@@ -622,27 +622,27 @@ def main():
 
                     st.markdown(f"""
                     <div style="margin-bottom:1rem;">
-                    <p style="margin:0 0 4px 0;font-weight:700;color:white;">
+                    <p style="margin:0 0 4px 0;font-weight:700;color:#1e293b;">
                         <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:6px;vertical-align:middle;"></span>
                         {label}: {curr_label} vs {prev_label}
                     </p>
                     <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;font-size:0.85rem;">
-                        <thead><tr>
-                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#94a3b8;">Week</th>
+                    <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden;font-size:0.85rem;border:1px solid #e2e8f0;">
+                        <thead><tr style="background:#f1f5f9;">
+                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#64748b;">Week</th>
                             {header_cells}
                         </tr></thead>
                         <tbody>
-                            <tr style="border-bottom:1px solid #334155;">
-                                <td style="padding:6px 10px;color:#94a3b8;white-space:nowrap;">{prev_label}</td>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:6px 10px;color:#64748b;white-space:nowrap;">{prev_label}</td>
                                 {prev_cells}
                             </tr>
-                            <tr style="border-bottom:1px solid #334155;">
-                                <td style="padding:6px 10px;color:white;font-weight:700;white-space:nowrap;">{curr_label}</td>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:6px 10px;color:#1e293b;font-weight:700;white-space:nowrap;">{curr_label}</td>
                                 {curr_cells}
                             </tr>
-                            <tr>
-                                <td style="padding:6px 10px;color:#94a3b8;">WoW Δ</td>
+                            <tr style="background:#f1f5f9;">
+                                <td style="padding:6px 10px;color:#64748b;font-weight:600;">WoW Δ</td>
                                 {change_cells}
                             </tr>
                         </tbody>
@@ -718,15 +718,15 @@ def main():
 
                     color = type_colors[key]
                     header_cells = ''.join(
-                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#94a3b8;">{m[0]}</th>'
+                        f'<th style="padding:6px 10px;text-align:right;font-size:0.75rem;color:#64748b;">{m[0]}</th>'
                         for m in mom_metrics
                     )
                     prev_cells = ''.join(
-                        f'<td style="padding:6px 10px;text-align:right;color:#cbd5e1;">{m[2](prev[m[1]])}</td>'
+                        f'<td style="padding:6px 10px;text-align:right;color:#64748b;">{m[2](prev[m[1]])}</td>'
                         for m in mom_metrics
                     )
                     curr_cells = ''.join(
-                        f'<td style="padding:6px 10px;text-align:right;color:white;font-weight:700;">{m[2](curr[m[1]])}</td>'
+                        f'<td style="padding:6px 10px;text-align:right;color:#1e293b;font-weight:700;">{m[2](curr[m[1]])}</td>'
                         for m in mom_metrics
                     )
                     change_cells = ''
@@ -738,27 +738,27 @@ def main():
 
                     st.markdown(f"""
                     <div style="margin-bottom:1rem;">
-                    <p style="margin:0 0 4px 0;font-weight:700;color:white;">
+                    <p style="margin:0 0 4px 0;font-weight:700;color:#1e293b;">
                         <span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:{color};margin-right:6px;vertical-align:middle;"></span>
                         {label}: {curr['month']} vs {prev['month']}
                     </p>
                     <div style="overflow-x:auto;">
-                    <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;font-size:0.85rem;">
-                        <thead><tr>
-                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#94a3b8;">Month</th>
+                    <table style="width:100%;border-collapse:collapse;background:#f8fafc;border-radius:10px;overflow:hidden;font-size:0.85rem;border:1px solid #e2e8f0;">
+                        <thead><tr style="background:#f1f5f9;">
+                            <th style="padding:6px 10px;text-align:left;font-size:0.75rem;color:#64748b;">Month</th>
                             {header_cells}
                         </tr></thead>
                         <tbody>
-                            <tr style="border-bottom:1px solid #334155;">
-                                <td style="padding:6px 10px;color:#94a3b8;white-space:nowrap;">{prev['month']}</td>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:6px 10px;color:#64748b;white-space:nowrap;">{prev['month']}</td>
                                 {prev_cells}
                             </tr>
-                            <tr style="border-bottom:1px solid #334155;">
-                                <td style="padding:6px 10px;color:white;font-weight:700;white-space:nowrap;">{curr['month']}</td>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:6px 10px;color:#1e293b;font-weight:700;white-space:nowrap;">{curr['month']}</td>
                                 {curr_cells}
                             </tr>
-                            <tr>
-                                <td style="padding:6px 10px;color:#94a3b8;">MoM Δ</td>
+                            <tr style="background:#f1f5f9;">
+                                <td style="padding:6px 10px;color:#64748b;font-weight:600;">MoM Δ</td>
                                 {change_cells}
                             </tr>
                         </tbody>
