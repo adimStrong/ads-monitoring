@@ -194,7 +194,14 @@ def aggregate_monthly_counterpart(df):
 
 def render_overall_summary(filtered_df, channel_name):
     """Render overall summary with pie charts computed from date-filtered daily data."""
-    st.markdown(f'<div class="section-header"><h3>📊 OVERALL PERFORMANCE - {channel_name.upper()}</h3></div>', unsafe_allow_html=True)
+    # Show date range in header so user can see the filter is applied
+    if not filtered_df.empty:
+        dates = pd.to_datetime(filtered_df['date'])
+        date_min = dates.min().strftime('%b %d')
+        date_max = dates.max().strftime('%b %d, %Y')
+        st.markdown(f'<div class="section-header"><h3>📊 OVERALL PERFORMANCE - {channel_name.upper()} ({date_min} - {date_max})</h3></div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="section-header"><h3>📊 OVERALL PERFORMANCE - {channel_name.upper()}</h3></div>', unsafe_allow_html=True)
 
     if filtered_df.empty:
         st.info(f"No {channel_name} data available for selected date range")
@@ -403,163 +410,58 @@ def render_weekly_trends(df, channel_name):
                 st.plotly_chart(fig, use_container_width=True)
 
 
-def render_weekly_summary(df, channel_name):
-    """Render weekly summary with pie charts comparing channel sources (Tue-Mon weeks)."""
-    st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY BY CHANNEL SOURCE (Tue-Mon)</h3></div>', unsafe_allow_html=True)
+
+
+def render_monthly_trends(df, channel_name):
+    """Render monthly trends with grouped bar charts showing all months side-by-side (MoM)."""
+    st.markdown('<div class="section-header"><h3>📊 MONTHLY TRENDS BY CHANNEL SOURCE</h3></div>', unsafe_allow_html=True)
 
     if df.empty:
-        st.warning("No weekly data available for charts")
+        st.warning("No data available for monthly trends")
         return
 
-    # Filter out summary rows
     df_filtered = df[~df['channel'].str.contains('平均|总计|Average|Total', case=False, na=False)].copy()
-
     if df_filtered.empty:
-        st.warning("No weekly data available for charts")
+        st.warning("No data available for monthly trends")
         return
 
     df_filtered['date'] = pd.to_datetime(df_filtered['date'])
+    df_filtered['month'] = df_filtered['date'].dt.strftime('%Y-%m')
 
-    # Calculate Tue-Mon week
-    df_filtered['week_info'] = df_filtered['date'].apply(get_tue_mon_week)
-    df_filtered['year'] = df_filtered['week_info'].apply(lambda x: x[0])
-    df_filtered['week'] = df_filtered['week_info'].apply(lambda x: x[1])
-    df_filtered['week_key'] = df_filtered.apply(lambda x: f"{x['year']}-W{x['week']:02d}", axis=1)
-
-    # Get unique weeks with date ranges
-    weeks_info = df_filtered.groupby('week_key').agg({
-        'date': ['min', 'max']
-    }).reset_index()
-    weeks_info.columns = ['week_key', 'date_start', 'date_end']
-    weeks_info['week_label'] = weeks_info.apply(
-        lambda x: f"{x['date_start'].strftime('%b %d')} - {x['date_end'].strftime('%b %d')}", axis=1)
-    weeks_info = weeks_info.sort_values('week_key')
-
-    # Check if latest week is complete (should have 7 days: Wed to Tue)
-    weeks_info['days_count'] = weeks_info.apply(
-        lambda x: (x['date_end'] - x['date_start']).days + 1, axis=1)
-    weeks_info['is_complete'] = weeks_info['days_count'] >= 7
-
-    # Let user select a week
-    week_options = weeks_info['week_label'].tolist()
-    selected_week_label = st.selectbox("Select Week", week_options, index=len(week_options)-1 if week_options else 0)
-
-    # Get the week info for selected week
-    selected_week_row = weeks_info[weeks_info['week_label'] == selected_week_label].iloc[0]
-    selected_week_key = selected_week_row['week_key']
-    is_complete = selected_week_row['is_complete']
-    days_count = selected_week_row['days_count']
-
-    # Show warning if week is not complete
-    if not is_complete:
-        st.warning(f"⚠️ This week is not yet complete ({int(days_count)}/7 days)")
-
-    # Filter data for selected week
-    week_data = df_filtered[df_filtered['week_key'] == selected_week_key]
-
-    # Aggregate by channel source for selected week
-    weekly_agg = week_data.groupby('channel').agg({
-        'first_recharge': 'sum',
-        'total_amount': 'sum',
-        'spending': 'sum',
-    }).reset_index()
-
-    weekly_agg['roas'] = weekly_agg.apply(
-        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
-
-    st.markdown(f"#### Week: {selected_week_label}")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['first_recharge'],
-                            'First Recharge Distribution', 'count')
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['total_amount'],
-                            'Total Recharge Amount Distribution', 'php')
-        st.plotly_chart(fig, use_container_width=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig = make_pie_chart(weekly_agg['channel'], weekly_agg['spending'],
-                            'Spending Distribution', 'usd')
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        fig = px.bar(weekly_agg.sort_values('roas', ascending=True),
-                    x='roas', y='channel', orientation='h',
-                    title='ROAS Comparison')
-        fig.update_layout(height=400, xaxis_title="ROAS", yaxis_title="")
-        st.plotly_chart(fig, use_container_width=True)
-
-
-def render_monthly_summary(df, channel_name):
-    """Render monthly summary with pie charts comparing channel sources."""
-    st.markdown('<div class="section-header"><h3>📊 MONTHLY SUMMARY BY CHANNEL SOURCE</h3></div>', unsafe_allow_html=True)
-
-    if df.empty:
-        st.warning("No monthly data available for charts")
-        return
-
-    # Filter out summary rows
-    df_filtered = df[~df['channel'].str.contains('平均|总计|Average|Total', case=False, na=False)].copy()
-
-    if df_filtered.empty:
-        st.warning("No monthly data available for charts")
-        return
-
-    df_filtered['date'] = pd.to_datetime(df_filtered['date'])
-    df_filtered['month'] = df_filtered['date'].dt.to_period('M').astype(str)
-
-    # Get unique months
-    months = sorted(df_filtered['month'].unique())
-
-    # Let user select a month
-    selected_month = st.selectbox("Select Month", months, index=len(months)-1 if months else 0, key="month_select")
-
-    # Filter data for selected month
-    month_data = df_filtered[df_filtered['month'] == selected_month]
-
-    # Aggregate by channel source for selected month
-    monthly_agg = month_data.groupby('channel').agg({
-        'first_recharge': 'sum',
-        'total_amount': 'sum',
-        'spending': 'sum',
-    }).reset_index()
-
+    # Aggregate by month + channel source
+    monthly_agg = df_filtered.groupby(['month', 'channel']).agg(
+        first_recharge=('first_recharge', 'sum'),
+        total_amount=('total_amount', 'sum'),
+        spending=('spending', 'sum'),
+    ).reset_index()
     monthly_agg['roas'] = monthly_agg.apply(
-        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge'])) if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
+        lambda x: (x['total_amount'] / x['first_recharge'] / 57.7 / (x['spending'] / x['first_recharge']))
+        if x['first_recharge'] > 0 and x['spending'] > 0 else 0, axis=1)
+    monthly_agg = monthly_agg.sort_values('month')
 
-    st.markdown(f"#### Month: {selected_month}")
+    # Check incomplete current month
+    last_month = monthly_agg['month'].max()
+    last_month_days = df_filtered[df_filtered['date'].dt.strftime('%Y-%m') == last_month]['date'].dt.date.nunique()
+    if last_month_days < 28:
+        st.warning(f"⚠️ {last_month} is incomplete ({last_month_days} days of data)")
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['first_recharge'],
-                            'First Recharge Distribution', 'count')
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['total_amount'],
-                            'Total Recharge Amount Distribution', 'php')
-        st.plotly_chart(fig, use_container_width=True)
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        fig = make_pie_chart(monthly_agg['channel'], monthly_agg['spending'],
-                            'Spending Distribution', 'usd')
-        st.plotly_chart(fig, use_container_width=True)
-
-    with col2:
-        fig = px.bar(monthly_agg.sort_values('roas', ascending=True),
-                    x='roas', y='channel', orientation='h',
-                    title='ROAS Comparison')
-        fig.update_layout(height=400, xaxis_title="ROAS", yaxis_title="")
-        st.plotly_chart(fig, use_container_width=True)
+    # 2x2 grouped bar charts
+    chart_configs = [
+        ('first_recharge', 'First Recharge by Channel Source', None),
+        ('total_amount', 'Total Recharge Amount by Channel Source', '₱'),
+        ('spending', 'Spending by Channel Source', '$'),
+        ('roas', 'ROAS by Channel Source', None),
+    ]
+    for row_start in range(0, 4, 2):
+        col1, col2 = st.columns(2)
+        for col, idx in zip([col1, col2], [row_start, row_start + 1]):
+            metric, title, prefix = chart_configs[idx]
+            with col:
+                fig = px.bar(monthly_agg, x='month', y=metric, color='channel',
+                             barmode='group', title=title)
+                fig.update_layout(height=380, xaxis_title="Month", yaxis_title=metric.replace('_', ' ').title(),
+                                  legend=dict(orientation="h", yanchor="bottom", y=-0.35))
+                st.plotly_chart(fig, use_container_width=True)
 
 
 def render_data_table(df, channel_name):
@@ -692,10 +594,7 @@ def main():
     render_weekly_trends(filtered_df, selected_channel)
 
     st.divider()
-    render_weekly_summary(filtered_df, selected_channel)
-
-    st.divider()
-    render_monthly_summary(filtered_df, selected_channel)
+    render_monthly_trends(filtered_df, selected_channel)
 
     st.divider()
     render_data_table(filtered_df, selected_channel)
