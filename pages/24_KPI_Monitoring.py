@@ -6,6 +6,7 @@ Manual KPIs can be scored via input fields per agent.
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+from datetime import datetime, date
 from channel_data_loader import (
     load_agent_performance_data,
     refresh_agent_performance_data,
@@ -21,6 +22,8 @@ from channel_data_loader import (
     count_ab_testing,
     get_available_months,
     month_to_label,
+    score_kpi,
+    month_to_date_range,
 )
 import os
 import requests as http_requests
@@ -101,6 +104,97 @@ def calc_auto_weighted(agent_scores):
     return round(total, 2)
 
 
+def calculate_kpi_from_daily(daily_df, agent_name, date_from, date_to, created_assets_data=None, ab_testing_data=None, reporting_data=None):
+    """Calculate KPI scores from filtered daily data for a custom date range.
+    Aggregates daily rows into a single period, then scores each metric.
+    """
+    scores = {}
+    agent_daily = daily_df[daily_df['agent'] == agent_name].copy()
+    if agent_daily.empty or 'date' not in agent_daily.columns:
+        for key in KPI_SCORING:
+            if key in ('account_dev', 'ab_testing', 'reporting'):
+                continue
+            scores[key] = {'score': 0, 'value': 0, 'name': KPI_SCORING[key]['name']}
+    else:
+        agent_daily['date_dt'] = pd.to_datetime(agent_daily['date'], errors='coerce')
+        agent_daily = agent_daily[(agent_daily['date_dt'] >= pd.Timestamp(date_from)) &
+                                  (agent_daily['date_dt'] <= pd.Timestamp(date_to))]
+        if agent_daily.empty:
+            for key in KPI_SCORING:
+                if key in ('account_dev', 'ab_testing', 'reporting'):
+                    continue
+                scores[key] = {'score': 0, 'value': 0, 'name': KPI_SCORING[key]['name']}
+        else:
+            cost = agent_daily['cost'].sum()
+            register = agent_daily['register'].sum()
+            ftd = agent_daily['ftd'].sum()
+            impressions = agent_daily['impressions'].sum()
+            clicks = agent_daily['clicks'].sum()
+
+            # ARPPU: last non-zero
+            arppu_col = pd.to_numeric(agent_daily['arppu'], errors='coerce').fillna(0)
+            nonzero = arppu_col[arppu_col > 0]
+            arppu = nonzero.iloc[-1] if len(nonzero) > 0 else 0
+
+            cpa = cost / ftd if ftd > 0 else 0
+            s, v = score_kpi('cpa', cpa)
+            scores['cpa'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cpa']['name']}
+
+            cpd = cost / ftd if ftd > 0 else 0
+            try:
+                roas = arppu / KPI_PHP_USD_RATE / cpd if (cpd > 0 and arppu > 0) else 0
+            except:
+                roas = 0
+            s, v = score_kpi('roas', roas)
+            scores['roas'] = {'score': s, 'value': round(v, 4), 'name': KPI_SCORING['roas']['name']}
+
+            cvr = (ftd / register * 100) if register > 0 else 0
+            s, v = score_kpi('cvr', cvr)
+            scores['cvr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['cvr']['name']}
+
+            ctr = (clicks / impressions * 100) if impressions > 0 else 0
+            s, v = score_kpi('ctr', ctr)
+            scores['ctr'] = {'score': s, 'value': round(v, 2), 'name': KPI_SCORING['ctr']['name']}
+
+    # Account Dev, AB Testing, Reporting — use date range
+    from channel_data_loader import count_created_assets as _count_ca, count_ab_testing as _count_ab, score_account_dev, score_ab_testing
+    kpi_date_range = (pd.Timestamp(date_from), pd.Timestamp(date_to))
+    agent_upper = agent_name.upper()
+
+    asset_counts = {}
+    if created_assets_data is not None and not created_assets_data.empty:
+        asset_counts = _count_ca(created_assets_data, date_range=kpi_date_range).get(agent_upper, {})
+    acct_total = asset_counts.get('total_accounts', 0)
+    scores['account_dev'] = {
+        'score': score_account_dev(acct_total), 'value': acct_total,
+        'name': KPI_SCORING['account_dev']['name'],
+        'gmail': asset_counts.get('gmail', 0), 'fb_accounts': asset_counts.get('fb_accounts', 0),
+    }
+
+    ab_counts = {}
+    if ab_testing_data is not None:
+        ab_counts = _count_ab(ab_testing_data, date_range=kpi_date_range).get(agent_upper, {})
+    ab_published = ab_counts.get('published_ad', 0)
+    scores['ab_testing'] = {
+        'score': score_ab_testing(ab_published), 'value': ab_published,
+        'name': KPI_SCORING['ab_testing']['name'],
+        'primary_text': ab_counts.get('primary_text', 0), 'published_ad': ab_published,
+    }
+
+    # Reporting
+    rep_score = rep_avg_min = rep_count = 0
+    if reporting_data and agent_name in reporting_data:
+        ri = reporting_data[agent_name]
+        rep_score, rep_avg_min, rep_count = ri.get('score', 0), ri.get('avg_minute', 0), ri.get('report_count', 0)
+    scores['reporting'] = {
+        'score': rep_score, 'value': rep_avg_min,
+        'name': KPI_SCORING['reporting']['name'],
+        'avg_minute': rep_avg_min, 'report_count': rep_count,
+    }
+
+    return scores
+
+
 def render_content(key_prefix="km"):
     """Render KPI Monitoring content. key_prefix avoids widget key conflicts when embedded in tabs."""
 
@@ -150,6 +244,31 @@ def render_content(key_prefix="km"):
             refresh_ab_testing_data()
             st.rerun()
 
+    # Date range filter (optional — overrides month selector when enabled)
+    use_date_range = False
+    date_from = date_to = None
+    with st.expander("Custom Date Range Filter", expanded=False):
+        st.caption("When enabled, KPI scores are calculated from daily data within this date range (overrides month selector for CPA/ROAS/CVR/CTR).")
+        dr_col1, dr_col2, dr_col3 = st.columns([2, 2, 1])
+        # Default: start/end of selected month
+        if selected_month:
+            m_start, m_end = month_to_date_range(selected_month)
+            default_from = m_start.date()
+            default_to = m_end.date()
+        else:
+            default_from = date.today().replace(day=1)
+            default_to = date.today()
+        with dr_col1:
+            date_from = st.date_input("From", value=default_from, key=f"{key_prefix}_dr_from")
+        with dr_col2:
+            date_to = st.date_input("To", value=default_to, key=f"{key_prefix}_dr_to")
+        with dr_col3:
+            st.markdown("<br>", unsafe_allow_html=True)
+            use_date_range = st.checkbox("Enable", key=f"{key_prefix}_dr_enable")
+
+    if use_date_range and date_from and date_to:
+        selected_month_label = f"{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')}"
+
     # Load Updated Accounts data (kept for backward compat)
     accounts_data = load_updated_accounts_data()
 
@@ -174,14 +293,22 @@ def render_content(key_prefix="km"):
     live_scores = {}
     for tab_info in AGENT_PERFORMANCE_TABS:
         agent = tab_info['agent']
-        live_scores[agent] = calculate_kpi_scores(
-            monthly_df, agent, daily_df=daily_df,
-            accounts_data=accounts_data,
-            created_assets_data=created_assets_data,
-            ab_testing_data=ab_testing_data,
-            reporting_data=chat_reporting,
-            month_filter=selected_month,
-        )
+        if use_date_range and date_from and date_to:
+            live_scores[agent] = calculate_kpi_from_daily(
+                daily_df, agent, date_from, date_to,
+                created_assets_data=created_assets_data,
+                ab_testing_data=ab_testing_data,
+                reporting_data=chat_reporting,
+            )
+        else:
+            live_scores[agent] = calculate_kpi_scores(
+                monthly_df, agent, daily_df=daily_df,
+                accounts_data=accounts_data,
+                created_assets_data=created_assets_data,
+                ab_testing_data=ab_testing_data,
+                reporting_data=chat_reporting,
+                month_filter=selected_month,
+            )
 
     # ============================================================
     # ALL AGENTS VIEW

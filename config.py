@@ -699,5 +699,7 @@ SIDEBAR_HIDE_CSS = """
     [data-testid="stSidebarNav"] a[href*="Chat_Monitor"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Reporting_Accuracy"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Ad_Spend_Tracker"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Weekly_KPI"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Weekly_Team_KPI"] { display: none !important; }
 </style>
 """

@@ -5,7 +5,7 @@ Shows per-team KPI metrics from Team Channel data with manual collaboration scor
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from datetime import datetime
+from datetime import datetime, date
 import sys
 import os
 
@@ -60,8 +60,9 @@ def render_content(key_prefix="tk"):
     with st.spinner("Loading Team Channel data..."):
         data = load_team_channel_data()
         overall_df = data.get('overall', pd.DataFrame())
+        daily_df = data.get('daily', pd.DataFrame())
 
-    if overall_df.empty:
+    if overall_df.empty and daily_df.empty:
         st.error("No Team Channel data available.")
         st.info("Check that the 'Team Channel' sheet exists and has data.")
         return
@@ -73,6 +74,52 @@ def render_content(key_prefix="tk"):
             refresh_team_channel_data()
             st.cache_data.clear()
             st.rerun()
+
+    # Date range filter (optional)
+    use_date_range = False
+    date_from = date_to = None
+    with st.expander("Custom Date Range Filter", expanded=False):
+        st.caption("When enabled, team metrics are re-aggregated from daily data within this date range.")
+        dr_col1, dr_col2, dr_col3 = st.columns([2, 2, 1])
+        with dr_col1:
+            date_from = st.date_input("From", value=date.today().replace(day=1), key=f"{key_prefix}_dr_from")
+        with dr_col2:
+            date_to = st.date_input("To", value=date.today(), key=f"{key_prefix}_dr_to")
+        with dr_col3:
+            st.markdown("<br>", unsafe_allow_html=True)
+            use_date_range = st.checkbox("Enable", key=f"{key_prefix}_dr_enable")
+
+    # If date range is enabled and we have daily data, re-aggregate
+    if use_date_range and date_from and date_to and not daily_df.empty:
+        daily_df['date'] = pd.to_datetime(daily_df['date'], errors='coerce')
+        filtered = daily_df[
+            (daily_df['date'] >= pd.Timestamp(date_from)) &
+            (daily_df['date'] <= pd.Timestamp(date_to))
+        ]
+        if not filtered.empty:
+            # Re-aggregate overall_df from filtered daily data
+            filtered_teams = filtered[filtered['team'].notna() & (filtered['team'] != '') & (filtered['team'] != 'All')]
+            if not filtered_teams.empty:
+                overall_df = filtered_teams.groupby('team').agg({
+                    'cost': 'sum',
+                    'registrations': 'sum',
+                    'first_recharge': 'sum',
+                    'total_amount': 'sum',
+                }).reset_index()
+                # Recalculate derived columns
+                overall_df['cpr'] = overall_df.apply(lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
+                overall_df['cpfd'] = overall_df.apply(lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+                overall_df['roas'] = overall_df.apply(lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+                overall_df['arppu'] = overall_df.apply(lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+                st.info(f"Showing data for **{date_from.strftime('%b %d')} – {date_to.strftime('%b %d, %Y')}**")
+            else:
+                st.warning("No team-assigned daily data in selected date range.")
+        else:
+            st.warning("No data found in selected date range.")
+
+    if overall_df.empty:
+        st.error("No data available after filtering.")
+        return
 
     # Initialize session state for collaboration scores
     ss_collab = f"{key_prefix}_team_collab_scores"
