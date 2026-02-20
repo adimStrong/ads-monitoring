@@ -317,17 +317,25 @@ def main():
         start_date = datetime.now().date()
         end_date = datetime.now().date()
 
-    # Agent filter
+    # Agent filter - build from P-tab agents (title case) merged with legacy agents
     st.sidebar.subheader("Agent Filter")
-    agent_options = ['All Agents'] + [a['name'] for a in AGENTS]
+    ptab_agents = sorted(ptab_daily['agent'].unique().tolist()) if not ptab_daily.empty and 'agent' in ptab_daily.columns else []
+    legacy_agents = [a['name'] for a in AGENTS]
+    # Merge: use P-tab names as primary, add any legacy-only agents
+    ptab_upper = {a.upper() for a in ptab_agents}
+    extra_legacy = [a for a in legacy_agents if a.upper() not in ptab_upper]
+    all_agent_names = ptab_agents + extra_legacy
+    agent_options = ['All Agents'] + all_agent_names
     selected_agent = st.sidebar.selectbox("Select Agent", agent_options)
 
-    # Filter data
+    # Filter data — P-tab uses title case, legacy uses uppercase
     if selected_agent != 'All Agents':
-        running_ads_df = running_ads_df[running_ads_df['agent_name'] == selected_agent]
-        creative_df = creative_df[creative_df['agent_name'] == selected_agent]
-        sms_df = sms_df[sms_df['agent_name'] == selected_agent]
-        content_df = content_df[content_df['agent_name'] == selected_agent]
+        agent_upper = selected_agent.upper()
+        # Legacy data uses uppercase agent names
+        running_ads_df = running_ads_df[running_ads_df['agent_name'].str.upper() == agent_upper]
+        creative_df = creative_df[creative_df['agent_name'].str.upper() == agent_upper]
+        sms_df = sms_df[sms_df['agent_name'].str.upper() == agent_upper]
+        content_df = content_df[content_df['agent_name'].str.upper() == agent_upper]
 
     if selected_agent != 'All Agents' and not ptab_daily.empty and 'agent' in ptab_daily.columns:
         ptab_daily = ptab_daily[ptab_daily['agent'] == selected_agent]
