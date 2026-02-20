@@ -417,7 +417,7 @@ def main():
     signal.signal(signal.SIGINT, graceful_shutdown)
     signal.signal(signal.SIGTERM, graceful_shutdown)
 
-    # Check if we missed today's report (scheduler started after 2pm)
+    # Check if we started at or near report time — send immediately
     try:
         from pytz import timezone as pytz_tz
         now_ph = datetime.now(pytz_tz('Asia/Manila'))
@@ -425,7 +425,11 @@ def main():
         now_ph = datetime.now()
     send_hour = DAILY_REPORT_SEND_TIME['hour']
     send_minute = DAILY_REPORT_SEND_TIME['minute']
-    if now_ph.hour > send_hour or (now_ph.hour == send_hour and now_ph.minute > send_minute + 5):
+    if now_ph.hour == send_hour and now_ph.minute <= send_minute + 5:
+        # Started within 5 min of report time — send report immediately
+        logger.info("Scheduler started at report time - sending report now!")
+        send_report()
+    elif now_ph.hour > send_hour or (now_ph.hour == send_hour and now_ph.minute > send_minute + 5):
         logger.warning(f"Scheduler started after {send_hour}:{send_minute:02d} - report may have been missed today")
 
     scheduler = setup_scheduler()
