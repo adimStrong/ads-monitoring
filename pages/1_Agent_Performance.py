@@ -106,6 +106,14 @@ else:
     with col2:
         end_date = st.date_input("To", datetime.now())
 
+# Apply date filter to P-tab data
+if has_ptab and not agent_ptab_daily.empty:
+    agent_ptab_daily = agent_ptab_daily[
+        (agent_ptab_daily['date'] >= pd.Timestamp(start_date)) &
+        (agent_ptab_daily['date'] <= pd.Timestamp(end_date))
+    ]
+    has_ptab = not agent_ptab_daily.empty
+
 # Sidebar data info
 if has_ptab:
     st.sidebar.success(f"P-tab: {len(agent_ptab_daily)} days loaded")
@@ -221,9 +229,14 @@ with tab5:
         st.divider()
 
         # Per-agent breakdown table when "All" selected
-        if is_all_agents and not ptab_daily.empty:
+        if is_all_agents and not agent_ptab_daily.empty:
             st.subheader("Per Agent Breakdown")
-            per_agent = ptab_daily.groupby('agent').agg({
+            # Use the unfiltered ptab_daily but apply date filter
+            filtered_ptab = ptab_daily[
+                (ptab_daily['date'] >= pd.Timestamp(start_date)) &
+                (ptab_daily['date'] <= pd.Timestamp(end_date))
+            ]
+            per_agent = filtered_ptab.groupby('agent').agg({
                 'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
                 'impressions': 'sum', 'clicks': 'sum',
             }).reset_index()

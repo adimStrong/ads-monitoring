@@ -365,7 +365,8 @@ def main():
     ])
 
     with tab1:
-        render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily)
+        render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily,
+                        ptab_min=ptab_min, ptab_max=ptab_max)
 
     with tab2:
         render_facebook_ads(ptab_daily)
@@ -380,7 +381,7 @@ def main():
         render_content_analysis(content_df, selected_agent)
 
 
-def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=None):
+def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=None, ptab_min=None, ptab_max=None):
     """Render overview tab with all sections"""
     st.subheader("Team Overview")
 
@@ -489,7 +490,11 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
             st.metric("CTR", f"{avg_ctr:.2f}%")
         with col5:
             st.metric("Conversions", f"{int(total_register):,}")
-        st.caption("⚠️ Showing legacy data (5 agents only). P-tab data not available for this date range.")
+        # Show P-tab date range hint
+        ptab_hint = ""
+        if ptab_min is not None and ptab_max is not None:
+            ptab_hint = f" P-tab data covers **{ptab_min.strftime('%b %d')} – {ptab_max.strftime('%b %d, %Y')}**. Adjust date range to see P-tab data."
+        st.warning(f"⚠️ Showing legacy data (5 agents only). P-tab data not available for this date range.{ptab_hint}")
     else:
         st.info("No data available for this date range.")
 
