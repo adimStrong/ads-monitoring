@@ -747,38 +747,42 @@ def render_facebook_ads(ptab_daily):
         agent_compare['cost_per_ftd'] = (agent_compare['cost'] / agent_compare['ftd']).round(2)
         agent_compare['cost_per_ftd'] = agent_compare['cost_per_ftd'].replace([float('inf')], 0).fillna(0)
 
-        # Combined Cost & FTD Bar Chart
-        fig_combined = go.Figure()
+        # Cost & FTD side-by-side charts (separate axes to avoid overlap)
+        chart_col1, chart_col2 = st.columns(2)
 
-        fig_combined.add_trace(go.Bar(
-            x=agent_compare['agent'],
-            y=agent_compare['cost'],
-            name='Cost ($)',
-            marker_color='#e74c3c',
-            text=agent_compare['cost'].apply(lambda x: f'${x:,.0f}'),
-            textposition='outside',
-            yaxis='y'
-        ))
+        with chart_col1:
+            fig_cost = go.Figure()
+            fig_cost.add_trace(go.Bar(
+                x=agent_compare['agent'],
+                y=agent_compare['cost'],
+                marker_color='#e74c3c',
+                text=agent_compare['cost'].apply(lambda x: f'${x:,.0f}'),
+                textposition='outside',
+            ))
+            fig_cost.update_layout(
+                title='Total Cost ($)',
+                height=400,
+                yaxis_title='Cost ($)',
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            st.plotly_chart(fig_cost, use_container_width=True)
 
-        fig_combined.add_trace(go.Bar(
-            x=agent_compare['agent'],
-            y=agent_compare['ftd'],
-            name='FTD',
-            marker_color='#2ecc71',
-            text=agent_compare['ftd'].apply(lambda x: f'{int(x)}'),
-            textposition='outside',
-            yaxis='y2'
-        ))
-
-        fig_combined.update_layout(
-            height=400,
-            barmode='group',
-            yaxis=dict(title='Cost ($)', side='left', showgrid=False),
-            yaxis2=dict(title='FTD', side='right', overlaying='y', showgrid=False),
-            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
-            margin=dict(l=20, r=20, t=60, b=20)
-        )
-        st.plotly_chart(fig_combined, use_container_width=True)
+        with chart_col2:
+            fig_ftd = go.Figure()
+            fig_ftd.add_trace(go.Bar(
+                x=agent_compare['agent'],
+                y=agent_compare['ftd'],
+                marker_color='#2ecc71',
+                text=agent_compare['ftd'].apply(lambda x: f'{int(x)}'),
+                textposition='outside',
+            ))
+            fig_ftd.update_layout(
+                title='Total FTD',
+                height=400,
+                yaxis_title='FTD',
+                margin=dict(l=20, r=20, t=40, b=20),
+            )
+            st.plotly_chart(fig_ftd, use_container_width=True)
 
         # Cost Efficiency Chart
         col1, col2 = st.columns(2)
@@ -815,7 +819,7 @@ def render_facebook_ads(ptab_daily):
                 text=agent_compare['agent'],
                 textposition='top center',
                 marker=dict(
-                    size=agent_compare['ftd'] * 2 + 10,
+                    size=agent_compare['ftd'] / agent_compare['ftd'].max() * 40 + 15,
                     color=agent_compare['cost_per_ftd'],
                     colorscale='RdYlGn_r',
                     showscale=True,
