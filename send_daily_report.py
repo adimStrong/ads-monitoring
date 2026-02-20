@@ -78,7 +78,8 @@ def send_reminder(minutes_before, label):
 
 
 def send_long_message(reporter, text, max_len=4000):
-    """Split and send a long message in chunks, breaking at newlines."""
+    """Split and send a long message in chunks, breaking at newlines.
+    Ensures <pre> tags are properly closed/reopened across chunks."""
     if len(text) <= max_len:
         reporter.send_message(text)
         return
@@ -94,6 +95,15 @@ def send_long_message(reporter, text, max_len=4000):
             current = current + '\n' + line if current else line
     if current:
         parts.append(current)
+
+    # Fix split <pre> tags: if a chunk has an unclosed <pre>, close it and reopen in next chunk
+    for i in range(len(parts)):
+        open_count = parts[i].count('<pre>') + parts[i].count('<pre ')
+        close_count = parts[i].count('</pre>')
+        if open_count > close_count:
+            parts[i] += '</pre>'
+            if i + 1 < len(parts):
+                parts[i + 1] = '<pre>' + parts[i + 1]
 
     for i, part in enumerate(parts):
         reporter.send_message(part)
