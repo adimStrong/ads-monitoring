@@ -932,6 +932,26 @@ def load_team_channel_data():
         daily_df = pd.DataFrame(daily_records)
         team_actual_df = pd.DataFrame(team_actual_records)
 
+        # Normalize old team names from sheet to current team structure
+        TEAM_NAME_MAP = {
+            'JASON / SHILA / ADRIAN': 'JASON / SHILA',
+            'RON / KRISSA': 'RON / ADRIAN',
+            'JOMAR / MIKA': 'MIKA / JOMAR',
+            'DER': None,  # Remove DER team
+        }
+        def remap_team(name):
+            return TEAM_NAME_MAP.get(name, name)
+
+        if not overall_df.empty and 'team' in overall_df.columns:
+            overall_df['team'] = overall_df['team'].apply(remap_team)
+            overall_df = overall_df[overall_df['team'].notna()]
+        if not daily_df.empty and 'team' in daily_df.columns:
+            daily_df['team'] = daily_df['team'].apply(remap_team)
+            daily_df = daily_df[daily_df['team'].notna()]
+        if not team_actual_df.empty and 'team' in team_actual_df.columns:
+            team_actual_df['team'] = team_actual_df['team'].apply(remap_team)
+            team_actual_df = team_actual_df[team_actual_df['team'].notna()]
+
         if not daily_df.empty:
             daily_df['date'] = pd.to_datetime(daily_df['date'])
             daily_df['cpr'] = daily_df.apply(
