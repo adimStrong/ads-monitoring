@@ -66,6 +66,7 @@ from config import (
     AB_TESTING_TAB,
     AB_TESTING_ROW,
     REPORTING_ROW,
+    FACEBOOK_ADS_PERSONS,
 )
 
 
