@@ -116,6 +116,8 @@ def render_content(key_prefix="tc"):
             'cost': 'sum', 'registrations': 'sum', 'first_recharge': 'sum', 'total_amount': 'sum',
         }).reset_index().rename(columns={'promo_team': 'team'})
 
+        filtered_team_df['cpr'] = filtered_team_df.apply(
+            lambda x: x['cost'] / x['registrations'] if x['registrations'] > 0 else 0, axis=1)
         filtered_team_df['cpfd'] = filtered_team_df.apply(
             lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
         filtered_team_df['arppu'] = filtered_team_df.apply(
@@ -335,6 +337,28 @@ def render_content(key_prefix="tc"):
         fig.add_vline(x=team_sorted['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
         fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD", showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_cpfd")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = go.Figure(go.Bar(
+            y=team_sorted['team'], x=team_sorted['registrations'],
+            orientation='h',
+            marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
+            text=[f"{int(v):,}" for v in team_sorted['registrations']], textposition='inside', textfont=dict(color='white'),
+        ))
+        fig.add_vline(x=team_sorted['registrations'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='Registrations', height=380, xaxis_title="Count", showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_reg")
+    with col2:
+        fig = go.Figure(go.Bar(
+            y=team_sorted['team'], x=team_sorted['cpr'],
+            orientation='h',
+            marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
+            text=[f"${v:.2f}" for v in team_sorted['cpr']], textposition='inside', textfont=dict(color='white'),
+        ))
+        fig.add_vline(x=team_sorted['cpr'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='CPR ($)', height=380, xaxis_title="USD", showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_cpr")
 
     # Radar chart
     st.subheader("Team Performance Radar")

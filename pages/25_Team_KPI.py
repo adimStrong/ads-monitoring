@@ -266,6 +266,28 @@ def render_content(key_prefix="tk"):
         fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cpfd_chart")
 
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig = go.Figure(go.Bar(
+            y=team_agg['team'], x=team_agg['registrations'],
+            orientation='h',
+            marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+            text=[f"{v:,}" for v in team_agg['registrations']], textposition='inside', textfont=dict(color='white'),
+        ))
+        fig.update_layout(title='Registrations', height=380, xaxis_title="Count")
+        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_reg_chart")
+
+    with col2:
+        fig = go.Figure(go.Bar(
+            y=team_agg['team'], x=team_agg['cpr'],
+            orientation='h',
+            marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
+            text=[f"${v:.2f}" for v in team_agg['cpr']], textposition='inside', textfont=dict(color='white'),
+        ))
+        fig.update_layout(title='CPR ($)', height=380, xaxis_title="USD")
+        st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cpr_chart")
+
     st.caption("Team KPI Scoring | Data from Team Channel sheet")
 
 
