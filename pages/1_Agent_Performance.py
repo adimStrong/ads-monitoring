@@ -183,8 +183,8 @@ with tab1:
         fig.add_trace(go.Scatter(x=a_daily['date'], y=a_daily['ftd'], name='FTD', line=dict(color='#27ae60', width=3), mode='lines+markers', yaxis='y2'))
         fig.update_layout(
             height=350,
-            yaxis=dict(title='Cost ($)', side='left'),
-            yaxis2=dict(title='FTD', side='right', overlaying='y'),
+            yaxis=dict(title='Cost ($)', side='left', rangemode='tozero'),
+            yaxis2=dict(title='FTD', side='right', overlaying='y', rangemode='tozero'),
             legend=dict(orientation='h', yanchor='bottom', y=1.02),
             margin=dict(l=20, r=20, t=40, b=20),
         )
@@ -273,13 +273,13 @@ with tab5:
         with col1:
             fig = go.Figure()
             fig.add_trace(go.Bar(x=agent_daily['date'], y=agent_daily['cost'], name='Cost', marker_color='#667eea'))
-            fig.update_layout(height=300, title='Daily Cost', xaxis_tickformat='%m/%d', margin=dict(l=20, r=20, t=40, b=20))
+            fig.update_layout(height=300, title='Daily Cost', xaxis_tickformat='%m/%d', yaxis_rangemode='tozero', margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig, use_container_width=True)
         with col2:
             fig = go.Figure()
             fig.add_trace(go.Bar(x=agent_daily['date'], y=agent_daily['register'], name='Register', marker_color='#3498db'))
             fig.add_trace(go.Bar(x=agent_daily['date'], y=agent_daily['ftd'], name='FTD', marker_color='#27ae60'))
-            fig.update_layout(height=300, title='Register vs FTD', xaxis_tickformat='%m/%d', barmode='group', margin=dict(l=20, r=20, t=40, b=20))
+            fig.update_layout(height=300, title='Register vs FTD', xaxis_tickformat='%m/%d', barmode='group', yaxis_rangemode='tozero', margin=dict(l=20, r=20, t=40, b=20))
             st.plotly_chart(fig, use_container_width=True)
 
         # Daily data table
