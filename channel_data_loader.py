@@ -932,22 +932,41 @@ def load_team_channel_data():
         daily_df = pd.DataFrame(daily_records)
         team_actual_df = pd.DataFrame(team_actual_records)
 
-        # Normalize old team names from sheet to current team structure
+        # Only keep the 8 active channels (excludes DER, Krissa-only channels)
+        ACTIVE_CHANNELS = {
+            'FB-FB-FB-DEERPROMO06', 'FB-FB-FB-DEERPROMO07', 'FB-FB-FB-DEERPROMO08',
+            'FB-FB-FB-DEERPROMO09', 'FB-FB-FB-DEERPROMO10', 'FB-FB-FB-DEERPROMO11',
+            'FB-FB-FB-DEERPROMO12', 'FB-FB-FB-DEERPROMO13',
+        }
+        ACTIVE_CHANNEL_TEAM = {
+            'FB-FB-FB-DEERPROMO09': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO11': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
+        }
+
+        # Filter overall and daily to active channels only, assign correct team
+        if not overall_df.empty and 'channel' in overall_df.columns:
+            overall_df = overall_df[overall_df['channel'].isin(ACTIVE_CHANNELS)].copy()
+            overall_df['team'] = overall_df['channel'].map(ACTIVE_CHANNEL_TEAM)
+        if not daily_df.empty and 'channel' in daily_df.columns:
+            daily_df = daily_df[daily_df['channel'].isin(ACTIVE_CHANNELS)].copy()
+            daily_df['team'] = daily_df['channel'].map(ACTIVE_CHANNEL_TEAM)
+
+        # Filter team_actual to active teams only
         TEAM_NAME_MAP = {
-            'JASON / SHILA / ADRIAN': None,  # Remove old team data
-            'RON / KRISSA': None,  # Remove old Krissa team data
+            'JASON / SHILA / ADRIAN': None,
+            'RON / KRISSA': None,
             'JOMAR / MIKA': 'MIKA / JOMAR',
-            'DER': None,  # Remove DER team
+            'DER': None,
         }
         def remap_team(name):
             return TEAM_NAME_MAP.get(name, name)
 
-        if not overall_df.empty and 'team' in overall_df.columns:
-            overall_df['team'] = overall_df['team'].apply(remap_team)
-            overall_df = overall_df[overall_df['team'].notna()]
-        if not daily_df.empty and 'team' in daily_df.columns:
-            daily_df['team'] = daily_df['team'].apply(remap_team)
-            daily_df = daily_df[daily_df['team'].notna()]
         if not team_actual_df.empty and 'team' in team_actual_df.columns:
             team_actual_df['team'] = team_actual_df['team'].apply(remap_team)
             team_actual_df = team_actual_df[team_actual_df['team'].notna()]
