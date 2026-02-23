@@ -226,40 +226,44 @@ def render_content(key_prefix="tk"):
 
     with col1:
         fig = go.Figure(go.Bar(
-            x=team_agg['team'], y=team_agg['cost'],
+            y=team_agg['team'], x=team_agg['cost'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
             text=[f"${v:,.0f}" for v in team_agg['cost']], textposition='outside',
         ))
-        fig.update_layout(title='Total Cost ($)', height=380, yaxis_title="USD")
+        fig.update_layout(title='Total Cost ($)', height=380, xaxis_title="USD")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cost_chart")
 
     with col2:
         fig = go.Figure(go.Bar(
-            x=team_agg['team'], y=team_agg['first_recharge'],
+            y=team_agg['team'], x=team_agg['first_recharge'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
             text=[f"{v:,}" for v in team_agg['first_recharge']], textposition='outside',
         ))
-        fig.update_layout(title='1st Recharge Count', height=380, yaxis_title="Count")
+        fig.update_layout(title='1st Recharge Count', height=380, xaxis_title="Count")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_recharge_chart")
 
     col1, col2 = st.columns(2)
 
     with col1:
         fig = go.Figure(go.Bar(
-            x=team_agg['team'], y=team_agg['roas'],
+            y=team_agg['team'], x=team_agg['roas'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
             text=[f"{v:.2f}" for v in team_agg['roas']], textposition='outside',
         ))
-        fig.update_layout(title='ROAS', height=380, yaxis_title="Ratio")
+        fig.update_layout(title='ROAS', height=380, xaxis_title="Ratio")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_roas_chart")
 
     with col2:
         fig = go.Figure(go.Bar(
-            x=team_agg['team'], y=team_agg['cpfd'],
+            y=team_agg['team'], x=team_agg['cpfd'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
             text=[f"${v:.2f}" for v in team_agg['cpfd']], textposition='outside',
         ))
-        fig.update_layout(title='CPFD ($)', height=380, yaxis_title="USD")
+        fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cpfd_chart")
 
     st.caption("Team KPI Scoring | Data from Team Channel sheet")

@@ -295,41 +295,45 @@ def render_content(key_prefix="tc"):
     col1, col2 = st.columns(2)
     with col1:
         fig = go.Figure(go.Bar(
-            x=team_sorted['team'], y=team_sorted['cost'],
+            y=team_sorted['team'], x=team_sorted['cost'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
             text=[f"${v:,.0f}" for v in team_sorted['cost']], textposition='outside',
         ))
-        fig.add_hline(y=team_sorted['cost'].mean(), line_dash="dash", annotation_text="Avg")
-        fig.update_layout(title='Total Cost ($)', height=380, yaxis_title="USD", showlegend=False)
+        fig.add_vline(x=team_sorted['cost'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='Total Cost ($)', height=380, xaxis_title="USD", showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_cost")
     with col2:
         fig = go.Figure(go.Bar(
-            x=team_sorted['team'], y=team_sorted['first_recharge'],
+            y=team_sorted['team'], x=team_sorted['first_recharge'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
             text=[f"{int(v):,}" for v in team_sorted['first_recharge']], textposition='outside',
         ))
-        fig.add_hline(y=team_sorted['first_recharge'].mean(), line_dash="dash", annotation_text="Avg")
-        fig.update_layout(title='1st Recharge Count', height=380, yaxis_title="Count", showlegend=False)
+        fig.add_vline(x=team_sorted['first_recharge'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='1st Recharge Count', height=380, xaxis_title="Count", showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_fr")
 
     col1, col2 = st.columns(2)
     with col1:
         fig = go.Figure(go.Bar(
-            x=team_sorted['team'], y=team_sorted['roas'],
+            y=team_sorted['team'], x=team_sorted['roas'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
             text=[f"{v:.2f}" for v in team_sorted['roas']], textposition='outside',
         ))
-        fig.add_hline(y=team_sorted['roas'].mean(), line_dash="dash", annotation_text="Avg")
-        fig.update_layout(title='ROAS', height=380, yaxis_title="Ratio", showlegend=False)
+        fig.add_vline(x=team_sorted['roas'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='ROAS', height=380, xaxis_title="Ratio", showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_roas")
     with col2:
         fig = go.Figure(go.Bar(
-            x=team_sorted['team'], y=team_sorted['cpfd'],
+            y=team_sorted['team'], x=team_sorted['cpfd'],
+            orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
             text=[f"${v:.2f}" for v in team_sorted['cpfd']], textposition='outside',
         ))
-        fig.add_hline(y=team_sorted['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
-        fig.update_layout(title='CPFD ($)', height=380, yaxis_title="USD", showlegend=False)
+        fig.add_vline(x=team_sorted['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
+        fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD", showlegend=False)
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cmp_cpfd")
 
     # Radar chart
