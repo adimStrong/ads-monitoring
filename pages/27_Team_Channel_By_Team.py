@@ -208,6 +208,91 @@ def render_content(key_prefix="tc"):
             </div>
             """, unsafe_allow_html=True)
 
+    # PER-CHANNEL BREAKDOWN BY TEAM (columns D-I)
+    st.divider()
+    st.subheader("Channel Breakdown by Team")
+
+    for team in TEAM_ORDER:
+        if filtered_overall.empty:
+            break
+        if 'team' in filtered_overall.columns:
+            team_ch = filtered_overall[filtered_overall['team'] == team].copy()
+        else:
+            team_channels = [ch for ch, t in CHANNEL_TO_TEAM.items() if t == team]
+            team_ch = filtered_overall[filtered_overall['channel'].isin(team_channels)].copy()
+        if team_ch.empty:
+            continue
+
+        color = TEAM_COLORS.get(team, '#64748b')
+
+        # Calculate derived metrics per channel
+        team_ch['cpfd'] = team_ch.apply(
+            lambda x: x['cost'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+        team_ch['arppu'] = team_ch.apply(
+            lambda x: x['total_amount'] / x['first_recharge'] if x['first_recharge'] > 0 else 0, axis=1)
+        team_ch['roas'] = team_ch.apply(
+            lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
+        team_ch = team_ch.sort_values('cost', ascending=False)
+
+        # Team header
+        st.markdown(f"<h4 style='color:{color}; margin-bottom:0'>{team}</h4>", unsafe_allow_html=True)
+
+        # Build HTML table with per-channel metrics
+        tbl = '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:20px">'
+        tbl += '<tr style="background:#1e293b;color:#fff">'
+        for col_name in ['Channel', 'Cost ($)', 'Reg', '1st Rech', 'Amount (₱)', 'ARPPU (₱)', 'CPFD ($)', 'ROAS']:
+            tbl += f'<th style="padding:8px;text-align:center;border:1px solid #334155">{col_name}</th>'
+        tbl += '</tr>'
+
+        team_total_cost = 0
+        team_total_reg = 0
+        team_total_fr = 0
+        team_total_amt = 0
+
+        for _, ch in team_ch.iterrows():
+            short = ch['channel'].replace('FB-FB-FB-', '')
+            ch_roas = ch['roas']
+            if ch_roas >= 1:
+                roas_style = 'color:#22c55e;font-weight:bold'
+            elif ch_roas >= 0.4:
+                roas_style = 'color:#eab308'
+            else:
+                roas_style = 'color:#ef4444'
+
+            tbl += f'<tr style="background:#0f172a;color:#e2e8f0;border:1px solid #334155">'
+            tbl += f'<td style="padding:8px;border:1px solid #334155;font-weight:bold">{short}</td>'
+            tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">${ch["cost"]:,.2f}</td>'
+            tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155">{int(ch["registrations"]):,}</td>'
+            tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155">{int(ch["first_recharge"]):,}</td>'
+            tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">₱{ch["total_amount"]:,.0f}</td>'
+            tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">₱{ch["arppu"]:,.0f}</td>'
+            tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">${ch["cpfd"]:.2f}</td>'
+            tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155;{roas_style}">{ch_roas:.2f}</td>'
+            tbl += '</tr>'
+
+            team_total_cost += ch['cost']
+            team_total_reg += int(ch['registrations'])
+            team_total_fr += int(ch['first_recharge'])
+            team_total_amt += ch['total_amount']
+
+        # Subtotal row
+        sub_cpfd = team_total_cost / team_total_fr if team_total_fr > 0 else 0
+        sub_arppu = team_total_amt / team_total_fr if team_total_fr > 0 else 0
+        sub_roas = team_total_amt / team_total_cost if team_total_cost > 0 else 0
+        tbl += f'<tr style="background:#1e293b;color:#fff;font-weight:bold;border:1px solid #334155">'
+        tbl += f'<td style="padding:8px;border:1px solid #334155">TOTAL</td>'
+        tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">${team_total_cost:,.2f}</td>'
+        tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155">{team_total_reg:,}</td>'
+        tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155">{team_total_fr:,}</td>'
+        tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">₱{team_total_amt:,.0f}</td>'
+        tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">₱{sub_arppu:,.0f}</td>'
+        tbl += f'<td style="padding:8px;text-align:right;border:1px solid #334155">${sub_cpfd:.2f}</td>'
+        tbl += f'<td style="padding:8px;text-align:center;border:1px solid #334155">{sub_roas:.2f}</td>'
+        tbl += '</tr>'
+        tbl += '</table>'
+
+        st.markdown(tbl, unsafe_allow_html=True)
+
     # COMPARISON CHARTS
     st.divider()
     st.subheader("Team Comparison")
@@ -338,25 +423,6 @@ def render_content(key_prefix="tc"):
         },
         key=f"{key_prefix}_lb",
     )
-
-    # Channel breakdown per team
-    with st.expander("Channel Breakdown by Team"):
-        for team in TEAM_ORDER:
-            if filtered_overall.empty:
-                break
-            if 'team' in filtered_overall.columns:
-                team_ch = filtered_overall[filtered_overall['team'] == team]
-            else:
-                team_channels = [ch for ch, t in CHANNEL_TO_TEAM.items() if t == team]
-                team_ch = filtered_overall[filtered_overall['channel'].isin(team_channels)]
-            if team_ch.empty:
-                continue
-            color = TEAM_COLORS.get(team, '#64748b')
-            st.markdown(f"**<span style='color:{color}'>{team}</span>**", unsafe_allow_html=True)
-            ch_display = team_ch[['channel', 'cost', 'registrations', 'first_recharge', 'total_amount']].copy()
-            ch_display['channel'] = ch_display['channel'].str.replace('FB-FB-FB-', '', regex=False)
-            ch_display.columns = ['Channel', 'Cost ($)', 'Reg', '1st Rech', 'Amount (₱)']
-            st.dataframe(ch_display, use_container_width=True, hide_index=True, key=f"{key_prefix}_ch_{team[:3]}")
 
     st.caption(f"Team Channel Performance | {date_label}")
 
