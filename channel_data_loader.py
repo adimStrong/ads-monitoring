@@ -1466,6 +1466,23 @@ def count_ab_testing(ab_data, date_range=None):
             elif metric == 'published_ad':
                 result[agent]['published_ad'] = count
 
+    # Count primary texts from detail rows (each row = 1 primary text)
+    if date_range and not detail_df.empty:
+        filtered_detail = detail_df.copy()
+        filtered_detail['_batch_dt'] = pd.to_datetime(filtered_detail['batch_date'], errors='coerce')
+        filtered_detail = filtered_detail[
+            (filtered_detail['_batch_dt'].notna()) &
+            (filtered_detail['_batch_dt'] >= date_range[0]) &
+            (filtered_detail['_batch_dt'] <= date_range[1])
+        ]
+        for _, row in filtered_detail.iterrows():
+            creator = str(row.get('creator', '')).strip().upper()
+            if not creator:
+                continue
+            if creator not in result:
+                result[creator] = {'primary_text': 0, 'published_ad': 0, 'total_published': 0}
+            result[creator]['primary_text'] += 1
+
     # From published section - count published per advertiser by publish date
     published_df = ab_data.get('published', pd.DataFrame())
     if not published_df.empty:
