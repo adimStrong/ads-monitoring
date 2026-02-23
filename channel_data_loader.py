@@ -1336,6 +1336,7 @@ def load_ab_testing_data():
                     advertiser_col = c_idx
 
         detail_records = []
+        published_by_date = []
         if detail_start is not None:
             # Find daily date column blocks (after ADVERTISER NAME)
             # Each date has 4 sub-columns: AD STRUCTURE, TYPE, CONDITION, PUBLISHED CAMPAIGN
@@ -1373,13 +1374,20 @@ def load_ab_testing_data():
                 if not headline and not primary_text and not advertiser:
                     continue
 
-                # Count published campaigns from daily columns
+                # Count published campaigns from daily columns (per date)
                 total_published = 0
                 for dd in daily_dates:
                     pub_col = dd['col'] + 3  # PUBLISHED CAMPAIGN is 4th sub-column (offset +3)
                     if pub_col < len(row):
                         pub_count = int(parse_numeric(row[pub_col]))
                         total_published += pub_count
+                        # Also store per-date published for date-range filtering
+                        if pub_count > 0 and advertiser:
+                            published_by_date.append({
+                                'publish_date': dd['date'],
+                                'advertiser': advertiser,
+                                'published': pub_count,
+                            })
 
                 detail_records.append({
                     'batch_date': current_date,
@@ -1392,9 +1400,10 @@ def load_ab_testing_data():
 
         summary_df = pd.DataFrame(summary_records) if summary_records else pd.DataFrame()
         detail_df = pd.DataFrame(detail_records) if detail_records else pd.DataFrame()
+        published_df = pd.DataFrame(published_by_date) if published_by_date else pd.DataFrame()
 
-        print(f"[OK] AB Testing: {len(summary_records)} summary rows, {len(detail_records)} detail rows")
-        return {'summary': summary_df, 'detail': detail_df}
+        print(f"[OK] AB Testing: {len(summary_records)} summary rows, {len(detail_records)} detail rows, {len(published_by_date)} published entries")
+        return {'summary': summary_df, 'detail': detail_df, 'published': published_df}
 
     except Exception as e:
         print(f"[ERROR] Failed to load AB Testing data: {e}")
@@ -1437,19 +1446,29 @@ def count_ab_testing(ab_data, date_range=None):
             elif metric == 'published_ad':
                 result[agent]['published_ad'] = count
 
-    # From detail section - count total published per advertiser
-    if not detail_df.empty:
-        # Filter by date range if provided
-        filtered_df = detail_df
-        if date_range and 'batch_date' in detail_df.columns:
-            filtered_df = detail_df.copy()
-            filtered_df['batch_date_dt'] = pd.to_datetime(filtered_df['batch_date'], errors='coerce')
-            filtered_df = filtered_df[
-                (filtered_df['batch_date_dt'] >= date_range[0]) &
-                (filtered_df['batch_date_dt'] <= date_range[1])
+    # From published section - count published per advertiser by publish date
+    published_df = ab_data.get('published', pd.DataFrame())
+    if not published_df.empty:
+        filtered_pub = published_df
+        if date_range:
+            filtered_pub = published_df.copy()
+            filtered_pub['publish_date_dt'] = pd.to_datetime(filtered_pub['publish_date'], errors='coerce')
+            filtered_pub = filtered_pub[
+                (filtered_pub['publish_date_dt'] >= date_range[0]) &
+                (filtered_pub['publish_date_dt'] <= date_range[1])
             ]
 
-        for _, row in filtered_df.iterrows():
+        for _, row in filtered_pub.iterrows():
+            advertiser = str(row.get('advertiser', '')).strip().upper()
+            pub_count = int(row.get('published', 0))
+            if not advertiser or pub_count == 0:
+                continue
+            if advertiser not in result:
+                result[advertiser] = {'primary_text': 0, 'published_ad': 0, 'total_published': 0}
+            result[advertiser]['total_published'] += pub_count
+    elif not detail_df.empty and not date_range:
+        # Fallback: use detail total_published when no date range (all-time)
+        for _, row in detail_df.iterrows():
             advertiser = str(row.get('advertiser', '')).strip().upper()
             published = int(row.get('total_published', 0))
             if not advertiser or published == 0:
@@ -1463,6 +1482,10 @@ def count_ab_testing(ab_data, date_range=None):
     for agent in result:
         if result[agent]['published_ad'] == 0:
             result[agent]['published_ad'] = result[agent]['total_published']
+
+    # Filter out agents not in FACEBOOK_ADS_PERSONS
+    active_agents = [p.upper() for p in FACEBOOK_ADS_PERSONS]
+    result = {k: v for k, v in result.items() if k in active_agents}
 
     return result
 
