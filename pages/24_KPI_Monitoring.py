@@ -203,7 +203,7 @@ def render_content(key_prefix="km"):
     if ss_manual not in st.session_state:
         st.session_state[ss_manual] = {}
 
-    # Exclude boss (Derr) from KPI monitoring
+    # Filter agents excluded from reporting
     KPI_AGENTS = [t for t in AGENT_PERFORMANCE_TABS if t['agent'].upper() not in EXCLUDED_FROM_REPORTING]
     agent_names = ["All Agents"] + [t['agent'] for t in KPI_AGENTS]
 

@@ -16,10 +16,9 @@ from channel_data_loader import load_team_channel_data, refresh_team_channel_dat
 from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 TEAM_COLORS = {
-    'JASON / SHILA / ADRIAN': '#3b82f6',
-    'RON / KRISSA': '#22c55e',
-    'JOMAR / MIKA': '#a855f7',
-    'DER': '#f59e0b',
+    'JASON / SHILA': '#3b82f6',
+    'RON / ADRIAN': '#22c55e',
+    'MIKA / JOMAR': '#a855f7',
 }
 
 

@@ -193,7 +193,7 @@ def load_agent_performance_data(agent_name, sheet_name):
         last_creative_folder = ''
         last_creative_type = ''
         last_creative_total = 0  # Track last valid total for merged cells
-        default_date = datetime.now()  # Fallback for sheets with no dates (like KRISSA)
+        default_date = datetime.now()  # Fallback for sheets with no dates
 
         for idx, row in df.iterrows():
             row_date = parse_date(row.iloc[0] if len(row) > 0 else None)
@@ -491,8 +491,8 @@ def load_facebook_ads_data():
     Load Facebook Ads data from INDIVIDUAL KPI sheet using service account authentication.
     Single sheet contains all 8 persons with properly aligned dates.
 
-    Persons (in order by column): JASON, RON, SHILA, ADRIAN, JOMAR, KRISSA, MIKA, DER
-    Column positions: 17, 27, 37, 47, 57, 67, 77, 87
+    Persons (in order by column): JASON, RON, SHILA, ADRIAN, JOMAR, MIKA
+    Column positions: 17, 27, 37, 47, 57, 77
 
     Returns: DataFrame with columns:
         date, person_name, spend, cost_php, result_ftd, register,

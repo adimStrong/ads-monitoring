@@ -17,17 +17,15 @@ from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 # Team-to-channel mapping
 TEAM_CHANNEL_MAP = {
-    'JASON / SHILA / ADRIAN': 'Promo - 07 - 1, 2 - 13',
-    'RON / KRISSA': 'Promo - 10 - 11',
-    'JOMAR / MIKA': 'Promo - 6 - 8',
-    'DER': 'Promo 9',
+    'JASON / SHILA': 'Promo - 07 - 12 - 13',
+    'RON / ADRIAN': 'Promo - 10 - 11',
+    'MIKA / JOMAR': 'Promo - 6 - 8',
 }
 
 TEAM_COLORS = {
-    'JASON / SHILA / ADRIAN': '#3b82f6',
-    'RON / KRISSA': '#22c55e',
-    'JOMAR / MIKA': '#a855f7',
-    'DER': '#f59e0b',
+    'JASON / SHILA': '#3b82f6',
+    'RON / ADRIAN': '#22c55e',
+    'MIKA / JOMAR': '#a855f7',
 }
 
 

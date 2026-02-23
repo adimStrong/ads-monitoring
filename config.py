@@ -37,7 +37,6 @@ INDIAN_PROMOTION_AGENTS = {
     'ADRIAN': {'date': 0, 'type': 1, 'content': 2, 'condition': 3, 'status': 4},
     'JOMAR': {'date': 6, 'type': 7, 'content': 8, 'condition': 9, 'status': 10},
     'SHILA': {'date': 12, 'type': 13, 'content': 14, 'condition': 15, 'status': 16},
-    'KRISSA': {'date': 18, 'type': 19, 'content': 20, 'condition': 21, 'status': 22},
     'MIKA': {'date': 30, 'type': 31, 'content': 32, 'condition': 33, 'status': 34},
 }
 
@@ -48,12 +47,10 @@ AGENTS = [
     {"name": "ADRIAN", "sheet_performance": "ADRIAN", "sheet_content": "Adrian content"},
     {"name": "JOMAR", "sheet_performance": "JOMAR", "sheet_content": "Jomar content"},
     {"name": "SHILA", "sheet_performance": "SHILA", "sheet_content": "Shila content"},
-    {"name": "KRISSA", "sheet_performance": "KRISSA", "sheet_content": "Krissa content"},
 ]
 
 # Excluded from reports (boss accounts)
-# JD's sheet name is "DER"
-EXCLUDED_PERSONS = ["DER", "JD"]
+EXCLUDED_PERSONS = ["JD"]
 
 # ============================================================
 # SECTION 1: WITH RUNNING ADS (Columns A-N)
@@ -158,11 +155,11 @@ FACEBOOK_ADS_SHEETS = [
 ]
 
 # Each person has 10 columns with these starting positions:
-# JASON=17, RON=27, SHILA=37, ADRIAN=47, JOMAR=57, KRISSA=67, MIKA=77, DER=87
+# JASON=17, RON=27, SHILA=37, ADRIAN=47, JOMAR=57, MIKA=77
 # Column offsets per person (10-column blocks):
 #   +0: Date, +1: Type, +2: Spend(USD), +3: Cost(PHP), +4: FTD
 #   +5: Register, +6: People Reach, +7: Impressions, +8: Clicks
-FACEBOOK_ADS_ACCOUNT_START_COLS = [17, 27, 37, 47, 57, 67, 77, 87]
+FACEBOOK_ADS_ACCOUNT_START_COLS = [17, 27, 37, 47, 57, 77]
 
 FACEBOOK_ADS_COLUMN_OFFSETS = {
     'date': 0,
@@ -239,16 +236,14 @@ SCREENSHOT_DIR = "reports/screenshots"
 LAST_REPORT_DATA_FILE = "last_report_data.json"
 
 # Facebook Ads persons for reports
-FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "KRISSA", "MIKA", "DER"]
+FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "MIKA"]
 
 # Telegram mentions for alerts (username without @)
 TELEGRAM_MENTIONS = {
     "JASON": "Adsbasty",
     "RON": "xxxadsron",
-    "DER": "Derr_Juan365",
     "SHILA": "cutie0717",
     "ADRIAN": "CrWn365",
-    "KRISSA": "Ads_Krissa",
     "MIKA": "yakis0va",
     "JOMAR": "HappyAllDaze",
 }
@@ -507,9 +502,7 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P6-Mika", "gid": 1053167165, "agent": "Mika"},
     {"name": "P7-Adrian", "gid": 1573312887, "agent": "Adrian"},
     {"name": "P8-Jomar", "gid": 1484269300, "agent": "Jomar"},
-    {"name": "P9-Derr", "gid": 1922385711, "agent": "Derr"},
     {"name": "P10-Ron", "gid": 39183526, "agent": "Ron"},
-    {"name": "P11-Krissa", "gid": 30378048, "agent": "Krissa"},
     {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
     {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
 ]
@@ -544,7 +537,7 @@ INDIVIDUAL_KPI_GID = 1788804487
 # 8 agents, 10-column blocks
 INDIVIDUAL_KPI_AGENTS = {
     17: "JASON", 27: "RON", 37: "SHILA", 47: "ADRIAN",
-    57: "JOMAR", 67: "KRISSA", 77: "MIKA", 87: "DER",
+    57: "JOMAR", 77: "MIKA",
 }
 
 # Column offsets within each agent's 10-col block
@@ -642,9 +635,7 @@ KPI_AGENT_TABS = {
     'Mika': 'KPI-Mika',
     'Adrian': 'KPI-Adrian',
     'Jomar': 'KPI-Jomar',
-    'Derr': 'KPI-Derr',
     'Ron': 'KPI-Ron',
-    'Krissa': 'KPI-Krissa',
     'Jason': 'KPI-Jason',
     'Shila': 'KPI-Shila',
 }
@@ -680,7 +671,7 @@ REPORT_CAMPAIGN_INDICATORS = [
 ]
 
 # Agents excluded from reporting accuracy (boss/non-reporters)
-EXCLUDED_FROM_REPORTING = ["DER"]
+EXCLUDED_FROM_REPORTING = []
 
 # ============================================================
 # SHARED SIDEBAR HIDE CSS

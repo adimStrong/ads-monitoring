@@ -1250,7 +1250,7 @@ def load_ab_testing_data():
             # Look for row with agent names (Jason, Ron, etc.)
             names_found = 0
             for cell in row:
-                if str(cell).strip().upper() in ['JASON', 'RON', 'MIKA', 'SHILA', 'ADRIAN', 'JOMAR', 'KRISSA']:
+                if str(cell).strip().upper() in ['JASON', 'RON', 'MIKA', 'SHILA', 'ADRIAN', 'JOMAR']:
                     names_found += 1
             if names_found >= 3:
                 agent_names_row = r_idx
@@ -1262,7 +1262,7 @@ def load_ab_testing_data():
             agent_cols = {}
             for col_idx, cell in enumerate(names_row):
                 name = str(cell).strip().upper()
-                if name in ['JASON', 'RON', 'MIKA', 'SHILA', 'ADRIAN', 'JOMAR', 'KRISSA']:
+                if name in ['JASON', 'RON', 'MIKA', 'SHILA', 'ADRIAN', 'JOMAR']:
                     agent_cols[col_idx] = name
 
             # Look for Primary Text and Published Ad rows

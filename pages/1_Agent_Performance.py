@@ -22,8 +22,7 @@ st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 # Map FACEBOOK_ADS_PERSONS (uppercase) to P-tab agent names (title case)
 PTAB_AGENT_MAP = {
     'MIKA': 'Mika', 'ADRIAN': 'Adrian', 'JOMAR': 'Jomar',
-    'SHILA': 'Shila', 'KRISSA': 'Krissa', 'JASON': 'Jason',
-    'RON': 'Ron', 'DER': 'Derr',
+    'SHILA': 'Shila', 'JASON': 'Jason', 'RON': 'Ron',
 }
 
 # Sidebar logo

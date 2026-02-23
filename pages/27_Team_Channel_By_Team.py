@@ -16,24 +16,22 @@ from channel_data_loader import load_team_channel_data, refresh_team_channel_dat
 from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 CHANNEL_TO_TEAM = {
-    'FB-FB-FB-DEERPROMO07': 'JASON / SHILA / ADRIAN',
-    'FB-FB-FB-DEERPROMO12': 'JASON / SHILA / ADRIAN',
-    'FB-FB-FB-DEERPROMO13': 'JASON / SHILA / ADRIAN',
-    'FB-FB-FB-DEERPROMO10': 'RON / KRISSA',
-    'FB-FB-FB-DEERPROMO11': 'RON / KRISSA',
-    'FB-FB-FB-DEERPROMO06': 'JOMAR / MIKA',
-    'FB-FB-FB-DEERPROMO08': 'JOMAR / MIKA',
-    'FB-FB-FB-DEERPROMO09': 'DER',
+    'FB-FB-FB-DEERPROMO07': 'JASON / SHILA',
+    'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
+    'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
+    'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
+    'FB-FB-FB-DEERPROMO11': 'RON / ADRIAN',
+    'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
+    'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
 }
 
 TEAM_COLORS = {
-    'JASON / SHILA / ADRIAN': '#3b82f6',
-    'RON / KRISSA': '#22c55e',
-    'JOMAR / MIKA': '#a855f7',
-    'DER': '#f59e0b',
+    'JASON / SHILA': '#3b82f6',
+    'RON / ADRIAN': '#22c55e',
+    'MIKA / JOMAR': '#a855f7',
 }
 
-TEAM_ORDER = ['JASON / SHILA / ADRIAN', 'RON / KRISSA', 'JOMAR / MIKA', 'DER']
+TEAM_ORDER = ['JASON / SHILA', 'RON / ADRIAN', 'MIKA / JOMAR']
 
 
 def format_currency(v):
