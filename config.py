@@ -580,7 +580,7 @@ KPI_SCORING = {
         'weight': 0.15,     # 15% (CVR + Campaign Setup = 30%)
         'krs': 'Revenue Generation',
         'auto': True,
-        'thresholds': [(4, 7.0, 100.0), (3, 4.0, 6.99), (2, 2.0, 3.99), (1, 0, 1.99)],
+        'thresholds': [(4, 7.0, float('inf')), (3, 4.0, 6.99), (2, 2.0, 3.99), (1, 0, 1.99)],
         'direction': 'higher_better',
     },
     'ctr': {
@@ -588,7 +588,7 @@ KPI_SCORING = {
         'weight': 0.075,    # 7.5% (CTR + A/B Testing = 15%)
         'krs': 'Campaign Efficiency',
         'auto': True,
-        'thresholds': [(4, 3.0, 100.0), (3, 2.0, 2.99), (2, 1.0, 1.99), (1, 0, 0.99)],
+        'thresholds': [(4, 3.0, float('inf')), (3, 2.0, 2.99), (2, 1.0, 1.99), (1, 0, 0.99)],
         'direction': 'higher_better',
     },
     'account_dev': {
