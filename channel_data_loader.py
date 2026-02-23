@@ -934,8 +934,8 @@ def load_team_channel_data():
 
         # Normalize old team names from sheet to current team structure
         TEAM_NAME_MAP = {
-            'JASON / SHILA / ADRIAN': 'JASON / SHILA',
-            'RON / KRISSA': 'RON / ADRIAN',
+            'JASON / SHILA / ADRIAN': None,  # Remove old team data
+            'RON / KRISSA': None,  # Remove old Krissa team data
             'JOMAR / MIKA': 'MIKA / JOMAR',
             'DER': None,  # Remove DER team
         }
