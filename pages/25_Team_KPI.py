@@ -229,7 +229,7 @@ def render_content(key_prefix="tk"):
             y=team_agg['team'], x=team_agg['cost'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-            text=[f"${v:,.0f}" for v in team_agg['cost']], textposition='inside',
+            text=[f"${v:,.0f}" for v in team_agg['cost']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.update_layout(title='Total Cost ($)', height=380, xaxis_title="USD")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cost_chart")
@@ -239,7 +239,7 @@ def render_content(key_prefix="tk"):
             y=team_agg['team'], x=team_agg['first_recharge'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-            text=[f"{v:,}" for v in team_agg['first_recharge']], textposition='inside',
+            text=[f"{v:,}" for v in team_agg['first_recharge']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.update_layout(title='1st Recharge Count', height=380, xaxis_title="Count")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_recharge_chart")
@@ -251,7 +251,7 @@ def render_content(key_prefix="tk"):
             y=team_agg['team'], x=team_agg['roas'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-            text=[f"{v:.2f}" for v in team_agg['roas']], textposition='inside',
+            text=[f"{v:.2f}" for v in team_agg['roas']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.update_layout(title='ROAS', height=380, xaxis_title="Ratio")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_roas_chart")
@@ -261,7 +261,7 @@ def render_content(key_prefix="tk"):
             y=team_agg['team'], x=team_agg['cpfd'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_agg['team']],
-            text=[f"${v:.2f}" for v in team_agg['cpfd']], textposition='inside',
+            text=[f"${v:.2f}" for v in team_agg['cpfd']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_cpfd_chart")

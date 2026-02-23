@@ -298,7 +298,7 @@ def render_content(key_prefix="tc"):
             y=team_sorted['team'], x=team_sorted['cost'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
-            text=[f"${v:,.0f}" for v in team_sorted['cost']], textposition='inside',
+            text=[f"${v:,.0f}" for v in team_sorted['cost']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.add_vline(x=team_sorted['cost'].mean(), line_dash="dash", annotation_text="Avg")
         fig.update_layout(title='Total Cost ($)', height=380, xaxis_title="USD", showlegend=False)
@@ -308,7 +308,7 @@ def render_content(key_prefix="tc"):
             y=team_sorted['team'], x=team_sorted['first_recharge'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
-            text=[f"{int(v):,}" for v in team_sorted['first_recharge']], textposition='inside',
+            text=[f"{int(v):,}" for v in team_sorted['first_recharge']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.add_vline(x=team_sorted['first_recharge'].mean(), line_dash="dash", annotation_text="Avg")
         fig.update_layout(title='1st Recharge Count', height=380, xaxis_title="Count", showlegend=False)
@@ -320,7 +320,7 @@ def render_content(key_prefix="tc"):
             y=team_sorted['team'], x=team_sorted['roas'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
-            text=[f"{v:.2f}" for v in team_sorted['roas']], textposition='inside',
+            text=[f"{v:.2f}" for v in team_sorted['roas']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.add_vline(x=team_sorted['roas'].mean(), line_dash="dash", annotation_text="Avg")
         fig.update_layout(title='ROAS', height=380, xaxis_title="Ratio", showlegend=False)
@@ -330,7 +330,7 @@ def render_content(key_prefix="tc"):
             y=team_sorted['team'], x=team_sorted['cpfd'],
             orientation='h',
             marker_color=[TEAM_COLORS.get(t, '#64748b') for t in team_sorted['team']],
-            text=[f"${v:.2f}" for v in team_sorted['cpfd']], textposition='inside',
+            text=[f"${v:.2f}" for v in team_sorted['cpfd']], textposition='inside', textfont=dict(color='white'),
         ))
         fig.add_vline(x=team_sorted['cpfd'].mean(), line_dash="dash", annotation_text="Avg")
         fig.update_layout(title='CPFD ($)', height=380, xaxis_title="USD", showlegend=False)
