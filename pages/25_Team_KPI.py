@@ -17,9 +17,9 @@ from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
 
 # Team-to-channel mapping
 TEAM_CHANNEL_MAP = {
-    'JASON / SHILA': 'Promo - 07 - 12 - 13',
-    'RON / ADRIAN': 'Promo - 10 - 11',
-    'MIKA / JOMAR': 'Promo - 6 - 8',
+    'JASON / SHILA': 'Promo - 09 - 12 - 13',
+    'RON / ADRIAN': 'Promo - 07 - 10 - 11',
+    'MIKA / JOMAR': 'Promo - 06 - 08',
 }
 
 TEAM_COLORS = {
