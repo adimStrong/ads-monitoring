@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 import sys
 import os
 
@@ -34,13 +35,40 @@ def render_content(key_prefix="ca"):
         st.error("No Created Assets data available.")
         return
 
-    # Inline filter (was sidebar)
-    fc1, fc2 = st.columns([3, 1])
-    with fc2:
+    # Parse dates for filtering
+    assets_df['date_parsed'] = pd.to_datetime(assets_df['date'], errors='coerce')
+
+    # Inline filters
+    fc1, fc2, fc3, fc4 = st.columns([1.5, 1.5, 2, 1])
+
+    has_dates = assets_df['date_parsed'].notna().any()
+    if has_dates:
+        min_date = assets_df['date_parsed'].min().date()
+        max_date = assets_df['date_parsed'].max().date()
+        default_start = max(min_date, max_date - timedelta(days=30))
+
+        with fc1:
+            start_date = st.date_input("From", value=default_start, min_value=min_date, max_value=max_date, key=f"{key_prefix}_from")
+        with fc2:
+            end_date = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date, key=f"{key_prefix}_to")
+    else:
+        start_date = None
+        end_date = None
+
+    with fc3:
         creators = sorted(assets_df['creator'].str.strip().unique())
         selected = st.selectbox("Creator", ["All"] + creators, key=f"{key_prefix}_creator")
 
     filtered = assets_df.copy()
+
+    # Apply date filter
+    if has_dates and start_date and end_date:
+        filtered = filtered[
+            (filtered['date_parsed'].notna()) &
+            (filtered['date_parsed'].dt.date >= start_date) &
+            (filtered['date_parsed'].dt.date <= end_date)
+        ]
+
     if selected != "All":
         filtered = filtered[filtered['creator'].str.strip() == selected]
 

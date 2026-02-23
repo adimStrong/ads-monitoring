@@ -6,6 +6,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from datetime import datetime, timedelta
 import sys
 import os
 
@@ -32,13 +33,39 @@ def render_content(key_prefix="ab"):
 
     summary_df = ab_data.get('summary', pd.DataFrame())
     detail_df = ab_data.get('detail', pd.DataFrame())
+    published_df = ab_data.get('published', pd.DataFrame())
 
     if summary_df.empty and detail_df.empty:
         st.error("No A/B Testing data available.")
         return
 
-    # Count per agent
-    ab_counts = count_ab_testing(ab_data)
+    # Build date range from all available dates
+    all_dates = set()
+    if not detail_df.empty and 'batch_date' in detail_df.columns:
+        bd = pd.to_datetime(detail_df['batch_date'], errors='coerce').dropna()
+        all_dates.update(bd.dt.date)
+    if not published_df.empty and 'publish_date' in published_df.columns:
+        pd_dates = pd.to_datetime(published_df['publish_date'], errors='coerce').dropna()
+        all_dates.update(pd_dates.dt.date)
+
+    # Inline date filters
+    fc1, fc2, fc3 = st.columns([1.5, 1.5, 1])
+    date_range = None
+
+    if all_dates:
+        min_date = min(all_dates)
+        max_date = max(all_dates)
+        default_start = max(min_date, max_date - timedelta(days=30))
+
+        with fc1:
+            start_date = st.date_input("From", value=default_start, min_value=min_date, max_value=max_date, key=f"{key_prefix}_from")
+        with fc2:
+            end_date = st.date_input("To", value=max_date, min_value=min_date, max_value=max_date, key=f"{key_prefix}_to")
+
+        date_range = (pd.Timestamp(start_date), pd.Timestamp(end_date))
+
+    # Count per agent with date filter
+    ab_counts = count_ab_testing(ab_data, date_range=date_range)
 
     # Overall KPI cards
     st.markdown('<div class="section-header"><h3>📊 A/B TESTING OVERVIEW</h3></div>', unsafe_allow_html=True)
@@ -131,7 +158,7 @@ def render_content(key_prefix="ab"):
         st.divider()
         st.markdown('<div class="section-header"><h3>📋 CAMPAIGN DETAIL LOG</h3></div>', unsafe_allow_html=True)
 
-        # Inline filters (was sidebar)
+        # Inline filters
         fc1, fc2, fc3 = st.columns([2, 2, 2])
         with fc1:
             creators = sorted(detail_df['creator'].dropna().str.strip().unique())
@@ -141,6 +168,17 @@ def render_content(key_prefix="ab"):
             selected_advertiser = st.selectbox("Advertiser", ["All"] + [a for a in advertisers if a], key=f"{key_prefix}_advertiser")
 
         filtered = detail_df.copy()
+
+        # Apply date filter to detail log
+        if date_range:
+            filtered['_batch_dt'] = pd.to_datetime(filtered['batch_date'], errors='coerce')
+            filtered = filtered[
+                (filtered['_batch_dt'].notna()) &
+                (filtered['_batch_dt'] >= date_range[0]) &
+                (filtered['_batch_dt'] <= date_range[1])
+            ]
+            filtered = filtered.drop(columns=['_batch_dt'])
+
         if selected_creator != "All":
             filtered = filtered[filtered['creator'].str.strip() == selected_creator]
         if selected_advertiser != "All":
