@@ -123,15 +123,32 @@ def calculate_agent_scores(agent_df):
         return pd.DataFrame()
 
     # Group by date and hour - find first report message per hour
+    # Reports sent at minute >= 50 are attributed to the next hour (early reports)
     scores = []
+    scored_keys = set()  # (date, effective_hour) already scored
     for (date, hour), group in report_msgs.groupby(['date_only', 'hour']):
         first_msg = group.iloc[0]
         minute = first_msg['minute']
-        score = score_minutes(minute)
+
+        # Early report: attribute to next hour
+        if minute >= 50:
+            effective_hour = (hour + 1) % 24
+            effective_minute = 0
+            score = 4  # Best score for being early
+        else:
+            effective_hour = hour
+            effective_minute = minute
+            score = score_minutes(effective_minute)
+
+        key = (date, effective_hour)
+        if key in scored_keys:
+            continue
+        scored_keys.add(key)
+
         scores.append({
             'date': date,
-            'hour': hour,
-            'minute': minute,
+            'hour': effective_hour,
+            'minute': effective_minute,
             'score': score,
             'agent': first_msg['agent'],
             'text_preview': (first_msg['text'] or '')[:80],
@@ -202,7 +219,9 @@ def render_content(key_prefix="ra"):
         if not agent_msgs.empty:
             report_msgs = agent_msgs[agent_msgs['text'].apply(is_report_message)]
             if not report_msgs.empty:
-                avg_min = report_msgs['minute'].mean()
+                # Adjust minutes for early reports (>= 50 treated as 0)
+                adjusted_mins = report_msgs['minute'].apply(lambda m: 0 if m >= 50 else m)
+                avg_min = adjusted_mins.mean()
                 avg_score = score_minutes(int(avg_min))
                 st.metric("Avg Score", f"{avg_score}/4", f"{avg_min:.0f} min avg")
             else:
@@ -345,7 +364,7 @@ def render_content(key_prefix="ra"):
 
             if not report_msgs.empty:
                 display = report_msgs[['date_ph', 'agent', 'text', 'hour', 'minute']].copy()
-                display['score'] = display['minute'].apply(score_minutes)
+                display['score'] = display['minute'].apply(lambda m: 4 if m >= 50 else score_minutes(m))
                 display = display.sort_values('date_ph', ascending=False)
                 display.columns = ['Date (PH)', 'Agent', 'Message', 'Hour', 'Minute', 'Score']
                 st.dataframe(display, use_container_width=True, hide_index=True, height=500, key=f"{key_prefix}_tbl_reports")
