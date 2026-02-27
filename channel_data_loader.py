@@ -1132,6 +1132,7 @@ def load_created_assets_data():
 
         cols = CREATED_ASSETS_COLUMNS
         records = []
+        last_date = None  # carry forward date from previous row
 
         for row_idx in range(CREATED_ASSETS_DATA_START, len(all_data)):
             row = all_data[row_idx]
@@ -1142,7 +1143,24 @@ def load_created_assets_data():
             if not creator:
                 continue
 
-            date_val = parse_date(str(row[cols['date']]).strip()) if cols['date'] < len(row) else None
+            # Parse date — handle MM/DD (no year) by appending current year
+            raw_date = str(row[cols['date']]).strip() if cols['date'] < len(row) else ''
+            if raw_date:
+                date_val = parse_date(raw_date)
+                if date_val is None and '/' in raw_date:
+                    # Try MM/DD format (no year) — append current year
+                    try:
+                        date_val = datetime.strptime(f"{raw_date}/{datetime.now().year}", '%m/%d/%Y')
+                    except (ValueError, TypeError):
+                        date_val = None
+                if date_val is not None:
+                    last_date = date_val
+            else:
+                date_val = None
+
+            # Use carried-forward date if this row has no date
+            if date_val is None:
+                date_val = last_date
 
             def safe_get(idx):
                 return str(row[idx]).strip() if idx < len(row) else ''
