@@ -431,6 +431,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
             'clicks': 'sum',
             'register': 'sum',
             'ftd': 'sum',
+            'arppu': 'mean',
         }).reset_index()
 
         # Calculate derived metrics
@@ -438,6 +439,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         agent_summary['cpr'] = (agent_summary['cost'] / agent_summary['register']).round(2)
         agent_summary['cpftd'] = (agent_summary['cost'] / agent_summary['ftd']).round(2)
         agent_summary['conv_rate'] = (agent_summary['ftd'] / agent_summary['register'] * 100).round(1)
+        agent_summary['roas'] = (agent_summary['arppu'] / 57.7 / agent_summary['cpftd']).round(2)
 
         # Handle inf/nan
         agent_summary = agent_summary.replace([float('inf'), float('-inf')], 0).fillna(0)
@@ -456,9 +458,11 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
             'ftd': 'FTD',
             'cpr': 'CPR',
             'cpftd': 'Cost/FTD',
-            'conv_rate': 'Conv %'
+            'conv_rate': 'Conv %',
+            'arppu': 'ARPPU',
+            'roas': 'ROAS',
         })
-        agent_summary = agent_summary[['Agent', 'Cost', 'Impressions', 'Clicks', 'CTR', 'Register', 'FTD', 'CPR', 'Cost/FTD', 'Conv %']]
+        agent_summary = agent_summary[['Agent', 'Cost', 'Impressions', 'Clicks', 'CTR', 'Register', 'FTD', 'CPR', 'Cost/FTD', 'Conv %', 'ARPPU', 'ROAS']]
 
         # Convert to proper types
         agent_summary['Impressions'] = agent_summary['Impressions'].astype(int)
@@ -477,6 +481,8 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
         display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
         display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
+        display['ARPPU'] = display['ARPPU'].apply(lambda x: f'${x:,.2f}')
+        display['ROAS'] = display['ROAS'].apply(lambda x: f'{x:.2f}x')
         _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
         st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)
     elif not running_ads_df.empty:

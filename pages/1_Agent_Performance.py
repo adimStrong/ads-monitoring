@@ -219,11 +219,15 @@ with tab5:
         c5.metric("Cost/FTD", f"${avg_cpd:.2f}")
         c6.metric("Conv Rate", f"{conv_rate:.1f}%")
 
-        c1, c2, c3, c4 = st.columns(4)
+        avg_arppu = agent_daily['arppu'].mean() if 'arppu' in agent_daily.columns else 0
+        overall_roas = (avg_arppu / 57.7 / avg_cpd) if avg_cpd > 0 else 0
+
+        c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Impressions", f"{total_impr:,}")
         c2.metric("Clicks", f"{total_clicks:,}")
         c3.metric("CTR", f"{overall_ctr:.2f}%")
-        c4.metric("ROAS", f"{agent_daily['roas'].mean():.2f}")
+        c4.metric("ARPPU", f"${avg_arppu:,.2f}")
+        c5.metric("ROAS", f"{overall_roas:.2f}x")
 
         st.divider()
 
@@ -238,11 +242,13 @@ with tab5:
             per_agent = filtered_ptab.groupby('agent').agg({
                 'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
                 'impressions': 'sum', 'clicks': 'sum',
+                'arppu': 'mean',
             }).reset_index()
             per_agent['cpr'] = per_agent.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
             per_agent['cpd'] = per_agent.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
             per_agent['conv_rate'] = per_agent.apply(lambda r: (r['ftd'] / r['register'] * 100) if r['register'] > 0 else 0, axis=1)
             per_agent['ctr'] = per_agent.apply(lambda r: (r['clicks'] / r['impressions'] * 100) if r['impressions'] > 0 else 0, axis=1)
+            per_agent['roas'] = per_agent.apply(lambda r: (r['arppu'] / 57.7 / r['cpd']) if r['cpd'] > 0 else 0, axis=1)
             per_agent = per_agent.sort_values('cost', ascending=False)
 
             # Chart: cost by agent
@@ -260,10 +266,13 @@ with tab5:
             pa_disp['clicks'] = pa_disp['clicks'].apply(lambda x: f"{int(x):,}")
             pa_disp['conv_rate'] = pa_disp['conv_rate'].apply(lambda x: f"{x:.1f}%")
             pa_disp['ctr'] = pa_disp['ctr'].apply(lambda x: f"{x:.2f}%")
+            pa_disp['arppu'] = pa_disp['arppu'].apply(lambda x: f"${x:,.2f}")
+            pa_disp['roas'] = pa_disp['roas'].apply(lambda x: f"{x:.2f}x")
             pa_disp = pa_disp.rename(columns={
                 'agent': 'Agent', 'cost': 'Cost', 'register': 'Register', 'ftd': 'FTD',
                 'cpr': 'CPR', 'cpd': 'Cost/FTD', 'conv_rate': 'Conv %',
                 'impressions': 'Impressions', 'clicks': 'Clicks', 'ctr': 'CTR',
+                'arppu': 'ARPPU', 'roas': 'ROAS',
             })
             st.dataframe(pa_disp, use_container_width=True, hide_index=True)
             st.divider()
