@@ -437,21 +437,22 @@ CREATED_ASSETS_TAB = {"name": "Created Assets", "gid": 820171568}
 CREATED_ASSETS_HEADER_ROW = 2   # 0-indexed row with column headers
 CREATED_ASSETS_DATA_START = 3   # 0-indexed first data row
 
-# Column mapping for left section (cols B-N, index 1-13)
+# Column mapping for left section (cols B-O, index 1-14)
 CREATED_ASSETS_COLUMNS = {
     'date': 1,           # B - DATE
     'creator': 2,        # C - CREATOR
     'gmail': 3,          # D - GMAIL / OUTLOOK
-    'fb_username': 4,    # E - FB USERNAME
-    'fb_password': 5,    # F - FB PASSWORD
-    'fb_condition': 6,   # G - CONDITION (for FB account)
-    'fb_page': 7,        # H - FB PAGE
-    'page_condition': 8, # I - CONDITION (for page)
-    'bm_name': 9,        # J - BM NAME
-    'bm_condition': 10,  # K - CONDITION (for BM)
-    'bm_id': 11,         # L - BM ID
-    'pixel': 12,         # M - PIXEL
-    'pixel_condition': 13, # N - CONDITION (for pixel)
+    # index 4 = PASSWORD (gmail/outlook password, skipped)
+    'fb_username': 5,    # F - FB USERNAME
+    'fb_password': 6,    # G - FB PASSWORD
+    'fb_condition': 7,   # H - CONDITION (for FB account)
+    'fb_page': 8,        # I - FB PAGE
+    'page_condition': 9, # J - CONDITION (for page)
+    'bm_name': 10,       # K - BM NAME
+    'bm_condition': 11,  # L - CONDITION (for BM)
+    'bm_id': 12,         # M - BM ID
+    'pixel': 13,         # N - PIXEL
+    'pixel_condition': 14, # O - CONDITION (for pixel)
 }
 
 # Row in KPI sheet for Account Dev write-back (0-indexed)
