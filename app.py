@@ -481,7 +481,7 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
         display['CPR'] = display['CPR'].apply(lambda x: f'${x:,.2f}')
         display['Cost/FTD'] = display['Cost/FTD'].apply(lambda x: f'${x:,.2f}')
         display['Conv %'] = display['Conv %'].apply(lambda x: f'{x:.1f}%')
-        display['ARPPU'] = display['ARPPU'].apply(lambda x: f'${x:,.2f}')
+        display['ARPPU'] = display['ARPPU'].apply(lambda x: f'₱{x:,.2f}')
         display['ROAS'] = display['ROAS'].apply(lambda x: f'{x:.2f}x')
         _text_cols = {c: st.column_config.TextColumn() for c in display.columns}
         st.dataframe(display, use_container_width=True, hide_index=True, column_config=_text_cols)

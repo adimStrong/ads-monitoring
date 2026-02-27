@@ -226,7 +226,7 @@ with tab5:
         c1.metric("Impressions", f"{total_impr:,}")
         c2.metric("Clicks", f"{total_clicks:,}")
         c3.metric("CTR", f"{overall_ctr:.2f}%")
-        c4.metric("ARPPU", f"${avg_arppu:,.2f}")
+        c4.metric("ARPPU", f"₱{avg_arppu:,.2f}")
         c5.metric("ROAS", f"{overall_roas:.2f}x")
 
         st.divider()
@@ -266,7 +266,7 @@ with tab5:
             pa_disp['clicks'] = pa_disp['clicks'].apply(lambda x: f"{int(x):,}")
             pa_disp['conv_rate'] = pa_disp['conv_rate'].apply(lambda x: f"{x:.1f}%")
             pa_disp['ctr'] = pa_disp['ctr'].apply(lambda x: f"{x:.2f}%")
-            pa_disp['arppu'] = pa_disp['arppu'].apply(lambda x: f"${x:,.2f}")
+            pa_disp['arppu'] = pa_disp['arppu'].apply(lambda x: f"₱{x:,.2f}")
             pa_disp['roas'] = pa_disp['roas'].apply(lambda x: f"{x:.2f}x")
             pa_disp = pa_disp.rename(columns={
                 'agent': 'Agent', 'cost': 'Cost', 'register': 'Register', 'ftd': 'FTD',
@@ -311,7 +311,7 @@ with tab5:
         if 'ctr' in d_display.columns:
             d_display['ctr'] = d_display['ctr'].apply(lambda x: f"{x:.2f}%")
         if 'arppu' in d_display.columns:
-            d_display['arppu'] = d_display['arppu'].apply(lambda x: f"${x:,.2f}")
+            d_display['arppu'] = d_display['arppu'].apply(lambda x: f"₱{x:,.2f}")
         st.dataframe(
             d_display,
             use_container_width=True, hide_index=True,
