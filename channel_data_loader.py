@@ -1147,24 +1147,7 @@ def load_created_assets_data():
             def safe_get(idx):
                 return str(row[idx]).strip() if idx < len(row) else ''
 
-            # Use carried-forward creator for continuation rows
-            effective_creator = creator if creator else last_creator
-            if not effective_creator:
-                continue
-
-            # Check if row has any actual data
-            gmail_val = safe_get(cols['gmail'])
-            fb_val = safe_get(cols['fb_username'])
-            page_val = safe_get(cols['fb_page'])
-            bm_val = safe_get(cols['bm_name'])
-            if not any([gmail_val, fb_val, page_val, bm_val]):
-                continue
-
-            # Skip RESTDAY placeholder rows
-            if gmail_val.upper() == 'RESTDAY' or fb_val.upper() == 'RESTDAY':
-                continue
-
-            # Parse date — handle MM/DD (no year) by appending current year
+            # Parse date FIRST (before skipping) so last_date always tracks
             raw_date = str(row[cols['date']]).strip() if cols['date'] < len(row) else ''
             if raw_date:
                 date_val = parse_date(raw_date)
@@ -1183,9 +1166,27 @@ def load_created_assets_data():
             if date_val is None:
                 date_val = last_date
 
+            # Use carried-forward creator for continuation rows
+            effective_creator = creator if creator else last_creator
+            if not effective_creator:
+                continue
+
+            # Check if row has any actual data
+            gmail_val = safe_get(cols['gmail'])
+            fb_val = safe_get(cols['fb_username'])
+            page_val = safe_get(cols['fb_page'])
+            bm_val = safe_get(cols['bm_name'])
+            if not any([gmail_val, fb_val, page_val, bm_val]):
+                continue
+
+            # Skip RESTDAY placeholder rows
+            if gmail_val.upper() == 'RESTDAY' or fb_val.upper() == 'RESTDAY':
+                continue
+
             records.append({
                 'date': date_val,
                 'creator': effective_creator,
+                'has_creator': bool(creator),  # True if col C had a name
                 'gmail': gmail_val,
                 'fb_username': fb_val,
                 'fb_condition': safe_get(cols['fb_condition']),
@@ -1243,6 +1244,10 @@ def count_created_assets(assets_df, date_range=None):
     for _, row in assets_df.iterrows():
         creator = str(row.get('creator', '')).strip().upper()
         if not creator:
+            continue
+
+        # Skip continuation rows (blank creator in column C)
+        if not row.get('has_creator', True):
             continue
 
         if creator not in result:
