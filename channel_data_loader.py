@@ -1252,21 +1252,25 @@ def count_created_assets(assets_df, date_range=None):
             }
 
         # Count non-empty fields (skip "----" placeholders and DISABLED condition)
+        # Split newline-separated values (multiple items in one cell)
+        def count_items(val):
+            return len([v for v in val.split('\n') if v.strip() and v.strip() != '----'])
+
         gmail_v = str(row.get('gmail', '')).strip()
         if gmail_v and gmail_v != '----':
-            result[creator]['gmail'] += 1
+            result[creator]['gmail'] += count_items(gmail_v)
         fb_v = str(row.get('fb_username', '')).strip()
         fb_cond = str(row.get('fb_condition', '')).strip().upper()
         if fb_v and fb_v != '----' and fb_cond != 'DISABLED':
-            result[creator]['fb_accounts'] += 1
+            result[creator]['fb_accounts'] += count_items(fb_v)
         page_v = str(row.get('fb_page', '')).strip()
         page_cond = str(row.get('page_condition', '')).strip().upper()
         if page_v and page_v != '----' and page_cond != 'DISABLED':
-            result[creator]['fb_pages'] += 1
+            result[creator]['fb_pages'] += count_items(page_v)
         bm_v = str(row.get('bm_name', '')).strip()
         bm_cond = str(row.get('bm_condition', '')).strip().upper()
         if bm_v and bm_v != '----' and bm_cond != 'DISABLED':
-            result[creator]['bms'] += 1
+            result[creator]['bms'] += count_items(bm_v)
 
     # Calculate totals
     for name in result:
