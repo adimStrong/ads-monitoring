@@ -1133,6 +1133,7 @@ def load_created_assets_data():
         cols = CREATED_ASSETS_COLUMNS
         records = []
         last_date = None  # carry forward date from previous row
+        last_creator = ''  # carry forward creator for continuation rows
 
         for row_idx in range(CREATED_ASSETS_DATA_START, len(all_data)):
             row = all_data[row_idx]
@@ -1140,7 +1141,27 @@ def load_created_assets_data():
                 continue
 
             creator = str(row[cols['creator']]).strip()
-            if not creator:
+            if creator:
+                last_creator = creator
+
+            def safe_get(idx):
+                return str(row[idx]).strip() if idx < len(row) else ''
+
+            # Use carried-forward creator for continuation rows
+            effective_creator = creator if creator else last_creator
+            if not effective_creator:
+                continue
+
+            # Check if row has any actual data
+            gmail_val = safe_get(cols['gmail'])
+            fb_val = safe_get(cols['fb_username'])
+            page_val = safe_get(cols['fb_page'])
+            bm_val = safe_get(cols['bm_name'])
+            if not any([gmail_val, fb_val, page_val, bm_val]):
+                continue
+
+            # Skip RESTDAY placeholder rows
+            if gmail_val.upper() == 'RESTDAY' or fb_val.upper() == 'RESTDAY':
                 continue
 
             # Parse date — handle MM/DD (no year) by appending current year
@@ -1162,18 +1183,15 @@ def load_created_assets_data():
             if date_val is None:
                 date_val = last_date
 
-            def safe_get(idx):
-                return str(row[idx]).strip() if idx < len(row) else ''
-
             records.append({
                 'date': date_val,
-                'creator': creator,
-                'gmail': safe_get(cols['gmail']),
-                'fb_username': safe_get(cols['fb_username']),
+                'creator': effective_creator,
+                'gmail': gmail_val,
+                'fb_username': fb_val,
                 'fb_condition': safe_get(cols['fb_condition']),
-                'fb_page': safe_get(cols['fb_page']),
+                'fb_page': page_val,
                 'page_condition': safe_get(cols['page_condition']),
-                'bm_name': safe_get(cols['bm_name']),
+                'bm_name': bm_val,
                 'bm_condition': safe_get(cols['bm_condition']),
             })
 
@@ -1233,14 +1251,18 @@ def count_created_assets(assets_df, date_range=None):
                 'total_accounts': 0, 'total_assets': 0,
             }
 
-        # Count non-empty fields
-        if str(row.get('gmail', '')).strip():
+        # Count non-empty fields (skip "----" placeholders)
+        gmail_v = str(row.get('gmail', '')).strip()
+        if gmail_v and gmail_v != '----':
             result[creator]['gmail'] += 1
-        if str(row.get('fb_username', '')).strip():
+        fb_v = str(row.get('fb_username', '')).strip()
+        if fb_v and fb_v != '----':
             result[creator]['fb_accounts'] += 1
-        if str(row.get('fb_page', '')).strip():
+        page_v = str(row.get('fb_page', '')).strip()
+        if page_v and page_v != '----':
             result[creator]['fb_pages'] += 1
-        if str(row.get('bm_name', '')).strip():
+        bm_v = str(row.get('bm_name', '')).strip()
+        if bm_v and bm_v != '----':
             result[creator]['bms'] += 1
 
     # Calculate totals
