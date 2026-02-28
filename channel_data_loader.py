@@ -1251,22 +1251,21 @@ def count_created_assets(assets_df, date_range=None):
                 'total_accounts': 0, 'total_assets': 0,
             }
 
-        # Count non-empty fields (skip "----" placeholders)
-        # FB/Page/BM only count if condition column is non-empty and not DISABLED
+        # Count non-empty fields (skip "----" placeholders and DISABLED condition)
         gmail_v = str(row.get('gmail', '')).strip()
         if gmail_v and gmail_v != '----':
             result[creator]['gmail'] += 1
         fb_v = str(row.get('fb_username', '')).strip()
         fb_cond = str(row.get('fb_condition', '')).strip().upper()
-        if fb_v and fb_v != '----' and fb_cond and fb_cond != 'DISABLED':
+        if fb_v and fb_v != '----' and fb_cond != 'DISABLED':
             result[creator]['fb_accounts'] += 1
         page_v = str(row.get('fb_page', '')).strip()
         page_cond = str(row.get('page_condition', '')).strip().upper()
-        if page_v and page_v != '----' and page_cond and page_cond != 'DISABLED':
+        if page_v and page_v != '----' and page_cond != 'DISABLED':
             result[creator]['fb_pages'] += 1
         bm_v = str(row.get('bm_name', '')).strip()
         bm_cond = str(row.get('bm_condition', '')).strip().upper()
-        if bm_v and bm_v != '----' and bm_cond and bm_cond != 'DISABLED':
+        if bm_v and bm_v != '----' and bm_cond != 'DISABLED':
             result[creator]['bms'] += 1
 
     # Calculate totals
