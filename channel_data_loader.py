@@ -1140,7 +1140,7 @@ def load_created_assets_data():
             if len(row) <= cols['creator']:
                 continue
 
-            creator = str(row[cols['creator']]).strip()
+            creator = str(row[cols['creator']]).strip().upper()
             if creator:
                 last_creator = creator
 
