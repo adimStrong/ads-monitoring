@@ -800,7 +800,7 @@ def load_team_channel_data():
     try:
         client = get_google_client()
         if client is None:
-            return {'overall': pd.DataFrame(), 'daily': pd.DataFrame()}
+            return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(), 'team_actual': pd.DataFrame()}
 
         spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
         worksheet = spreadsheet.get_worksheet_by_id(TEAM_CHANNEL_SHEET['gid'])
@@ -894,13 +894,13 @@ def load_team_channel_data():
                         'arppu': arppu,
                     })
 
-        # --- Parse PER TEAM ACTUAL section (cols K-S, indices 10-18) ---
+        # --- Parse PER TEAM ACTUAL section (cols L-T, indices 11-19) ---
         team_actual_records = []
         for row in all_data:
-            if len(row) <= 18:
+            if len(row) <= 19:
                 continue
-            team_name = str(row[10]).strip()
-            channel_src = str(row[11]).strip()
+            team_name = str(row[11]).strip()
+            channel_src = str(row[12]).strip()
             # Skip headers and empty rows
             if not team_name or team_name.upper() in ('TEAM', '') or 'REPORT' in team_name.upper():
                 continue
@@ -909,13 +909,13 @@ def load_team_channel_data():
             # Must be a PER TEAM ACTUAL row (starts with "Promo" not "DEERPROMO")
             if not channel_src.lower().startswith('promo'):
                 continue
-            cost = parse_numeric(row[12])
-            registrations = parse_numeric(row[13])
-            first_recharge = parse_numeric(row[14])
-            cpfd = parse_numeric(row[15])
-            total_amount = parse_numeric(row[16])
-            arppu = parse_numeric(row[17])
-            roas = parse_numeric(row[18])
+            cost = parse_numeric(row[13])
+            registrations = parse_numeric(row[14])
+            first_recharge = parse_numeric(row[15])
+            cpfd = parse_numeric(row[16])
+            total_amount = parse_numeric(row[17])
+            arppu = parse_numeric(row[18])
+            roas = parse_numeric(row[19])
             if cost > 0 or registrations > 0:
                 team_actual_records.append({
                     'team': team_name,
@@ -960,10 +960,10 @@ def load_team_channel_data():
 
         # Filter team_actual to active teams only
         TEAM_NAME_MAP = {
-            'JASON / SHILA / ADRIAN': None,
-            'RON / KRISSA': None,
-            'JOMAR / MIKA': 'MIKA / JOMAR',
-            'DER': None,
+            'Jason + Shila': 'JASON / SHILA',
+            'Ron + Adrian': 'RON / ADRIAN',
+            'Mika + Jomar': 'MIKA / JOMAR',
+            'DER': None,  # excluded — no active channels
         }
         def remap_team(name):
             return TEAM_NAME_MAP.get(name, name)
@@ -999,7 +999,7 @@ def load_team_channel_data():
         print(f"[ERROR] Failed to load Team Channel data: {e}")
         import traceback
         traceback.print_exc()
-        return {'overall': pd.DataFrame(), 'daily': pd.DataFrame()}
+        return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(), 'team_actual': pd.DataFrame()}
 
 
 def refresh_team_channel_data():

@@ -417,12 +417,12 @@ TEAM_CHANNEL_DATA_START_ROW = 4
 # Channel source starts at column D (index 3)
 TEAM_CHANNEL_COLUMNS = {
     'team_name': 1,           # B - Team Name (overall section)
-    'channel_source': 3,      # D - Channel Source (FB-FB-FB-DEERPROMO*)
-    'cost': 4,                # E - Cost (USD)
-    'registrations': 5,       # F - Registrations
-    'first_recharge': 6,      # G - First Recharge Count
-    'total_amount': 7,        # H - Total Recharge Amount (PHP)
-    'arppu': 8,               # I - ARPPU Per Person (PHP)
+    'channel_source': 4,      # E - Channel Source (FB-FB-FB-DEERPROMO*) — col C is now "Channel Owner"
+    'cost': 5,                # F - Cost (USD)
+    'registrations': 6,       # G - Registrations
+    'first_recharge': 7,      # H - First Recharge Count
+    'total_amount': 8,        # I - Total Recharge Amount (PHP)
+    'arppu': 9,               # J - ARPPU Per Person (PHP)
 }
 
 # Known channel sources (DEERPROMO01 through DEERPROMO13)
