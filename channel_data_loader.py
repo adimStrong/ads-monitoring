@@ -838,14 +838,23 @@ def load_team_channel_data():
             team_cell = str(row[cols['team_name']]).strip() if len(row) > cols['team_name'] else ''
             channel_cell = str(row[cols['channel_source']]).strip() if len(row) > cols['channel_source'] else ''
 
-            # Check for "DAILY SUMMARY" marker
-            if 'daily summary' in channel_cell.lower():
+            # Scan columns 1-4 for section markers and date headers
+            # (sheet layout shifted — markers may be in any early column)
+            row_texts = [str(row[i]).strip() if len(row) > i else '' for i in range(min(5, len(row)))]
+            found_daily_marker = False
+            found_date = False
+            for cell_text in row_texts:
+                if 'daily summary' in cell_text.lower():
+                    found_daily_marker = True
+                    break
+                if is_date_header(cell_text):
+                    current_date = parse_date_header(cell_text)
+                    found_date = True
+                    break
+            if found_daily_marker:
                 in_daily_section = True
                 continue
-
-            # Check if channel cell is a date header (in daily section)
-            if is_date_header(channel_cell):
-                current_date = parse_date_header(channel_cell)
+            if found_date:
                 in_daily_section = True
                 continue
 
