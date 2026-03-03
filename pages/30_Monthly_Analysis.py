@@ -676,6 +676,132 @@ def _direction_word(pct, higher_is_better):
     return f"{strength} {good_bad} ({direction} by {magnitude:.1f}%)".strip()
 
 
+def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_month):
+    """Render standalone analysis for a single platform (Facebook or Google)."""
+    has_data = False
+    for sk in ['daily_roi', 'roll_back', 'violet']:
+        pdf = platform_monthly.get(sk, pd.DataFrame())
+        if not pdf.empty and not pdf[(pdf['month_key'] == sel_month) & (pdf['platform'] == platform_name)].empty:
+            has_data = True
+            break
+
+    if not has_data:
+        return
+
+    icon = "📘" if platform_name == 'Facebook' else "📗"
+    st.markdown("---")
+    st.markdown(f"### {icon} {platform_name} Ads Analysis")
+
+    for section_key, section_label in SECTION_LABELS.items():
+        pdf = platform_monthly.get(section_key, pd.DataFrame())
+        if pdf.empty:
+            continue
+
+        curr_rows = pdf[(pdf['month_key'] == sel_month) & (pdf['platform'] == platform_name)]
+        if curr_rows.empty:
+            continue
+
+        prev_rows = pdf[(pdf['month_key'] == prev_month) & (pdf['platform'] == platform_name)] if prev_month else pd.DataFrame()
+
+        c = curr_rows.iloc[0]
+        p = prev_rows.iloc[0] if not prev_rows.empty else None
+
+        st.markdown(f"#### {section_label}")
+
+        # Summary line
+        parts = []
+        parts.append(f"Spent **{md_cost(c['cost'])}**, generated **{md_num(c['ftd'])} FTDs** "
+                     f"with **{md_num(c['register'])} registrations** and "
+                     f"**{md_deposit(c['deposit'])}** in deposits.")
+
+        # Key metrics
+        parts.append(f"Cost/FTD: **{md_cost(c['cpftd'])}** · "
+                     f"ARPPU: **{md_deposit(c['arppu'])}** · "
+                     f"Conv Rate: **{md_pct(c['conv_rate'])}** · "
+                     f"ROAS: **{c['roas']:.2f}x**")
+
+        # MoM comparison
+        if p is not None:
+            cost_chg = _pct_change(c['cost'], p['cost'])
+            ftd_chg = _pct_change(c['ftd'], p['ftd'])
+            dep_chg = _pct_change(c['deposit'], p['deposit'])
+            roas_chg = _pct_change(c['roas'], p['roas'])
+            cpftd_chg = _pct_change(c['cpftd'], p['cpftd'])
+            cvr_chg = _pct_change(c['conv_rate'], p['conv_rate'])
+
+            mom_lines = []
+            mom_lines.append(f"Cost {_direction_word(cost_chg, False)} ({md_cost(p['cost'])} → {md_cost(c['cost'])})")
+            mom_lines.append(f"FTD {_direction_word(ftd_chg, True)} ({md_num(p['ftd'])} → {md_num(c['ftd'])})")
+            mom_lines.append(f"Deposits {_direction_word(dep_chg, True)} ({md_deposit(p['deposit'])} → {md_deposit(c['deposit'])})")
+            mom_lines.append(f"Cost/FTD {_direction_word(cpftd_chg, False)} ({md_cost(p['cpftd'])} → {md_cost(c['cpftd'])})")
+            mom_lines.append(f"Conv Rate {_direction_word(cvr_chg, True)} ({md_pct(p['conv_rate'])} → {md_pct(c['conv_rate'])})")
+            mom_lines.append(f"ROAS {_direction_word(roas_chg, True)} ({p['roas']:.2f}x → {c['roas']:.2f}x)")
+
+            parts.append("**MoM Changes:**")
+            for ml in mom_lines:
+                parts.append(f"  - {ml}")
+
+            # Efficiency assessment
+            if cost_chg is not None and ftd_chg is not None:
+                if ftd_chg > cost_chg:
+                    parts.append("✅ Spend efficiency improved — FTD growth outpaced cost growth.")
+                elif cost_chg > 0 and (ftd_chg is None or ftd_chg <= 0):
+                    parts.append("⚠️ Spend efficiency declined — costs rose while FTDs dropped or stagnated.")
+                elif cost_chg < 0 and ftd_chg > 0:
+                    parts.append("✅ Excellent — reduced spend while FTDs still grew.")
+        else:
+            parts.append("*No previous month data for MoM comparison.*")
+
+        # ROAS assessment
+        roas_val = c['roas']
+        if roas_val >= 1.0:
+            parts.append(f"✅ ROAS at {roas_val:.2f}x — profitable, deposits exceed ad spend.")
+        elif roas_val >= 0.5:
+            parts.append(f"ROAS at {roas_val:.2f}x — moderate return. Focus on improving FTD recharge rates.")
+        elif roas_val > 0:
+            parts.append(f"⚠️ ROAS at {roas_val:.2f}x — low return. Review targeting and post-registration engagement.")
+
+        st.markdown("\n".join(f"- {line}" if not line.startswith("  ") and not line.startswith("*") and not line.startswith("✅") and not line.startswith("⚠") else line for line in parts))
+
+    # Platform-specific recommendations
+    roi_df = platform_monthly.get('daily_roi', pd.DataFrame())
+    if not roi_df.empty:
+        curr_roi = roi_df[(roi_df['month_key'] == sel_month) & (roi_df['platform'] == platform_name)]
+        prev_roi = roi_df[(roi_df['month_key'] == prev_month) & (roi_df['platform'] == platform_name)] if prev_month else pd.DataFrame()
+
+        if not curr_roi.empty:
+            c = curr_roi.iloc[0]
+            st.markdown(f"#### {platform_name} Recommendations")
+            p_recs = []
+
+            cpftd = c['cpftd']
+            if cpftd > 15:
+                p_recs.append(f"Cost/FTD at {md_cost(cpftd)} exceeds \\$15 target. Tighten audience targeting and pause low-performing campaigns.")
+            elif cpftd > 12:
+                p_recs.append(f"Cost/FTD at {md_cost(cpftd)} is moderate. A/B test creatives to push below \\$12.")
+            elif cpftd > 0:
+                p_recs.append(f"Cost/FTD at {md_cost(cpftd)} is efficient. Scale budget cautiously while maintaining efficiency.")
+
+            if c['conv_rate'] < 3:
+                p_recs.append(f"Conversion rate at {md_pct(c['conv_rate'])} is low. Review registration-to-FTD funnel and onboarding experience.")
+
+            if c['roas'] < 0.3 and c['roas'] > 0:
+                p_recs.append(f"ROAS at {c['roas']:.2f}x needs improvement. Focus on retaining FTDs with better first-deposit incentives.")
+
+            if not prev_roi.empty:
+                p = prev_roi.iloc[0]
+                ftd_chg = _pct_change(c['ftd'], p['ftd'])
+                cost_chg = _pct_change(c['cost'], p['cost'])
+                if cost_chg is not None and cost_chg > 20 and (ftd_chg is None or ftd_chg < 10):
+                    p_recs.append("Budget scaling issue — spend increased significantly without proportional FTD growth. Scale more gradually.")
+
+            if p_recs:
+                for i, rec in enumerate(p_recs, 1):
+                    st.markdown(f"{i}. {rec}")
+            else:
+                st.success(f"{platform_name} performance looks strong. Continue current strategies.")
+
+
 def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, platform_monthly=None):
     curr = aggregate_rows(monthly, sel_month)
     prev = aggregate_rows(monthly, prev_month) if prev_month else {}
@@ -883,136 +1009,15 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, pla
                                    for _, r in high_cost_low_ftd.iterrows())
                 st.warning(f"**Channels to review** (above-median cost, below-median FTD): {ch_list}")
 
-    # ── 6. FB vs Google Platform Analysis ─────────────────────────────
+    # ── 6. Facebook Ads Analysis ─────────────────────────────────────
     if platform_monthly:
-        st.markdown("---")
-        st.markdown("### Facebook vs Google Analysis")
+        _render_platform_analysis(platform_monthly, 'Facebook', sel_month, prev_month)
 
-        for section_key, section_label in SECTION_LABELS.items():
-            pdf = platform_monthly.get(section_key, pd.DataFrame())
-            if pdf.empty:
-                continue
+    # ── 7. Google Ads Analysis ────────────────────────────────────────
+    if platform_monthly:
+        _render_platform_analysis(platform_monthly, 'Google', sel_month, prev_month)
 
-            curr_p = pdf[pdf['month_key'] == sel_month]
-            prev_p = pdf[pdf['month_key'] == prev_month] if prev_month else pd.DataFrame()
-
-            fb_c = curr_p[curr_p['platform'] == 'Facebook']
-            g_c = curr_p[curr_p['platform'] == 'Google']
-
-            if fb_c.empty and g_c.empty:
-                continue
-
-            st.markdown(f"#### {section_label}")
-
-            parts = []
-
-            # Current month summary
-            fb_cost = fb_c.iloc[0]['cost'] if not fb_c.empty else 0
-            g_cost = g_c.iloc[0]['cost'] if not g_c.empty else 0
-            fb_ftd = fb_c.iloc[0]['ftd'] if not fb_c.empty else 0
-            g_ftd = g_c.iloc[0]['ftd'] if not g_c.empty else 0
-            fb_roas_val = fb_c.iloc[0]['roas'] if not fb_c.empty else 0
-            g_roas_val = g_c.iloc[0]['roas'] if not g_c.empty else 0
-            fb_deposit = fb_c.iloc[0]['deposit'] if not fb_c.empty else 0
-            g_deposit = g_c.iloc[0]['deposit'] if not g_c.empty else 0
-            total_cost_p = fb_cost + g_cost
-
-            if total_cost_p > 0:
-                fb_share = fb_cost / total_cost_p * 100
-                parts.append(f"Budget split: **Facebook {fb_share:.0f}%** ({md_cost(fb_cost)}) vs **Google {100-fb_share:.0f}%** ({md_cost(g_cost)}).")
-
-            if fb_ftd + g_ftd > 0:
-                fb_ftd_share = fb_ftd / (fb_ftd + g_ftd) * 100
-                parts.append(f"FTD split: **Facebook {fb_ftd_share:.0f}%** ({md_num(fb_ftd)}) vs **Google {100-fb_ftd_share:.0f}%** ({md_num(g_ftd)}).")
-
-            if fb_deposit + g_deposit > 0:
-                parts.append(f"Total deposits: Facebook {md_deposit(fb_deposit)} + Google {md_deposit(g_deposit)} = **{md_deposit(fb_deposit + g_deposit)}**.")
-
-            # ROAS comparison
-            if fb_roas_val > 0 and g_roas_val > 0:
-                if fb_roas_val > g_roas_val:
-                    diff = (fb_roas_val - g_roas_val) / g_roas_val * 100
-                    parts.append(f"Facebook ROAS ({fb_roas_val:.2f}x) **outperforms** Google ({g_roas_val:.2f}x) by {diff:.0f}%.")
-                elif g_roas_val > fb_roas_val:
-                    diff = (g_roas_val - fb_roas_val) / fb_roas_val * 100
-                    parts.append(f"Google ROAS ({g_roas_val:.2f}x) **outperforms** Facebook ({fb_roas_val:.2f}x) by {diff:.0f}%.")
-                else:
-                    parts.append(f"FB and Google ROAS are equal at {fb_roas_val:.2f}x.")
-            elif fb_roas_val > 0:
-                parts.append(f"Facebook ROAS: {fb_roas_val:.2f}x. Google has no data for this window.")
-            elif g_roas_val > 0:
-                parts.append(f"Google ROAS: {g_roas_val:.2f}x. Facebook has no data for this window.")
-
-            # MoM by platform
-            if not prev_p.empty:
-                fb_prev_r = prev_p[prev_p['platform'] == 'Facebook']
-                g_prev_r = prev_p[prev_p['platform'] == 'Google']
-
-                mom_parts = []
-                if not fb_c.empty and not fb_prev_r.empty:
-                    fb_cost_chg = _pct_change(fb_cost, fb_prev_r.iloc[0]['cost'])
-                    fb_ftd_chg = _pct_change(fb_ftd, fb_prev_r.iloc[0]['ftd'])
-                    fb_roas_chg = _pct_change(fb_roas_val, fb_prev_r.iloc[0]['roas'])
-                    fb_dep_chg = _pct_change(fb_deposit, fb_prev_r.iloc[0]['deposit'])
-                    mom_parts.append(
-                        f"**Facebook MoM**: Cost {_direction_word(fb_cost_chg, False)}, "
-                        f"FTD {_direction_word(fb_ftd_chg, True)}, "
-                        f"Deposits {_direction_word(fb_dep_chg, True)}, "
-                        f"ROAS {_direction_word(fb_roas_chg, True)}.")
-
-                if not g_c.empty and not g_prev_r.empty:
-                    g_cost_chg = _pct_change(g_cost, g_prev_r.iloc[0]['cost'])
-                    g_ftd_chg = _pct_change(g_ftd, g_prev_r.iloc[0]['ftd'])
-                    g_roas_chg = _pct_change(g_roas_val, g_prev_r.iloc[0]['roas'])
-                    g_dep_chg = _pct_change(g_deposit, g_prev_r.iloc[0]['deposit'])
-                    mom_parts.append(
-                        f"**Google MoM**: Cost {_direction_word(g_cost_chg, False)}, "
-                        f"FTD {_direction_word(g_ftd_chg, True)}, "
-                        f"Deposits {_direction_word(g_dep_chg, True)}, "
-                        f"ROAS {_direction_word(g_roas_chg, True)}.")
-
-                parts.extend(mom_parts)
-
-            if parts:
-                st.markdown("\n".join(f"- {p}" for p in parts))
-
-        # Platform recommendations
-        st.markdown("#### Platform Recommendations")
-        # Gather data from daily_roi (primary attribution window) for recommendations
-        roi_df = platform_monthly.get('daily_roi', pd.DataFrame())
-        if not roi_df.empty:
-            roi_curr = roi_df[roi_df['month_key'] == sel_month]
-            fb_roi = roi_curr[roi_curr['platform'] == 'Facebook']
-            g_roi = roi_curr[roi_curr['platform'] == 'Google']
-
-            p_recs = []
-            if not fb_roi.empty and not g_roi.empty:
-                fb_cpftd = fb_roi.iloc[0]['cpftd']
-                g_cpftd = g_roi.iloc[0]['cpftd']
-                fb_r = fb_roi.iloc[0]['roas']
-                g_r = g_roi.iloc[0]['roas']
-
-                if fb_cpftd > 0 and g_cpftd > 0:
-                    if fb_cpftd < g_cpftd * 0.8:
-                        p_recs.append(f"Facebook acquires FTDs significantly cheaper ({md_cost(fb_cpftd)} vs {md_cost(g_cpftd)}). Consider increasing FB budget allocation.")
-                    elif g_cpftd < fb_cpftd * 0.8:
-                        p_recs.append(f"Google acquires FTDs significantly cheaper ({md_cost(g_cpftd)} vs {md_cost(fb_cpftd)}). Consider increasing Google budget allocation.")
-                    else:
-                        p_recs.append(f"Cost per FTD is similar across platforms (FB: {md_cost(fb_cpftd)}, Google: {md_cost(g_cpftd)}). Maintain current split.")
-
-                if fb_r > 0 and g_r > 0:
-                    if fb_r > g_r * 1.5:
-                        p_recs.append(f"Facebook delivers {fb_r/g_r:.1f}x higher ROAS than Google. FB FTDs are recharging more — prioritize FB for revenue.")
-                    elif g_r > fb_r * 1.5:
-                        p_recs.append(f"Google delivers {g_r/fb_r:.1f}x higher ROAS than Facebook. Google FTDs are recharging more — prioritize Google for revenue.")
-
-            if p_recs:
-                for i, rec in enumerate(p_recs, 1):
-                    st.markdown(f"{i}. {rec}")
-            else:
-                st.info("Platform performance is balanced. Continue monitoring both channels.")
-
-    # ── 7. Recommendations ───────────────────────────────────────────
+    # ── 8. Recommendations ───────────────────────────────────────────
     st.markdown("---")
     st.markdown("### General Recommendations")
 
