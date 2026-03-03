@@ -212,6 +212,15 @@ def md_deposit(v):
     return f"₱{v:,.0f}" if v else "₱0"
 
 
+def month_name(mk):
+    """Convert '2026-02' to 'February 2026'."""
+    try:
+        dt = datetime.strptime(mk, '%Y-%m')
+        return dt.strftime('%B %Y')
+    except Exception:
+        return mk
+
+
 METRIC_CONFIG = {
     'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': False},
     'register': {'label': 'Register', 'fmt': fmt_num, 'hib': True},
@@ -705,8 +714,13 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
                 break
 
     icon = "📘" if platform_name == 'Facebook' else "📗"
+    sel_name = month_name(sel_month)
+    prev_name = month_name(prev_month) if prev_month else None
     st.markdown("---")
-    st.markdown(f"### {icon} {platform_name} Ads Analysis")
+    if prev_name:
+        st.markdown(f"### {icon} {platform_name} Ads Analysis — {sel_name} vs {prev_name}")
+    else:
+        st.markdown(f"### {icon} {platform_name} Ads Analysis — {sel_name}")
 
     for section_key, section_label in SECTION_LABELS.items():
         pdf = platform_monthly.get(section_key, pd.DataFrame())
@@ -753,7 +767,7 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
             mom_lines.append(f"Conv Rate {_direction_word(cvr_chg, True)} ({md_pct(p['conv_rate'])} → {md_pct(c['conv_rate'])})")
             mom_lines.append(f"ROAS {_direction_word(roas_chg, True)} ({p['roas']:.4f}x → {c['roas']:.4f}x)")
 
-            parts.append("**MoM Changes:**")
+            parts.append(f"**MoM Changes ({prev_name} → {sel_name}):**")
             for ml in mom_lines:
                 parts.append(f"  - {ml}")
 
