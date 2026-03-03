@@ -1,6 +1,6 @@
 """
 Monthly Analysis Dashboard — Comprehensive monthly ad performance with MoM comparison,
-per-agent/team breakdowns, channel breakdowns, and multi-month trends.
+per-agent/team breakdowns, FB vs Google channel comparison, and multi-month trends.
 """
 import streamlit as st
 import pandas as pd
@@ -11,7 +11,10 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from channel_data_loader import load_agent_performance_data, refresh_agent_performance_data
+from channel_data_loader import (
+    load_agent_performance_data, refresh_agent_performance_data,
+    load_fb_channel_data, load_google_channel_data, refresh_channel_data,
+)
 from config import (
     AGENT_PERFORMANCE_TABS,
     KPI_PHP_USD_RATE,
@@ -107,6 +110,51 @@ def build_monthly_channel_data(daily_df):
     agg['team'] = agg['channel_clean'].map(CHANNEL_TEAM_MAP).fillna('Unknown')
 
     return agg
+
+
+# ── FB vs Google monthly aggregation ──────────────────────────────────
+def build_platform_monthly(fb_data, google_data):
+    """Build monthly aggregation for FB and Google across all 3 attribution windows."""
+    results = {}
+
+    for section_key in ['daily_roi', 'roll_back', 'violet']:
+        rows = []
+        for platform_label, data_dict in [('Facebook', fb_data), ('Google', google_data)]:
+            df = data_dict.get(section_key, pd.DataFrame())
+            if df.empty or 'date' not in df.columns:
+                continue
+            df = df.copy()
+            df['date'] = pd.to_datetime(df['date'], errors='coerce')
+            df = df.dropna(subset=['date'])
+            df['month_key'] = df['date'].dt.to_period('M').astype(str)
+
+            for mk, grp in df.groupby('month_key'):
+                cost = pd.to_numeric(grp.get('cost', 0), errors='coerce').fillna(0).sum()
+                register = pd.to_numeric(grp.get('register', 0), errors='coerce').fillna(0).sum()
+                ftd = pd.to_numeric(grp.get('ftd', 0), errors='coerce').fillna(0).sum()
+                deposit = pd.to_numeric(grp.get('deposit_amount', grp.get('ftd_recharge', 0)), errors='coerce').fillna(0).sum()
+                avg_rech = pd.to_numeric(grp.get('avg_recharge', 0), errors='coerce').fillna(0)
+                avg_rech = avg_rech[avg_rech > 0]
+                arppu = avg_rech.mean() if len(avg_rech) > 0 else 0
+
+                rows.append({
+                    'platform': platform_label,
+                    'month_key': mk,
+                    'cost': cost,
+                    'register': int(register),
+                    'ftd': int(ftd),
+                    'deposit': deposit,
+                    'arppu': arppu,
+                    'cpr': cost / register if register > 0 else 0,
+                    'cpftd': cost / ftd if ftd > 0 else 0,
+                    'conv_rate': ftd / register * 100 if register > 0 else 0,
+                    'roas': deposit / cost if cost > 0 else 0,
+                    'days': grp['date'].dt.date.nunique(),
+                })
+
+        results[section_key] = pd.DataFrame(rows) if rows else pd.DataFrame()
+
+    return results
 
 
 # ── Display helpers ──────────────────────────────────────────────────
@@ -867,6 +915,291 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
             st.markdown(f"{i}. {rec}")
 
 
+# ── Tab 6: FB vs Google ──────────────────────────────────────────────
+PLATFORM_METRICS = {
+    'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': False},
+    'register': {'label': 'Register', 'fmt': fmt_num, 'hib': True},
+    'ftd': {'label': 'FTD', 'fmt': fmt_num, 'hib': True},
+    'deposit': {'label': 'Deposit (₱)', 'fmt': lambda v: f"₱{v:,.0f}" if v else "₱0", 'hib': True},
+    'arppu': {'label': 'ARPPU (₱)', 'fmt': lambda v: f"₱{v:,.2f}" if v else "₱0.00", 'hib': True},
+    'cpftd': {'label': 'Cost/FTD', 'fmt': fmt_cost, 'hib': False},
+    'conv_rate': {'label': 'Conv Rate', 'fmt': fmt_pct, 'hib': True},
+    'roas': {'label': 'ROAS', 'fmt': lambda v: f"{v:.2f}x" if v else "0.00x", 'hib': True},
+}
+
+SECTION_LABELS = {
+    'daily_roi': 'Daily ROI',
+    'roll_back': 'Roll Back',
+    'violet': 'Violet',
+}
+
+
+def render_fb_vs_google(platform_monthly, sel_month, prev_month):
+    """Render FB vs Google comparison tab."""
+    has_any_data = False
+    for section_key in ['daily_roi', 'roll_back', 'violet']:
+        df = platform_monthly.get(section_key, pd.DataFrame())
+        if not df.empty and sel_month in df['month_key'].values:
+            has_any_data = True
+            break
+
+    if not has_any_data:
+        st.warning("No FB/Google channel data available for the selected month.")
+        return
+
+    # Section selector
+    section_sel = st.radio(
+        "Attribution Window",
+        ['daily_roi', 'roll_back', 'violet'],
+        format_func=lambda x: SECTION_LABELS[x],
+        horizontal=True,
+        key="fbg_section",
+    )
+
+    df = platform_monthly.get(section_sel, pd.DataFrame())
+    if df.empty:
+        st.warning(f"No {SECTION_LABELS[section_sel]} data available.")
+        return
+
+    curr_data = df[df['month_key'] == sel_month]
+    prev_data = df[df['month_key'] == prev_month] if prev_month else pd.DataFrame()
+
+    fb_curr = curr_data[curr_data['platform'] == 'Facebook'].iloc[0].to_dict() if not curr_data[curr_data['platform'] == 'Facebook'].empty else {}
+    google_curr = curr_data[curr_data['platform'] == 'Google'].iloc[0].to_dict() if not curr_data[curr_data['platform'] == 'Google'].empty else {}
+    fb_prev = prev_data[prev_data['platform'] == 'Facebook'].iloc[0].to_dict() if not prev_data.empty and not prev_data[prev_data['platform'] == 'Facebook'].empty else {}
+    google_prev = prev_data[prev_data['platform'] == 'Google'].iloc[0].to_dict() if not prev_data.empty and not prev_data[prev_data['platform'] == 'Google'].empty else {}
+
+    # ── Summary cards for combined totals ──
+    combined_curr = {}
+    combined_prev = {}
+    for key in ['cost', 'register', 'ftd', 'deposit']:
+        combined_curr[key] = fb_curr.get(key, 0) + google_curr.get(key, 0)
+        combined_prev[key] = fb_prev.get(key, 0) + google_prev.get(key, 0)
+
+    # Derived combined metrics
+    combined_curr['cpftd'] = combined_curr['cost'] / combined_curr['ftd'] if combined_curr['ftd'] > 0 else 0
+    combined_curr['roas'] = combined_curr['deposit'] / combined_curr['cost'] if combined_curr['cost'] > 0 else 0
+    combined_prev['cpftd'] = combined_prev['cost'] / combined_prev['ftd'] if combined_prev.get('ftd', 0) > 0 else 0
+    combined_prev['roas'] = combined_prev['deposit'] / combined_prev['cost'] if combined_prev.get('cost', 0) > 0 else 0
+
+    card_metrics = ['cost', 'ftd', 'deposit', 'cpftd', 'roas']
+    cols = st.columns(len(card_metrics))
+    for i, m in enumerate(card_metrics):
+        mc = PLATFORM_METRICS[m]
+        with cols[i]:
+            val = combined_curr.get(m, 0)
+            pval = combined_prev.get(m, 0)
+            delta = None
+            if pval and pval != 0:
+                pct = (val - pval) / abs(pval) * 100
+                delta = f"{pct:+.1f}% MoM"
+            delta_color = "inverse" if not mc['hib'] else "normal"
+            st.metric(f"Combined {mc['label']}", mc['fmt'](val), delta, delta_color=delta_color)
+
+    st.markdown(f"#### {SECTION_LABELS[section_sel]} — FB vs Google Comparison")
+
+    # ── Main comparison table ──
+    display_metrics = ['cost', 'register', 'ftd', 'deposit', 'arppu', 'cpftd', 'conv_rate', 'roas']
+
+    html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin:8px 0">'
+    html += f'<tr style="background:#f1f5f9;color:#1e293b"><th style="{TH}">Metric</th>'
+    html += f'<th style="{TH}">Facebook</th>'
+    if prev_month and fb_prev:
+        html += f'<th style="{TH}">FB MoM</th>'
+    html += f'<th style="{TH}">Google</th>'
+    if prev_month and google_prev:
+        html += f'<th style="{TH}">Google MoM</th>'
+    html += f'<th style="{TH}">FB Share</th></tr>'
+
+    for m in display_metrics:
+        mc = PLATFORM_METRICS[m]
+        fb_val = fb_curr.get(m, 0)
+        g_val = google_curr.get(m, 0)
+        fb_p = fb_prev.get(m, 0)
+        g_p = google_prev.get(m, 0)
+        total = fb_val + g_val if m in ['cost', 'register', 'ftd', 'deposit'] else 0
+
+        html += f'<tr style="background:#ffffff;color:#1e293b">'
+        html += f'<td style="{TD};font-weight:600;text-align:left">{mc["label"]}</td>'
+        html += f'<td style="{TD};font-weight:600">{mc["fmt"](fb_val)}</td>'
+        if prev_month and fb_prev:
+            html += f'<td style="{TD}">{delta_html(fb_val, fb_p, mc["hib"])}</td>'
+        html += f'<td style="{TD};font-weight:600">{mc["fmt"](g_val)}</td>'
+        if prev_month and google_prev:
+            html += f'<td style="{TD}">{delta_html(g_val, g_p, mc["hib"])}</td>'
+
+        # Share column
+        if total > 0:
+            share = fb_val / total * 100
+            html += f'<td style="{TD}">{share:.0f}% / {100-share:.0f}%</td>'
+        else:
+            html += f'<td style="{TD}">—</td>'
+        html += '</tr>'
+
+    html += '</table></div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+    # ── Bar chart: FB vs Google key metrics ──
+    c1, c2 = st.columns(2)
+    with c1:
+        fig = go.Figure()
+        bar_metrics = ['cost', 'ftd', 'register']
+        fb_vals = [fb_curr.get(m, 0) for m in bar_metrics]
+        g_vals = [google_curr.get(m, 0) for m in bar_metrics]
+        labels = [PLATFORM_METRICS[m]['label'] for m in bar_metrics]
+        fig.add_trace(go.Bar(name='Facebook', x=labels, y=fb_vals, marker_color='#3b82f6'))
+        fig.add_trace(go.Bar(name='Google', x=labels, y=g_vals, marker_color='#f59e0b'))
+        fig.update_layout(barmode='group', title='Volume Metrics', height=350,
+                          margin=dict(t=40, b=40), font=dict(color='#1e293b'),
+                          plot_bgcolor='#f8fafc', paper_bgcolor='#ffffff',
+                          legend=dict(orientation='h', y=1.12))
+        st.plotly_chart(fig, use_container_width=True, key="fbg_volume")
+
+    with c2:
+        fig = go.Figure()
+        eff_metrics = ['cpftd', 'arppu']
+        fb_vals = [fb_curr.get(m, 0) for m in eff_metrics]
+        g_vals = [google_curr.get(m, 0) for m in eff_metrics]
+        labels = [PLATFORM_METRICS[m]['label'] for m in eff_metrics]
+        fig.add_trace(go.Bar(name='Facebook', x=labels, y=fb_vals, marker_color='#3b82f6'))
+        fig.add_trace(go.Bar(name='Google', x=labels, y=g_vals, marker_color='#f59e0b'))
+        fig.update_layout(barmode='group', title='Efficiency Metrics', height=350,
+                          margin=dict(t=40, b=40), font=dict(color='#1e293b'),
+                          plot_bgcolor='#f8fafc', paper_bgcolor='#ffffff',
+                          legend=dict(orientation='h', y=1.12))
+        st.plotly_chart(fig, use_container_width=True, key="fbg_efficiency")
+
+    # ── Attribution Window Comparison ──
+    st.markdown("---")
+    st.markdown("#### Attribution Window Comparison (All 3 Windows)")
+
+    # Build comparison across windows for the selected month
+    window_rows = []
+    for sk, sl in SECTION_LABELS.items():
+        wdf = platform_monthly.get(sk, pd.DataFrame())
+        if wdf.empty:
+            continue
+        w_month = wdf[wdf['month_key'] == sel_month]
+        if w_month.empty:
+            continue
+        fb_r = w_month[w_month['platform'] == 'Facebook']
+        g_r = w_month[w_month['platform'] == 'Google']
+        window_rows.append({
+            'window': sl,
+            'fb_cost': fb_r.iloc[0]['cost'] if not fb_r.empty else 0,
+            'fb_ftd': fb_r.iloc[0]['ftd'] if not fb_r.empty else 0,
+            'fb_deposit': fb_r.iloc[0]['deposit'] if not fb_r.empty else 0,
+            'fb_roas': fb_r.iloc[0]['roas'] if not fb_r.empty else 0,
+            'g_cost': g_r.iloc[0]['cost'] if not g_r.empty else 0,
+            'g_ftd': g_r.iloc[0]['ftd'] if not g_r.empty else 0,
+            'g_deposit': g_r.iloc[0]['deposit'] if not g_r.empty else 0,
+            'g_roas': g_r.iloc[0]['roas'] if not g_r.empty else 0,
+        })
+
+    if window_rows:
+        html = '<table style="width:100%;border-collapse:collapse;margin:8px 0">'
+        html += f'<tr style="background:#f1f5f9;color:#1e293b">'
+        html += f'<th style="{TH}" rowspan="2">Window</th>'
+        html += f'<th style="{TH};background:#dbeafe" colspan="4">Facebook</th>'
+        html += f'<th style="{TH};background:#fef3c7" colspan="4">Google</th></tr>'
+        html += f'<tr style="background:#f1f5f9;color:#1e293b">'
+        for _ in range(2):
+            html += f'<th style="{TH}">Cost</th><th style="{TH}">FTD</th>'
+            html += f'<th style="{TH}">Deposit</th><th style="{TH}">ROAS</th>'
+        html += '</tr>'
+
+        for wr in window_rows:
+            html += f'<tr style="background:#ffffff;color:#1e293b">'
+            html += f'<td style="{TD};font-weight:700">{wr["window"]}</td>'
+            html += f'<td style="{TD}">{fmt_cost(wr["fb_cost"])}</td>'
+            html += f'<td style="{TD}">{fmt_num(wr["fb_ftd"])}</td>'
+            html += f'<td style="{TD}">₱{wr["fb_deposit"]:,.0f}</td>'
+            html += f'<td style="{TD};font-weight:600">{wr["fb_roas"]:.2f}x</td>'
+            html += f'<td style="{TD}">{fmt_cost(wr["g_cost"])}</td>'
+            html += f'<td style="{TD}">{fmt_num(wr["g_ftd"])}</td>'
+            html += f'<td style="{TD}">₱{wr["g_deposit"]:,.0f}</td>'
+            html += f'<td style="{TD};font-weight:600">{wr["g_roas"]:.2f}x</td>'
+            html += '</tr>'
+        html += '</table>'
+        st.markdown(html, unsafe_allow_html=True)
+
+    # ── Monthly trend: FB vs Google ──
+    months_in_data = sorted(df['month_key'].unique())
+    if len(months_in_data) >= 2:
+        st.markdown("---")
+        st.markdown("#### FB vs Google Monthly Trend")
+        trend_metric = st.selectbox("Metric", list(PLATFORM_METRICS.keys()), key="fbg_trend_m",
+                                     format_func=lambda m: PLATFORM_METRICS[m]['label'])
+
+        fb_trend = df[df['platform'] == 'Facebook'].sort_values('month_key')
+        g_trend = df[df['platform'] == 'Google'].sort_values('month_key')
+
+        mc = PLATFORM_METRICS[trend_metric]
+        fig = go.Figure()
+        if not fb_trend.empty:
+            fig.add_trace(go.Scatter(
+                x=fb_trend['month_key'], y=fb_trend[trend_metric],
+                mode='lines+markers+text', name='Facebook',
+                text=[mc['fmt'](v) for v in fb_trend[trend_metric]],
+                textposition='top center',
+                line=dict(color='#3b82f6', width=3), marker=dict(size=10)))
+        if not g_trend.empty:
+            fig.add_trace(go.Scatter(
+                x=g_trend['month_key'], y=g_trend[trend_metric],
+                mode='lines+markers+text', name='Google',
+                text=[mc['fmt'](v) for v in g_trend[trend_metric]],
+                textposition='bottom center',
+                line=dict(color='#f59e0b', width=3), marker=dict(size=10)))
+        fig.update_layout(yaxis=dict(title=mc['label']), height=400, margin=dict(t=30, b=40),
+                          plot_bgcolor='#f8fafc', paper_bgcolor='#ffffff', font=dict(color='#1e293b'),
+                          legend=dict(orientation='h', y=1.1))
+        st.plotly_chart(fig, use_container_width=True, key="fbg_trend_chart")
+
+    # ── Platform insights ──
+    st.markdown("---")
+    st.markdown("#### Platform Insights")
+    if fb_curr and google_curr:
+        fb_cost = fb_curr.get('cost', 0)
+        g_cost = google_curr.get('cost', 0)
+        total_cost = fb_cost + g_cost
+        fb_ftd = fb_curr.get('ftd', 0)
+        g_ftd = google_curr.get('ftd', 0)
+        fb_roas = fb_curr.get('roas', 0)
+        g_roas = google_curr.get('roas', 0)
+
+        if total_cost > 0:
+            fb_share = fb_cost / total_cost * 100
+            st.markdown(f"- **Budget split**: Facebook {fb_share:.0f}% (${fb_cost:,.2f}) vs Google {100-fb_share:.0f}% (${g_cost:,.2f})")
+
+        if fb_ftd + g_ftd > 0:
+            fb_ftd_share = fb_ftd / (fb_ftd + g_ftd) * 100
+            st.markdown(f"- **FTD split**: Facebook {fb_ftd_share:.0f}% ({fb_ftd:,}) vs Google {100-fb_ftd_share:.0f}% ({g_ftd:,})")
+
+        if fb_roas > g_roas and g_roas > 0:
+            st.success(f"Facebook ROAS ({fb_roas:.2f}x) outperforms Google ({g_roas:.2f}x) by {((fb_roas-g_roas)/g_roas*100):.0f}%")
+        elif g_roas > fb_roas and fb_roas > 0:
+            st.success(f"Google ROAS ({g_roas:.2f}x) outperforms Facebook ({fb_roas:.2f}x) by {((g_roas-fb_roas)/fb_roas*100):.0f}%")
+
+        fb_cpftd = fb_curr.get('cpftd', 0)
+        g_cpftd = google_curr.get('cpftd', 0)
+        if fb_cpftd > 0 and g_cpftd > 0:
+            if fb_cpftd < g_cpftd:
+                st.info(f"Facebook acquires FTDs cheaper (${fb_cpftd:.2f}) vs Google (${g_cpftd:.2f}). Consider shifting more budget to FB.")
+            else:
+                st.info(f"Google acquires FTDs cheaper (${g_cpftd:.2f}) vs Facebook (${fb_cpftd:.2f}). Consider shifting more budget to Google.")
+
+        # MoM comparison by platform
+        if fb_prev and google_prev:
+            fb_ftd_chg = _pct_change(fb_curr.get('ftd', 0), fb_prev.get('ftd', 0))
+            g_ftd_chg = _pct_change(google_curr.get('ftd', 0), google_prev.get('ftd', 0))
+            if fb_ftd_chg is not None:
+                st.markdown(f"- **Facebook MoM**: FTD {_direction_word(fb_ftd_chg, True)}, "
+                           f"ROAS {_direction_word(_pct_change(fb_curr.get('roas',0), fb_prev.get('roas',0)), True)}")
+            if g_ftd_chg is not None:
+                st.markdown(f"- **Google MoM**: FTD {_direction_word(g_ftd_chg, True)}, "
+                           f"ROAS {_direction_word(_pct_change(google_curr.get('roas',0), google_prev.get('roas',0)), True)}")
+
+
 # ── Main ─────────────────────────────────────────────────────────────
 def main():
     st.set_page_config(page_title="Monthly Analysis", page_icon="📊", layout="wide")
@@ -879,13 +1212,19 @@ def main():
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("Refresh", type="primary", key="ma_ref"):
             refresh_agent_performance_data()
+            refresh_channel_data()
             st.rerun()
 
-    # Load data
+    # Load data — P-tab agent performance (FB DEERPROMO channels)
     ptab_data = load_agent_performance_data()
     daily_df = ptab_data.get('daily', pd.DataFrame()) if ptab_data else pd.DataFrame()
     monthly = build_monthly_data(daily_df)
     channel_monthly = build_monthly_channel_data(daily_df)
+
+    # Load FB + Google channel summary data (team-level, 3 attribution windows)
+    fb_data = load_fb_channel_data()
+    google_data = load_google_channel_data()
+    platform_monthly = build_platform_monthly(fb_data, google_data)
 
     if monthly.empty:
         st.warning("No daily data available to build monthly analysis.")
@@ -906,7 +1245,9 @@ def main():
             st.info(f"Showing **{sel_month}** (no previous month for comparison)")
 
     # Tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Overview", "Agent Breakdown", "Team Breakdown", "Trends", "Analysis & Insights"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "Overview", "Agent Breakdown", "Team Breakdown",
+        "FB vs Google", "Trends", "Analysis & Insights"])
 
     with tab1:
         render_overview(monthly, months, sel_month, prev_month)
@@ -915,8 +1256,10 @@ def main():
     with tab3:
         render_teams(monthly, channel_monthly, months, sel_month, prev_month)
     with tab4:
-        render_trends(monthly, months)
+        render_fb_vs_google(platform_monthly, sel_month, prev_month)
     with tab5:
+        render_trends(monthly, months)
+    with tab6:
         render_analysis(monthly, channel_monthly, months, sel_month, prev_month)
 
 
