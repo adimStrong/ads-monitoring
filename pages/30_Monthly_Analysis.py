@@ -133,9 +133,7 @@ def build_platform_monthly(fb_data, google_data):
                 register = pd.to_numeric(grp.get('register', 0), errors='coerce').fillna(0).sum()
                 ftd = pd.to_numeric(grp.get('ftd', 0), errors='coerce').fillna(0).sum()
                 deposit = pd.to_numeric(grp.get('deposit_amount', grp.get('ftd_recharge', 0)), errors='coerce').fillna(0).sum()
-                avg_rech = pd.to_numeric(grp.get('avg_recharge', 0), errors='coerce').fillna(0)
-                avg_rech = avg_rech[avg_rech > 0]
-                arppu = avg_rech.mean() if len(avg_rech) > 0 else 0
+                arppu = deposit / ftd if ftd > 0 else 0
 
                 cpa = cost / ftd if ftd > 0 else 0
                 roas = arppu / KPI_PHP_USD_RATE / cpa if cpa > 0 else 0
