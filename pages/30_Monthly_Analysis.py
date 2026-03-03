@@ -137,6 +137,9 @@ def build_platform_monthly(fb_data, google_data):
                 avg_rech = avg_rech[avg_rech > 0]
                 arppu = avg_rech.mean() if len(avg_rech) > 0 else 0
 
+                cpa = cost / ftd if ftd > 0 else 0
+                roas = arppu / KPI_PHP_USD_RATE / cpa if cpa > 0 else 0
+
                 rows.append({
                     'platform': platform_label,
                     'month_key': mk,
@@ -146,9 +149,9 @@ def build_platform_monthly(fb_data, google_data):
                     'deposit': deposit,
                     'arppu': arppu,
                     'cpr': cost / register if register > 0 else 0,
-                    'cpftd': cost / ftd if ftd > 0 else 0,
+                    'cpftd': cpa,
                     'conv_rate': ftd / register * 100 if register > 0 else 0,
-                    'roas': deposit / cost if cost > 0 else 0,
+                    'roas': roas,
                     'days': grp['date'].dt.date.nunique(),
                 })
 
@@ -718,7 +721,7 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
         parts.append(f"Cost/FTD: **{md_cost(c['cpftd'])}** · "
                      f"ARPPU: **{md_deposit(c['arppu'])}** · "
                      f"Conv Rate: **{md_pct(c['conv_rate'])}** · "
-                     f"ROAS: **{c['roas']:.2f}x**")
+                     f"ROAS: **{c['roas']:.4f}x**")
 
         # MoM comparison
         if p is not None:
@@ -735,7 +738,7 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
             mom_lines.append(f"Deposits {_direction_word(dep_chg, True)} ({md_deposit(p['deposit'])} → {md_deposit(c['deposit'])})")
             mom_lines.append(f"Cost/FTD {_direction_word(cpftd_chg, False)} ({md_cost(p['cpftd'])} → {md_cost(c['cpftd'])})")
             mom_lines.append(f"Conv Rate {_direction_word(cvr_chg, True)} ({md_pct(p['conv_rate'])} → {md_pct(c['conv_rate'])})")
-            mom_lines.append(f"ROAS {_direction_word(roas_chg, True)} ({p['roas']:.2f}x → {c['roas']:.2f}x)")
+            mom_lines.append(f"ROAS {_direction_word(roas_chg, True)} ({p['roas']:.4f}x → {c['roas']:.4f}x)")
 
             parts.append("**MoM Changes:**")
             for ml in mom_lines:
@@ -752,14 +755,14 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
         else:
             parts.append("*No previous month data for MoM comparison.*")
 
-        # ROAS assessment
+        # ROAS assessment (ARPPU/57.7/CPA scale: >0.15 good, 0.08-0.15 moderate, <0.08 low)
         roas_val = c['roas']
-        if roas_val >= 1.0:
-            parts.append(f"✅ ROAS at {roas_val:.2f}x — profitable, deposits exceed ad spend.")
-        elif roas_val >= 0.5:
-            parts.append(f"ROAS at {roas_val:.2f}x — moderate return. Focus on improving FTD recharge rates.")
+        if roas_val >= 0.15:
+            parts.append(f"✅ ROAS at {roas_val:.4f}x — strong return. Current strategy is working well.")
+        elif roas_val >= 0.08:
+            parts.append(f"ROAS at {roas_val:.4f}x — moderate return. Focus on improving FTD recharge rates and ARPPU.")
         elif roas_val > 0:
-            parts.append(f"⚠️ ROAS at {roas_val:.2f}x — low return. Review targeting and post-registration engagement.")
+            parts.append(f"⚠️ ROAS at {roas_val:.4f}x — low return. Review targeting and post-registration engagement.")
 
         st.markdown("\n".join(f"- {line}" if not line.startswith("  ") and not line.startswith("*") and not line.startswith("✅") and not line.startswith("⚠") else line for line in parts))
 
@@ -785,8 +788,8 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
             if c['conv_rate'] < 3:
                 p_recs.append(f"Conversion rate at {md_pct(c['conv_rate'])} is low. Review registration-to-FTD funnel and onboarding experience.")
 
-            if c['roas'] < 0.3 and c['roas'] > 0:
-                p_recs.append(f"ROAS at {c['roas']:.2f}x needs improvement. Focus on retaining FTDs with better first-deposit incentives.")
+            if c['roas'] < 0.08 and c['roas'] > 0:
+                p_recs.append(f"ROAS at {c['roas']:.4f}x needs improvement. Focus on retaining FTDs with better first-deposit incentives.")
 
             if not prev_roi.empty:
                 p = prev_roi.iloc[0]
@@ -1068,7 +1071,7 @@ PLATFORM_METRICS = {
     'arppu': {'label': 'ARPPU (₱)', 'fmt': lambda v: f"₱{v:,.2f}" if v else "₱0.00", 'hib': True},
     'cpftd': {'label': 'Cost/FTD', 'fmt': fmt_cost, 'hib': False},
     'conv_rate': {'label': 'Conv Rate', 'fmt': fmt_pct, 'hib': True},
-    'roas': {'label': 'ROAS', 'fmt': lambda v: f"{v:.2f}x" if v else "0.00x", 'hib': True},
+    'roas': {'label': 'ROAS', 'fmt': fmt_roas, 'hib': True},
 }
 
 SECTION_LABELS = {
@@ -1120,11 +1123,21 @@ def render_fb_vs_google(platform_monthly, sel_month, prev_month):
         combined_curr[key] = fb_curr.get(key, 0) + google_curr.get(key, 0)
         combined_prev[key] = fb_prev.get(key, 0) + google_prev.get(key, 0)
 
-    # Derived combined metrics
+    # Weighted average ARPPU (by FTD count)
+    fb_ftd_c = fb_curr.get('ftd', 0)
+    g_ftd_c = google_curr.get('ftd', 0)
+    total_ftd_c = fb_ftd_c + g_ftd_c
+    combined_arppu_curr = ((fb_curr.get('arppu', 0) * fb_ftd_c + google_curr.get('arppu', 0) * g_ftd_c) / total_ftd_c) if total_ftd_c > 0 else 0
+    fb_ftd_p = fb_prev.get('ftd', 0)
+    g_ftd_p = google_prev.get('ftd', 0)
+    total_ftd_p = fb_ftd_p + g_ftd_p
+    combined_arppu_prev = ((fb_prev.get('arppu', 0) * fb_ftd_p + google_prev.get('arppu', 0) * g_ftd_p) / total_ftd_p) if total_ftd_p > 0 else 0
+
+    # Derived combined metrics — ROAS = ARPPU / 57.7 / CPA
     combined_curr['cpftd'] = combined_curr['cost'] / combined_curr['ftd'] if combined_curr['ftd'] > 0 else 0
-    combined_curr['roas'] = combined_curr['deposit'] / combined_curr['cost'] if combined_curr['cost'] > 0 else 0
+    combined_curr['roas'] = combined_arppu_curr / KPI_PHP_USD_RATE / combined_curr['cpftd'] if combined_curr['cpftd'] > 0 else 0
     combined_prev['cpftd'] = combined_prev['cost'] / combined_prev['ftd'] if combined_prev.get('ftd', 0) > 0 else 0
-    combined_prev['roas'] = combined_prev['deposit'] / combined_prev['cost'] if combined_prev.get('cost', 0) > 0 else 0
+    combined_prev['roas'] = combined_arppu_prev / KPI_PHP_USD_RATE / combined_prev['cpftd'] if combined_prev.get('cpftd', 0) > 0 else 0
 
     card_metrics = ['cost', 'ftd', 'deposit', 'cpftd', 'roas']
     cols = st.columns(len(card_metrics))
@@ -1258,11 +1271,11 @@ def render_fb_vs_google(platform_monthly, sel_month, prev_month):
             html += f'<td style="{TD}">{fmt_cost(wr["fb_cost"])}</td>'
             html += f'<td style="{TD}">{fmt_num(wr["fb_ftd"])}</td>'
             html += f'<td style="{TD}">₱{wr["fb_deposit"]:,.0f}</td>'
-            html += f'<td style="{TD};font-weight:600">{wr["fb_roas"]:.2f}x</td>'
+            html += f'<td style="{TD};font-weight:600">{wr["fb_roas"]:.4f}x</td>'
             html += f'<td style="{TD}">{fmt_cost(wr["g_cost"])}</td>'
             html += f'<td style="{TD}">{fmt_num(wr["g_ftd"])}</td>'
             html += f'<td style="{TD}">₱{wr["g_deposit"]:,.0f}</td>'
-            html += f'<td style="{TD};font-weight:600">{wr["g_roas"]:.2f}x</td>'
+            html += f'<td style="{TD};font-weight:600">{wr["g_roas"]:.4f}x</td>'
             html += '</tr>'
         html += '</table>'
         st.markdown(html, unsafe_allow_html=True)
@@ -1320,9 +1333,9 @@ def render_fb_vs_google(platform_monthly, sel_month, prev_month):
             st.markdown(f"- **FTD split**: Facebook {fb_ftd_share:.0f}% ({fb_ftd:,}) vs Google {100-fb_ftd_share:.0f}% ({g_ftd:,})")
 
         if fb_roas > g_roas and g_roas > 0:
-            st.success(f"Facebook ROAS ({fb_roas:.2f}x) outperforms Google ({g_roas:.2f}x) by {((fb_roas-g_roas)/g_roas*100):.0f}%")
+            st.success(f"Facebook ROAS ({fb_roas:.4f}x) outperforms Google ({g_roas:.4f}x) by {((fb_roas-g_roas)/g_roas*100):.0f}%")
         elif g_roas > fb_roas and fb_roas > 0:
-            st.success(f"Google ROAS ({g_roas:.2f}x) outperforms Facebook ({fb_roas:.2f}x) by {((g_roas-fb_roas)/fb_roas*100):.0f}%")
+            st.success(f"Google ROAS ({g_roas:.4f}x) outperforms Facebook ({fb_roas:.4f}x) by {((g_roas-fb_roas)/fb_roas*100):.0f}%")
 
         fb_cpftd = fb_curr.get('cpftd', 0)
         g_cpftd = google_curr.get('cpftd', 0)
