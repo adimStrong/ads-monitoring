@@ -155,6 +155,28 @@ def build_platform_monthly(fb_data, google_data):
 
         results[section_key] = pd.DataFrame(rows) if rows else pd.DataFrame()
 
+    # Backfill register from daily_roi into roll_back/violet where register=0
+    # (Violet and sometimes Roll Back sheets don't have register data)
+    roi_df = results.get('daily_roi', pd.DataFrame())
+    if not roi_df.empty:
+        for sk in ['roll_back', 'violet']:
+            sk_df = results.get(sk, pd.DataFrame())
+            if sk_df.empty:
+                continue
+            # Cast to float to avoid dtype warnings when backfilling
+            for col in ['register', 'cpr', 'conv_rate']:
+                if col in sk_df.columns:
+                    sk_df[col] = sk_df[col].astype(float)
+            for idx, row in sk_df.iterrows():
+                if row['register'] == 0:
+                    roi_match = roi_df[(roi_df['platform'] == row['platform']) & (roi_df['month_key'] == row['month_key'])]
+                    if not roi_match.empty:
+                        reg_val = float(roi_match.iloc[0]['register'])
+                        sk_df.at[idx, 'register'] = reg_val
+                        sk_df.at[idx, 'cpr'] = row['cost'] / reg_val if reg_val > 0 else 0
+                        sk_df.at[idx, 'conv_rate'] = row['ftd'] / reg_val * 100 if reg_val > 0 else 0
+            results[sk] = sk_df
+
     return results
 
 
@@ -676,14 +698,12 @@ def _pct_change(curr, prev):
 def _direction_word(pct, higher_is_better):
     if pct is None:
         return "unchanged"
-    is_good = (pct > 0) == higher_is_better
     magnitude = abs(pct)
     if magnitude < 1:
         return "remained stable"
-    strength = "slightly" if magnitude < 10 else ("significantly" if magnitude > 30 else "")
+    strength = "slightly " if magnitude < 10 else ("significantly " if magnitude > 30 else "")
     direction = "increased" if pct > 0 else "decreased"
-    good_bad = "improved" if is_good else "declined"
-    return f"{strength} {good_bad} ({direction} by {magnitude:.1f}%)".strip()
+    return f"{strength}{direction} by {magnitude:.1f}%"
 
 
 def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_month):
