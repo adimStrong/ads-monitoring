@@ -242,7 +242,7 @@ def month_name(mk):
 
 
 METRIC_CONFIG = {
-    'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': False},
+    'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': True},
     'register': {'label': 'Register', 'fmt': fmt_num, 'hib': True},
     'ftd': {'label': 'FTD', 'fmt': fmt_num, 'hib': True},
     'cpa': {'label': 'CPA', 'fmt': fmt_cost, 'hib': False},
@@ -874,7 +874,7 @@ def _render_platform_comparison(platform_monthly, sel_month, prev_month):
         st.markdown(f"### Platform Comparison — {sel_name}")
 
     COMP_METRICS = [
-        ('cost', 'Cost (USD)', fmt_cost, False),
+        ('cost', 'Cost (USD)', fmt_cost, True),
         ('register', 'Register', fmt_num, True),
         ('ftd', 'FTD', fmt_num, True),
         ('conv_rate', 'Conv Rate', fmt_pct, True),
@@ -1207,7 +1207,7 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, pla
 
 # ── Tab 6: FB vs Google ──────────────────────────────────────────────
 PLATFORM_METRICS = {
-    'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': False},
+    'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': True},
     'register': {'label': 'Register', 'fmt': fmt_num, 'hib': True},
     'ftd': {'label': 'FTD', 'fmt': fmt_num, 'hib': True},
     'deposit': {'label': 'Deposit (₱)', 'fmt': lambda v: f"₱{v:,.0f}" if v else "₱0", 'hib': True},
