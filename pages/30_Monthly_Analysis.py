@@ -188,6 +188,27 @@ def fmt_roas(v):
     return f"{v:.4f}x" if v else "0.0000x"
 
 
+# Markdown-safe formatters (escape $ to avoid LaTeX rendering in st.markdown)
+def md_cost(v):
+    return f"\\${v:,.2f}" if v else "\\$0.00"
+
+
+def md_num(v):
+    return f"{int(v):,}" if v else "0"
+
+
+def md_pct(v):
+    return f"{v:.2f}%" if v else "0.00%"
+
+
+def md_roas(v):
+    return f"{v:.4f}x" if v else "0.0000x"
+
+
+def md_deposit(v):
+    return f"₱{v:,.0f}" if v else "₱0"
+
+
 METRIC_CONFIG = {
     'cost': {'label': 'Cost (USD)', 'fmt': fmt_cost, 'hib': False},
     'register': {'label': 'Register', 'fmt': fmt_num, 'hib': True},
@@ -655,7 +676,7 @@ def _direction_word(pct, higher_is_better):
     return f"{strength} {good_bad} ({direction} by {magnitude:.1f}%)".strip()
 
 
-def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
+def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, platform_monthly=None):
     curr = aggregate_rows(monthly, sel_month)
     prev = aggregate_rows(monthly, prev_month) if prev_month else {}
     month_data = monthly[monthly['month_key'] == sel_month]
@@ -668,8 +689,8 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
     # ── 1. Executive Summary ─────────────────────────────────────────
     st.markdown("### Executive Summary")
     summary_parts = []
-    summary_parts.append(f"In **{sel_month}**, the team spent a total of **{fmt_cost(curr['cost'])}** "
-                         f"generating **{fmt_num(curr['ftd'])} FTDs** from **{fmt_num(curr['register'])} registrations**.")
+    summary_parts.append(f"In **{sel_month}**, the team spent a total of **{md_cost(curr['cost'])}** "
+                         f"generating **{md_num(curr['ftd'])} FTDs** from **{md_num(curr['register'])} registrations**.")
 
     if prev:
         cost_pct = _pct_change(curr['cost'], prev['cost'])
@@ -682,14 +703,14 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
             f"while FTD volume {_direction_word(ftd_pct, True)}.")
 
         summary_parts.append(
-            f"CPA {_direction_word(cpa_pct, False)} to **{fmt_cost(curr['cpa'])}** "
-            f"and ROAS {_direction_word(roas_pct, True)} to **{fmt_roas(curr['roas'])}**.")
+            f"CPA {_direction_word(cpa_pct, False)} to **{md_cost(curr['cpa'])}** "
+            f"and ROAS {_direction_word(roas_pct, True)} to **{md_roas(curr['roas'])}**.")
 
         conv_pct = _pct_change(curr['conv_rate'], prev['conv_rate'])
         ctr_pct = _pct_change(curr['ctr'], prev['ctr'])
         summary_parts.append(
-            f"Conversion rate {_direction_word(conv_pct, True)} at **{fmt_pct(curr['conv_rate'])}** "
-            f"and CTR {_direction_word(ctr_pct, True)} at **{fmt_pct(curr['ctr'])}**.")
+            f"Conversion rate {_direction_word(conv_pct, True)} at **{md_pct(curr['conv_rate'])}** "
+            f"and CTR {_direction_word(ctr_pct, True)} at **{md_pct(curr['ctr'])}**.")
 
     st.markdown(" ".join(summary_parts))
 
@@ -698,13 +719,11 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
     st.markdown("### Cost Efficiency Analysis")
 
     if prev:
-        # Cost vs output efficiency
         cost_change = _pct_change(curr['cost'], prev['cost'])
         ftd_change = _pct_change(curr['ftd'], prev['ftd'])
 
         if cost_change is not None and ftd_change is not None:
             if ftd_change > cost_change:
-                efficiency_icon = "checkmark"
                 st.success(
                     f"Spend efficiency **improved** — FTD growth ({ftd_change:+.1f}%) outpaced "
                     f"cost growth ({cost_change:+.1f}%), meaning more conversions per dollar spent.")
@@ -721,24 +740,22 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
                     f"Spend changed by {cost_change:+.1f}% and FTDs by {ftd_change:+.1f}%. "
                     f"The cost-to-output ratio is roughly proportional.")
 
-    # CPA benchmark analysis
     cpa_val = curr['cpa']
     if cpa_val > 0:
         if cpa_val < 10:
-            st.success(f"CPA at **{fmt_cost(cpa_val)}** is in the **excellent** range (< $10). Keep current strategy.")
+            st.success(f"CPA at **{md_cost(cpa_val)}** is in the **excellent** range (< \\$10). Keep current strategy.")
         elif cpa_val < 14:
-            st.info(f"CPA at **{fmt_cost(cpa_val)}** is in the **good** range ($10–$14). Room for optimization.")
+            st.info(f"CPA at **{md_cost(cpa_val)}** is in the **good** range (\\$10–\\$14). Room for optimization.")
         elif cpa_val <= 15:
-            st.warning(f"CPA at **{fmt_cost(cpa_val)}** is in the **fair** range ($14–$15). Review underperforming campaigns.")
+            st.warning(f"CPA at **{md_cost(cpa_val)}** is in the **fair** range (\\$14–\\$15). Review underperforming campaigns.")
         else:
-            st.error(f"CPA at **{fmt_cost(cpa_val)}** is **above target** (> $15). Immediate action needed on high-cost campaigns.")
+            st.error(f"CPA at **{md_cost(cpa_val)}** is **above target** (> \\$15). Immediate action needed on high-cost campaigns.")
 
     # ── 3. Agent Performance Insights ────────────────────────────────
     st.markdown("---")
     st.markdown("### Agent Performance Insights")
 
     if not month_data.empty and len(month_data) > 1:
-        # Best / worst agents
         best_cpa = month_data.loc[month_data['cpa'].idxmin()]
         worst_cpa = month_data.loc[month_data['cpa'].idxmax()]
         best_roas = month_data.loc[month_data['roas'].idxmax()]
@@ -747,21 +764,20 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
 
         insights = []
         insights.append(
-            f"**Top performer by CPA**: {best_cpa['agent']} at {fmt_cost(best_cpa['cpa'])} — "
+            f"**Top performer by CPA**: {best_cpa['agent']} at {md_cost(best_cpa['cpa'])} — "
             f"{((worst_cpa['cpa'] - best_cpa['cpa']) / worst_cpa['cpa'] * 100):.0f}% more efficient than "
-            f"{worst_cpa['agent']} ({fmt_cost(worst_cpa['cpa'])}).")
+            f"{worst_cpa['agent']} ({md_cost(worst_cpa['cpa'])}).")
 
         insights.append(
-            f"**Best ROAS**: {best_roas['agent']} at {fmt_roas(best_roas['roas'])}. "
-            f"**Lowest ROAS**: {worst_roas['agent']} at {fmt_roas(worst_roas['roas'])}.")
+            f"**Best ROAS**: {best_roas['agent']} at {md_roas(best_roas['roas'])}. "
+            f"**Lowest ROAS**: {worst_roas['agent']} at {md_roas(worst_roas['roas'])}.")
 
         insights.append(
-            f"**Highest conversion rate**: {best_cvr['agent']} at {fmt_pct(best_cvr['conv_rate'])}.")
+            f"**Highest conversion rate**: {best_cvr['agent']} at {md_pct(best_cvr['conv_rate'])}.")
 
         for ins in insights:
             st.markdown(f"- {ins}")
 
-        # MoM agent improvements / declines
         if not prev_data.empty:
             st.markdown("#### MoM Agent Changes")
             improved = []
@@ -776,14 +792,14 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
                 roas_chg = _pct_change(row['roas'], pr['roas'])
 
                 if cpa_chg is not None and cpa_chg < -5:
-                    improved.append(f"**{agent}**: CPA improved {abs(cpa_chg):.1f}% ({fmt_cost(pr['cpa'])} → {fmt_cost(row['cpa'])})")
+                    improved.append(f"**{agent}**: CPA improved {abs(cpa_chg):.1f}% ({md_cost(pr['cpa'])} → {md_cost(row['cpa'])})")
                 elif cpa_chg is not None and cpa_chg > 10:
-                    declined.append(f"**{agent}**: CPA worsened {cpa_chg:.1f}% ({fmt_cost(pr['cpa'])} → {fmt_cost(row['cpa'])})")
+                    declined.append(f"**{agent}**: CPA worsened {cpa_chg:.1f}% ({md_cost(pr['cpa'])} → {md_cost(row['cpa'])})")
 
                 if roas_chg is not None and roas_chg > 10:
-                    improved.append(f"**{agent}**: ROAS improved {roas_chg:.1f}% ({fmt_roas(pr['roas'])} → {fmt_roas(row['roas'])})")
+                    improved.append(f"**{agent}**: ROAS improved {roas_chg:.1f}% ({md_roas(pr['roas'])} → {md_roas(row['roas'])})")
                 elif roas_chg is not None and roas_chg < -10:
-                    declined.append(f"**{agent}**: ROAS declined {abs(roas_chg):.1f}% ({fmt_roas(pr['roas'])} → {fmt_roas(row['roas'])})")
+                    declined.append(f"**{agent}**: ROAS declined {abs(roas_chg):.1f}% ({md_roas(pr['roas'])} → {md_roas(row['roas'])})")
 
             if improved:
                 st.success("**Improvements:**\n" + "\n".join(f"- {x}" for x in improved))
@@ -808,9 +824,10 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
         t_cvr = t_ftd / t_reg * 100 if t_reg > 0 else 0
         members = ", ".join(team_rows['agent'].tolist())
 
-        team_text = f"**{team_name}** ({members}): Spent {fmt_cost(t_cost)}, generated {fmt_num(t_ftd)} FTDs at {fmt_cost(t_cpa)} CPA with {fmt_pct(t_cvr)} conversion rate."
+        team_text = (f"**{team_name}** ({members}): Spent {md_cost(t_cost)}, "
+                     f"generated {md_num(t_ftd)} FTDs at {md_cost(t_cpa)} CPA "
+                     f"with {md_pct(t_cvr)} conversion rate.")
 
-        # Compare teams
         if not prev_data.empty:
             prev_team = prev_data[prev_data['team'] == team_name]
             if not prev_team.empty:
@@ -823,7 +840,6 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
 
         st.markdown(f"- {team_text}")
 
-    # Team cost share
     total_cost = month_data['cost'].sum()
     if total_cost > 0:
         st.markdown("#### Budget Allocation")
@@ -839,12 +855,12 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
             else:
                 st.info(f"**{team_name}**: {share:.1f}% of budget → {ftd_share:.1f}% of FTDs (proportional)")
 
-    # ── 5. Channel Insights ──────────────────────────────────────────
+    # ── 5. Channel Insights (DEERPROMO) ──────────────────────────────
     if not channel_monthly.empty:
         ch_month = channel_monthly[channel_monthly['month_key'] == sel_month]
         if not ch_month.empty and len(ch_month) > 1:
             st.markdown("---")
-            st.markdown("### Channel Insights")
+            st.markdown("### Channel Insights (DEERPROMO)")
 
             best_ch = ch_month.loc[ch_month['cpa'].idxmin()] if ch_month['ftd'].sum() > 0 else None
             worst_ch_candidates = ch_month[ch_month['ftd'] > 0]
@@ -853,52 +869,175 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month):
 
             if best_ch is not None:
                 st.markdown(f"- **Most efficient channel**: {best_ch['channel_clean']} ({best_ch['team']}) "
-                           f"at {fmt_cost(best_ch['cpa'])} CPA with {fmt_num(best_ch['ftd'])} FTDs")
+                           f"at {md_cost(best_ch['cpa'])} CPA with {md_num(best_ch['ftd'])} FTDs")
             if worst_ch is not None:
                 st.markdown(f"- **Least efficient channel**: {worst_ch['channel_clean']} ({worst_ch['team']}) "
-                           f"at {fmt_cost(worst_ch['cpa'])} CPA")
+                           f"at {md_cost(worst_ch['cpa'])} CPA")
             st.markdown(f"- **Highest volume channel**: {top_volume['channel_clean']} ({top_volume['team']}) "
-                       f"with {fmt_num(top_volume['ftd'])} FTDs")
+                       f"with {md_num(top_volume['ftd'])} FTDs")
 
-            # Channels with high cost but low FTD
             high_cost_low_ftd = ch_month[(ch_month['cost'] > ch_month['cost'].median()) &
                                           (ch_month['ftd'] < ch_month['ftd'].median())]
             if not high_cost_low_ftd.empty:
-                st.warning("**Channels to review** (above-median cost, below-median FTD): " +
-                          ", ".join(f"{r['channel_clean']} ({fmt_cost(r['cost'])} → {fmt_num(r['ftd'])} FTDs)"
-                                   for _, r in high_cost_low_ftd.iterrows()))
+                ch_list = ", ".join(f"{r['channel_clean']} ({md_cost(r['cost'])} → {md_num(r['ftd'])} FTDs)"
+                                   for _, r in high_cost_low_ftd.iterrows())
+                st.warning(f"**Channels to review** (above-median cost, below-median FTD): {ch_list}")
 
-    # ── 6. Recommendations ───────────────────────────────────────────
+    # ── 6. FB vs Google Platform Analysis ─────────────────────────────
+    if platform_monthly:
+        st.markdown("---")
+        st.markdown("### Facebook vs Google Analysis")
+
+        for section_key, section_label in SECTION_LABELS.items():
+            pdf = platform_monthly.get(section_key, pd.DataFrame())
+            if pdf.empty:
+                continue
+
+            curr_p = pdf[pdf['month_key'] == sel_month]
+            prev_p = pdf[pdf['month_key'] == prev_month] if prev_month else pd.DataFrame()
+
+            fb_c = curr_p[curr_p['platform'] == 'Facebook']
+            g_c = curr_p[curr_p['platform'] == 'Google']
+
+            if fb_c.empty and g_c.empty:
+                continue
+
+            st.markdown(f"#### {section_label}")
+
+            parts = []
+
+            # Current month summary
+            fb_cost = fb_c.iloc[0]['cost'] if not fb_c.empty else 0
+            g_cost = g_c.iloc[0]['cost'] if not g_c.empty else 0
+            fb_ftd = fb_c.iloc[0]['ftd'] if not fb_c.empty else 0
+            g_ftd = g_c.iloc[0]['ftd'] if not g_c.empty else 0
+            fb_roas_val = fb_c.iloc[0]['roas'] if not fb_c.empty else 0
+            g_roas_val = g_c.iloc[0]['roas'] if not g_c.empty else 0
+            fb_deposit = fb_c.iloc[0]['deposit'] if not fb_c.empty else 0
+            g_deposit = g_c.iloc[0]['deposit'] if not g_c.empty else 0
+            total_cost_p = fb_cost + g_cost
+
+            if total_cost_p > 0:
+                fb_share = fb_cost / total_cost_p * 100
+                parts.append(f"Budget split: **Facebook {fb_share:.0f}%** ({md_cost(fb_cost)}) vs **Google {100-fb_share:.0f}%** ({md_cost(g_cost)}).")
+
+            if fb_ftd + g_ftd > 0:
+                fb_ftd_share = fb_ftd / (fb_ftd + g_ftd) * 100
+                parts.append(f"FTD split: **Facebook {fb_ftd_share:.0f}%** ({md_num(fb_ftd)}) vs **Google {100-fb_ftd_share:.0f}%** ({md_num(g_ftd)}).")
+
+            if fb_deposit + g_deposit > 0:
+                parts.append(f"Total deposits: Facebook {md_deposit(fb_deposit)} + Google {md_deposit(g_deposit)} = **{md_deposit(fb_deposit + g_deposit)}**.")
+
+            # ROAS comparison
+            if fb_roas_val > 0 and g_roas_val > 0:
+                if fb_roas_val > g_roas_val:
+                    diff = (fb_roas_val - g_roas_val) / g_roas_val * 100
+                    parts.append(f"Facebook ROAS ({fb_roas_val:.2f}x) **outperforms** Google ({g_roas_val:.2f}x) by {diff:.0f}%.")
+                elif g_roas_val > fb_roas_val:
+                    diff = (g_roas_val - fb_roas_val) / fb_roas_val * 100
+                    parts.append(f"Google ROAS ({g_roas_val:.2f}x) **outperforms** Facebook ({fb_roas_val:.2f}x) by {diff:.0f}%.")
+                else:
+                    parts.append(f"FB and Google ROAS are equal at {fb_roas_val:.2f}x.")
+            elif fb_roas_val > 0:
+                parts.append(f"Facebook ROAS: {fb_roas_val:.2f}x. Google has no data for this window.")
+            elif g_roas_val > 0:
+                parts.append(f"Google ROAS: {g_roas_val:.2f}x. Facebook has no data for this window.")
+
+            # MoM by platform
+            if not prev_p.empty:
+                fb_prev_r = prev_p[prev_p['platform'] == 'Facebook']
+                g_prev_r = prev_p[prev_p['platform'] == 'Google']
+
+                mom_parts = []
+                if not fb_c.empty and not fb_prev_r.empty:
+                    fb_cost_chg = _pct_change(fb_cost, fb_prev_r.iloc[0]['cost'])
+                    fb_ftd_chg = _pct_change(fb_ftd, fb_prev_r.iloc[0]['ftd'])
+                    fb_roas_chg = _pct_change(fb_roas_val, fb_prev_r.iloc[0]['roas'])
+                    fb_dep_chg = _pct_change(fb_deposit, fb_prev_r.iloc[0]['deposit'])
+                    mom_parts.append(
+                        f"**Facebook MoM**: Cost {_direction_word(fb_cost_chg, False)}, "
+                        f"FTD {_direction_word(fb_ftd_chg, True)}, "
+                        f"Deposits {_direction_word(fb_dep_chg, True)}, "
+                        f"ROAS {_direction_word(fb_roas_chg, True)}.")
+
+                if not g_c.empty and not g_prev_r.empty:
+                    g_cost_chg = _pct_change(g_cost, g_prev_r.iloc[0]['cost'])
+                    g_ftd_chg = _pct_change(g_ftd, g_prev_r.iloc[0]['ftd'])
+                    g_roas_chg = _pct_change(g_roas_val, g_prev_r.iloc[0]['roas'])
+                    g_dep_chg = _pct_change(g_deposit, g_prev_r.iloc[0]['deposit'])
+                    mom_parts.append(
+                        f"**Google MoM**: Cost {_direction_word(g_cost_chg, False)}, "
+                        f"FTD {_direction_word(g_ftd_chg, True)}, "
+                        f"Deposits {_direction_word(g_dep_chg, True)}, "
+                        f"ROAS {_direction_word(g_roas_chg, True)}.")
+
+                parts.extend(mom_parts)
+
+            if parts:
+                st.markdown("\n".join(f"- {p}" for p in parts))
+
+        # Platform recommendations
+        st.markdown("#### Platform Recommendations")
+        # Gather data from daily_roi (primary attribution window) for recommendations
+        roi_df = platform_monthly.get('daily_roi', pd.DataFrame())
+        if not roi_df.empty:
+            roi_curr = roi_df[roi_df['month_key'] == sel_month]
+            fb_roi = roi_curr[roi_curr['platform'] == 'Facebook']
+            g_roi = roi_curr[roi_curr['platform'] == 'Google']
+
+            p_recs = []
+            if not fb_roi.empty and not g_roi.empty:
+                fb_cpftd = fb_roi.iloc[0]['cpftd']
+                g_cpftd = g_roi.iloc[0]['cpftd']
+                fb_r = fb_roi.iloc[0]['roas']
+                g_r = g_roi.iloc[0]['roas']
+
+                if fb_cpftd > 0 and g_cpftd > 0:
+                    if fb_cpftd < g_cpftd * 0.8:
+                        p_recs.append(f"Facebook acquires FTDs significantly cheaper ({md_cost(fb_cpftd)} vs {md_cost(g_cpftd)}). Consider increasing FB budget allocation.")
+                    elif g_cpftd < fb_cpftd * 0.8:
+                        p_recs.append(f"Google acquires FTDs significantly cheaper ({md_cost(g_cpftd)} vs {md_cost(fb_cpftd)}). Consider increasing Google budget allocation.")
+                    else:
+                        p_recs.append(f"Cost per FTD is similar across platforms (FB: {md_cost(fb_cpftd)}, Google: {md_cost(g_cpftd)}). Maintain current split.")
+
+                if fb_r > 0 and g_r > 0:
+                    if fb_r > g_r * 1.5:
+                        p_recs.append(f"Facebook delivers {fb_r/g_r:.1f}x higher ROAS than Google. FB FTDs are recharging more — prioritize FB for revenue.")
+                    elif g_r > fb_r * 1.5:
+                        p_recs.append(f"Google delivers {g_r/fb_r:.1f}x higher ROAS than Facebook. Google FTDs are recharging more — prioritize Google for revenue.")
+
+            if p_recs:
+                for i, rec in enumerate(p_recs, 1):
+                    st.markdown(f"{i}. {rec}")
+            else:
+                st.info("Platform performance is balanced. Continue monitoring both channels.")
+
+    # ── 7. Recommendations ───────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Recommendations")
+    st.markdown("### General Recommendations")
 
     recs = []
-    # CPA-based recommendations
     if curr['cpa'] > 15:
-        recs.append("**Reduce CPA urgently** — Current CPA exceeds $15 target. Audit campaigns with highest spend-to-FTD ratio. Consider pausing underperforming ad sets.")
+        recs.append("**Reduce CPA urgently** — Current CPA exceeds \\$15 target. Audit campaigns with highest spend-to-FTD ratio. Consider pausing underperforming ad sets.")
     elif curr['cpa'] > 13:
-        recs.append("**Optimize CPA** — Getting close to the $14 threshold. Focus A/B testing on top-performing creatives and tighten audience targeting.")
+        recs.append("**Optimize CPA** — Getting close to the \\$14 threshold. Focus A/B testing on top-performing creatives and tighten audience targeting.")
 
-    # ROAS-based
     if curr['roas'] < 0.1:
         recs.append("**ROAS critical** — Below 0.10x. Review ARPPU trends and verify recharge tracking. Consider shifting budget to higher-ROAS channels.")
     elif curr['roas'] < 0.2:
         recs.append("**Improve ROAS** — Below 0.20x target. Focus on retaining FTDs and improving first-deposit values through better post-reg engagement.")
 
-    # CVR-based
     if curr['conv_rate'] < 4:
         recs.append("**Low conversion rate** — Below 4%. Review landing page experience, registration flow, and offer incentives for first deposits.")
 
-    # CTR-based
     if curr['ctr'] < 2:
         recs.append("**Low CTR** — Below 2%. Refresh ad creatives, test new headlines, and review audience targeting for better engagement.")
 
-    # Agent-specific
     if not month_data.empty and len(month_data) > 1:
         worst_agent = month_data.loc[month_data['cpa'].idxmax()]
         best_agent = month_data.loc[month_data['cpa'].idxmin()]
         if worst_agent['cpa'] > best_agent['cpa'] * 2:
-            recs.append(f"**Performance gap**: {worst_agent['agent']}'s CPA ({fmt_cost(worst_agent['cpa'])}) is "
+            recs.append(f"**Performance gap**: {worst_agent['agent']}'s CPA ({md_cost(worst_agent['cpa'])}) is "
                        f"{worst_agent['cpa'] / best_agent['cpa']:.1f}x higher than {best_agent['agent']}'s. "
                        f"Review {worst_agent['agent']}'s campaign setup and consider sharing {best_agent['agent']}'s strategies.")
 
@@ -1260,7 +1399,7 @@ def main():
     with tab5:
         render_trends(monthly, months)
     with tab6:
-        render_analysis(monthly, channel_monthly, months, sel_month, prev_month)
+        render_analysis(monthly, channel_monthly, months, sel_month, prev_month, platform_monthly)
 
 
 if not hasattr(st, '_is_recharge_import'):
