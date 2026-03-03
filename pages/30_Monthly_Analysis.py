@@ -691,6 +691,19 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
     if not has_data:
         return
 
+    # Derive prev_month from platform data if P-tab doesn't have it
+    # (e.g. P-tab starts Feb but Google has Jan data)
+    if not prev_month:
+        for sk in ['daily_roi', 'roll_back', 'violet']:
+            pdf = platform_monthly.get(sk, pd.DataFrame())
+            if pdf.empty:
+                continue
+            plat_months = sorted(pdf[pdf['platform'] == platform_name]['month_key'].unique())
+            sel_idx = plat_months.index(sel_month) if sel_month in plat_months else -1
+            if sel_idx > 0:
+                prev_month = plat_months[sel_idx - 1]
+                break
+
     icon = "📘" if platform_name == 'Facebook' else "📗"
     st.markdown("---")
     st.markdown(f"### {icon} {platform_name} Ads Analysis")
@@ -1093,6 +1106,18 @@ def render_fb_vs_google(platform_monthly, sel_month, prev_month):
     if not has_any_data:
         st.warning("No FB/Google channel data available for the selected month.")
         return
+
+    # Derive prev_month from platform data if P-tab doesn't have it
+    if not prev_month:
+        for section_key in ['daily_roi', 'roll_back', 'violet']:
+            df_check = platform_monthly.get(section_key, pd.DataFrame())
+            if df_check.empty:
+                continue
+            all_months = sorted(df_check['month_key'].unique())
+            sel_idx = all_months.index(sel_month) if sel_month in all_months else -1
+            if sel_idx > 0:
+                prev_month = all_months[sel_idx - 1]
+                break
 
     # Section selector
     section_sel = st.radio(
