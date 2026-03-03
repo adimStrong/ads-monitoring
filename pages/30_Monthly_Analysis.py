@@ -832,6 +832,100 @@ def _render_platform_analysis(platform_monthly, platform_name, sel_month, prev_m
                 st.success(f"{platform_name} performance looks strong. Continue current strategies.")
 
 
+def _render_platform_comparison(platform_monthly, sel_month, prev_month):
+    """Render FB vs Google comparison table with MoM for each platform."""
+    # Derive prev_month from platform data if P-tab doesn't have it
+    if not prev_month:
+        for sk in ['daily_roi', 'roll_back', 'violet']:
+            pdf = platform_monthly.get(sk, pd.DataFrame())
+            if pdf.empty:
+                continue
+            all_months = sorted(pdf['month_key'].unique())
+            sel_idx = all_months.index(sel_month) if sel_month in all_months else -1
+            if sel_idx > 0:
+                prev_month = all_months[sel_idx - 1]
+                break
+
+    sel_name = month_name(sel_month)
+    prev_name = month_name(prev_month) if prev_month else None
+
+    st.markdown("---")
+    if prev_name:
+        st.markdown(f"### Platform Comparison — {sel_name} vs {prev_name}")
+    else:
+        st.markdown(f"### Platform Comparison — {sel_name}")
+
+    COMP_METRICS = [
+        ('cost', 'Cost (USD)', fmt_cost, False),
+        ('register', 'Register', fmt_num, True),
+        ('ftd', 'FTD', fmt_num, True),
+        ('conv_rate', 'Conv Rate', fmt_pct, True),
+        ('cpr', 'CPR (USD)', fmt_cost, False),
+        ('arppu', 'ARPPU (PHP)', lambda v: f"₱{v:,.2f}" if v else "₱0.00", True),
+        ('roas', 'ROAS', fmt_roas, True),
+    ]
+
+    for section_key, section_label in SECTION_LABELS.items():
+        pdf = platform_monthly.get(section_key, pd.DataFrame())
+        if pdf.empty:
+            continue
+
+        fb_curr = pdf[(pdf['month_key'] == sel_month) & (pdf['platform'] == 'Facebook')]
+        g_curr = pdf[(pdf['month_key'] == sel_month) & (pdf['platform'] == 'Google')]
+        if fb_curr.empty and g_curr.empty:
+            continue
+
+        fb_c = fb_curr.iloc[0].to_dict() if not fb_curr.empty else {}
+        g_c = g_curr.iloc[0].to_dict() if not g_curr.empty else {}
+
+        fb_prev = pdf[(pdf['month_key'] == prev_month) & (pdf['platform'] == 'Facebook')] if prev_month else pd.DataFrame()
+        g_prev = pdf[(pdf['month_key'] == prev_month) & (pdf['platform'] == 'Google')] if prev_month else pd.DataFrame()
+        fb_p = fb_prev.iloc[0].to_dict() if not fb_prev.empty else {}
+        g_p = g_prev.iloc[0].to_dict() if not g_prev.empty else {}
+
+        st.markdown(f"#### {section_label}")
+
+        # Build comparison table
+        has_prev = bool(fb_p or g_p)
+        html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">'
+        html += '<tr style="background:#1e293b;color:#fff">'
+        html += f'<th style="{TH}">Metric</th>'
+        if has_prev:
+            html += f'<th style="{TH}">FB {prev_name}</th>' if fb_p else ''
+        html += f'<th style="{TH}">FB {sel_name}</th>'
+        if has_prev and fb_p:
+            html += f'<th style="{TH}">FB MoM</th>'
+        if has_prev:
+            html += f'<th style="{TH}">Google {prev_name}</th>' if g_p else ''
+        html += f'<th style="{TH}">Google {sel_name}</th>'
+        if has_prev and g_p:
+            html += f'<th style="{TH}">Google MoM</th>'
+        html += '</tr>'
+
+        for key, label, fmt, hib in COMP_METRICS:
+            fb_val = fb_c.get(key, 0)
+            g_val = g_c.get(key, 0)
+            fb_pv = fb_p.get(key, 0)
+            g_pv = g_p.get(key, 0)
+
+            html += '<tr style="background:#ffffff;color:#1e293b">'
+            html += f'<td style="{TD};font-weight:600;text-align:left">{label}</td>'
+            if has_prev and fb_p:
+                html += f'<td style="{TD}">{fmt(fb_pv)}</td>'
+            html += f'<td style="{TD};font-weight:600">{fmt(fb_val)}</td>'
+            if has_prev and fb_p:
+                html += f'<td style="{TD}">{delta_html(fb_val, fb_pv, hib)}</td>'
+            if has_prev and g_p:
+                html += f'<td style="{TD}">{fmt(g_pv)}</td>'
+            html += f'<td style="{TD};font-weight:600">{fmt(g_val)}</td>'
+            if has_prev and g_p:
+                html += f'<td style="{TD}">{delta_html(g_val, g_pv, hib)}</td>'
+            html += '</tr>'
+
+        html += '</table></div>'
+        st.markdown(html, unsafe_allow_html=True)
+
+
 def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, platform_monthly=None):
     curr = aggregate_rows(monthly, sel_month)
     prev = aggregate_rows(monthly, prev_month) if prev_month else {}
@@ -1047,7 +1141,11 @@ def render_analysis(monthly, channel_monthly, months, sel_month, prev_month, pla
     if platform_monthly:
         _render_platform_analysis(platform_monthly, 'Google', sel_month, prev_month)
 
-    # ── 8. Recommendations ───────────────────────────────────────────
+    # ── 8. Platform Comparison (FB vs Google MoM) ───────────────────
+    if platform_monthly:
+        _render_platform_comparison(platform_monthly, sel_month, prev_month)
+
+    # ── 9. Recommendations ───────────────────────────────────────────
     st.markdown("---")
     st.markdown("### General Recommendations")
 
