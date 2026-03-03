@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
-from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS
+from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS, KPI_PHP_USD_RATE
 
 CHANNEL_TO_TEAM = {
     'FB-FB-FB-DEERPROMO09': 'JASON / SHILA',
@@ -151,6 +151,12 @@ def render_content(key_prefix="tc"):
     total_fr = int(filtered_team_df['first_recharge'].sum())
     total_amt = filtered_team_df['total_amount'].sum()
 
+    # Derived overall metrics
+    overall_cpfd = total_cost / total_fr if total_fr > 0 else 0
+    overall_cvr = (total_fr / total_reg * 100) if total_reg > 0 else 0
+    overall_arppu = total_amt / total_fr if total_fr > 0 else 0
+    overall_roas = overall_arppu / KPI_PHP_USD_RATE / overall_cpfd if overall_cpfd > 0 else 0
+
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Total Cost", format_currency(total_cost))
@@ -160,6 +166,16 @@ def render_content(key_prefix="tc"):
         st.metric("1st Recharge", f"{total_fr:,}")
     with col4:
         st.metric("Total Amount", format_php(total_amt))
+
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        st.metric("CPFD", format_currency(overall_cpfd))
+    with col6:
+        st.metric("ROAS", f"{overall_roas:.4f}x")
+    with col7:
+        st.metric("CVR", f"{overall_cvr:.2f}%")
+    with col8:
+        st.metric("ARPPU", format_php(overall_arppu))
 
     st.divider()
 
