@@ -1148,7 +1148,13 @@ def load_updated_bm_data():
                 'advertiser': row[cols['advertiser']].strip().upper() if len(row) > cols['advertiser'] else '',
             })
         print(f"[OK] Loaded {len(records)} UPDATED BM records")
-        return pd.DataFrame(records) if records else pd.DataFrame()
+        if records:
+            df = pd.DataFrame(records)
+            # Exclude DER (no longer active team member)
+            df = df[df['advertiser'] != 'DERR']
+            print(f"[OK] After excluding DERR: {len(df)} BM records")
+            return df
+        return pd.DataFrame()
 
     except Exception as e:
         print(f"[ERROR] Failed to load UPDATED BM data: {e}")
