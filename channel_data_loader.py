@@ -1297,6 +1297,73 @@ def count_created_assets(assets_df, date_range=None):
     return result
 
 
+def count_assets_by_condition(assets_df, date_range=None):
+    """Count ALL assets grouped by condition (Active, Disabled, Restricted, etc.).
+
+    Returns:
+        dict: {agent_upper: {
+            'gmail': {'ACTIVE': N, 'DISABLED': N, ...},
+            'fb_accounts': {'ACTIVE': N, ...},
+            'fb_pages': {'ACTIVE': N, ...},
+            'bms': {'ACTIVE': N, 'AVAILABLE': N, ...},
+        }}
+    Also returns overall totals in key '_TOTAL'.
+    """
+    if assets_df is None or assets_df.empty:
+        return {}
+
+    if date_range and 'date' in assets_df.columns:
+        df = assets_df.copy()
+        df['date_dt'] = pd.to_datetime(df['date'], errors='coerce')
+        if df['date_dt'].notna().any():
+            df = df[(df['date_dt'] >= date_range[0]) & (df['date_dt'] <= date_range[1])]
+            assets_df = df
+
+    result = {}
+
+    def _count_items(val):
+        return len([v for v in val.split('\n') if v.strip() and v.strip() != '----'])
+
+    def _ensure(agent):
+        if agent not in result:
+            result[agent] = {
+                'gmail': {}, 'fb_accounts': {}, 'fb_pages': {}, 'bms': {},
+            }
+
+    for _, row in assets_df.iterrows():
+        creator = str(row.get('creator', '')).strip().upper()
+        if not creator or not row.get('has_creator', True):
+            continue
+
+        _ensure(creator)
+
+        fb_cond = str(row.get('fb_condition', '')).strip().upper() or 'UNKNOWN'
+        page_cond = str(row.get('page_condition', '')).strip().upper() or 'UNKNOWN'
+        bm_cond = str(row.get('bm_condition', '')).strip().upper() or 'UNKNOWN'
+
+        gmail_v = str(row.get('gmail', '')).strip()
+        if gmail_v and gmail_v != '----':
+            n = _count_items(gmail_v)
+            result[creator]['gmail'][fb_cond] = result[creator]['gmail'].get(fb_cond, 0) + n
+
+        fb_v = str(row.get('fb_username', '')).strip()
+        if fb_v and fb_v != '----':
+            n = _count_items(fb_v)
+            result[creator]['fb_accounts'][fb_cond] = result[creator]['fb_accounts'].get(fb_cond, 0) + n
+
+        page_v = str(row.get('fb_page', '')).strip()
+        if page_v and page_v != '----':
+            n = _count_items(page_v)
+            result[creator]['fb_pages'][page_cond] = result[creator]['fb_pages'].get(page_cond, 0) + n
+
+        bm_v = str(row.get('bm_name', '')).strip()
+        if bm_v and bm_v != '----':
+            n = _count_items(bm_v)
+            result[creator]['bms'][bm_cond] = result[creator]['bms'].get(bm_cond, 0) + n
+
+    return result
+
+
 def score_account_dev(total_accounts):
     """Score Account Dev based on total Gmail + FB accounts created.
 

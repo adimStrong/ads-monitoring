@@ -12,7 +12,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from channel_data_loader import load_created_assets_data, refresh_created_assets_data, count_created_assets
+from channel_data_loader import load_created_assets_data, refresh_created_assets_data, count_created_assets, count_assets_by_condition
 from config import SIDEBAR_HIDE_CSS
 
 _PAGE_CSS = """
@@ -90,6 +90,156 @@ def render_content(key_prefix="ca"):
     c3.metric("FB Accounts", f"{total_fb:,}")
     c4.metric("FB Pages", f"{total_pages:,}")
     c5.metric("Business Managers", f"{total_bms:,}")
+
+    # ── Asset Status Breakdown (Active vs Disabled vs Others) ──
+    st.divider()
+    st.markdown('<div class="section-header"><h3>Asset Status Breakdown</h3></div>', unsafe_allow_html=True)
+
+    cond_data = count_assets_by_condition(filtered)
+
+    # Aggregate across all creators
+    asset_types = ['gmail', 'fb_accounts', 'fb_pages', 'bms']
+    asset_labels = {'gmail': 'Gmail/Outlook', 'fb_accounts': 'FB Accounts', 'fb_pages': 'FB Pages', 'bms': 'Business Managers'}
+    all_conditions = set()
+    type_cond_totals = {at: {} for at in asset_types}
+
+    for creator, types in cond_data.items():
+        for at in asset_types:
+            for cond, cnt in types.get(at, {}).items():
+                type_cond_totals[at][cond] = type_cond_totals[at].get(cond, 0) + cnt
+                all_conditions.add(cond)
+
+    # Normalize conditions - group similar ones
+    active_keys = {'ACTIVE', 'AVAILABLE'}
+    disabled_keys = {'DISABLED', 'RESTRICTED', 'FOR VERIFY', 'SUSPENDED', 'CHECKPOINT'}
+
+    def classify_status(cond):
+        if cond in active_keys:
+            return 'Active'
+        elif cond in disabled_keys:
+            return 'Disabled/Restricted'
+        elif cond == 'UNKNOWN' or cond == '':
+            return 'Unknown'
+        else:
+            return 'Other'
+
+    # Build summary: Active vs Disabled vs Other per asset type
+    status_groups = ['Active', 'Disabled/Restricted', 'Other']
+    status_colors = {'Active': '#16a34a', 'Disabled/Restricted': '#dc2626', 'Other': '#64748b'}
+
+    # KPI cards for Active vs Disabled
+    total_active = 0
+    total_disabled = 0
+    for at in asset_types:
+        for cond, cnt in type_cond_totals[at].items():
+            status = classify_status(cond)
+            if status == 'Active':
+                total_active += cnt
+            elif status == 'Disabled/Restricted':
+                total_disabled += cnt
+
+    total_other = total_all - total_active - total_disabled
+    active_pct = (total_active / total_all * 100) if total_all > 0 else 0
+
+    sc1, sc2, sc3, sc4 = st.columns(4)
+    sc1.metric("Active", f"{total_active:,}", f"{active_pct:.0f}%")
+    sc2.metric("Disabled/Restricted", f"{total_disabled:,}")
+    sc3.metric("Other", f"{total_other:,}")
+    sc4.metric("Total", f"{total_all:,}")
+
+    # Status table per asset type
+    status_rows = []
+    for at in asset_types:
+        row = {'Asset Type': asset_labels[at]}
+        at_total = 0
+        for sg in status_groups:
+            count = 0
+            for cond, cnt in type_cond_totals[at].items():
+                if classify_status(cond) == sg:
+                    count += cnt
+            row[sg] = count
+            at_total += count
+        row['Total'] = at_total
+        row['Active %'] = f"{row['Active'] / at_total * 100:.0f}%" if at_total > 0 else "0%"
+        status_rows.append(row)
+
+    # Total row
+    total_row = {'Asset Type': 'TOTAL'}
+    for sg in status_groups:
+        total_row[sg] = sum(r[sg] for r in status_rows)
+    total_row['Total'] = total_all
+    total_row['Active %'] = f"{active_pct:.0f}%"
+    status_rows.append(total_row)
+
+    # Render HTML table
+    th = 'padding:8px 12px;text-align:center;border:1px solid #cbd5e1;font-size:13px'
+    td = 'padding:6px 12px;text-align:center;border:1px solid #cbd5e1;font-size:13px'
+    html = '<table style="width:100%;border-collapse:collapse;margin:8px 0">'
+    html += f'<tr style="background:#f1f5f9;color:#1e293b">'
+    html += f'<th style="{th};text-align:left">Asset Type</th>'
+    html += f'<th style="{th};color:#16a34a">Active</th>'
+    html += f'<th style="{th};color:#dc2626">Disabled/Restricted</th>'
+    html += f'<th style="{th};color:#64748b">Other</th>'
+    html += f'<th style="{th}">Total</th>'
+    html += f'<th style="{th}">Active %</th></tr>'
+
+    for r in status_rows:
+        is_total = r['Asset Type'] == 'TOTAL'
+        bg = '#f8fafc' if is_total else '#ffffff'
+        fw = 'font-weight:700' if is_total else ''
+        html += f'<tr style="background:{bg};color:#1e293b;{fw}">'
+        html += f'<td style="{td};text-align:left;{fw}">{r["Asset Type"]}</td>'
+        html += f'<td style="{td};color:#16a34a;{fw}">{r["Active"]:,}</td>'
+        html += f'<td style="{td};color:#dc2626;{fw}">{r["Disabled/Restricted"]:,}</td>'
+        html += f'<td style="{td};color:#64748b;{fw}">{r["Other"]:,}</td>'
+        html += f'<td style="{td};{fw}">{r["Total"]:,}</td>'
+        html += f'<td style="{td};{fw}">{r["Active %"]}</td></tr>'
+    html += '</table>'
+    st.markdown(html, unsafe_allow_html=True)
+
+    # Per-creator status breakdown
+    st.markdown("#### Per-Creator Status")
+    creator_status_rows = []
+    for creator in sorted(cond_data.keys()):
+        types = cond_data[creator]
+        row = {'Creator': creator}
+        cr_active = 0
+        cr_disabled = 0
+        cr_total = 0
+        for at in asset_types:
+            for cond, cnt in types.get(at, {}).items():
+                status = classify_status(cond)
+                if status == 'Active':
+                    cr_active += cnt
+                elif status == 'Disabled/Restricted':
+                    cr_disabled += cnt
+                cr_total += cnt
+        row['Active'] = cr_active
+        row['Disabled'] = cr_disabled
+        row['Other'] = cr_total - cr_active - cr_disabled
+        row['Total'] = cr_total
+        row['Active %'] = f"{cr_active / cr_total * 100:.0f}%" if cr_total > 0 else "0%"
+        creator_status_rows.append(row)
+
+    if creator_status_rows:
+        cst_df = pd.DataFrame(creator_status_rows)
+        st.dataframe(cst_df, use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_status")
+
+        # Stacked bar chart: Active vs Disabled per creator
+        chart_rows = []
+        for r in creator_status_rows:
+            chart_rows.append({'Creator': r['Creator'], 'Status': 'Active', 'Count': r['Active']})
+            chart_rows.append({'Creator': r['Creator'], 'Status': 'Disabled/Restricted', 'Count': r['Disabled']})
+            if r['Other'] > 0:
+                chart_rows.append({'Creator': r['Creator'], 'Status': 'Other', 'Count': r['Other']})
+        chart_df = pd.DataFrame(chart_rows)
+        fig_status = px.bar(
+            chart_df, x='Creator', y='Count', color='Status',
+            barmode='stack', title='Active vs Disabled Assets by Creator',
+            color_discrete_map={'Active': '#16a34a', 'Disabled/Restricted': '#dc2626', 'Other': '#94a3b8'},
+        )
+        fig_status.update_layout(height=400, xaxis_title="", yaxis_title="Count")
+        st.plotly_chart(fig_status, use_container_width=True, key=f"{key_prefix}_chart_status")
 
     # Per-creator breakdown
     st.divider()
