@@ -67,6 +67,7 @@ def build_weekly_data(daily_df):
     df = daily_df.copy()
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date'])
+    df = df[df['date'] <= pd.Timestamp.now()]  # exclude future dates
 
     # Assign week info
     week_info = df['date'].apply(lambda d: get_week_key(d))
@@ -116,6 +117,7 @@ def build_weekly_channel_data(daily_df):
     df = daily_df.copy()
     df['date'] = pd.to_datetime(df['date'], errors='coerce')
     df = df.dropna(subset=['date'])
+    df = df[df['date'] <= pd.Timestamp.now()]  # exclude future dates
 
     week_info = df['date'].apply(lambda d: get_week_key(d))
     df['week_key'] = week_info.apply(lambda x: x[0])
