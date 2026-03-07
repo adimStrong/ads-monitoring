@@ -91,7 +91,11 @@ def render_content(key_prefix="ca"):
     total_gmail = sum(v.get('gmail', 0) for v in asset_counts.values()) if 'gmail' in active_type_keys else 0
     total_fb = sum(v.get('fb_accounts', 0) for v in asset_counts.values()) if 'fb_accounts' in active_type_keys else 0
     total_pages = sum(v.get('fb_pages', 0) for v in asset_counts.values()) if 'fb_pages' in active_type_keys else 0
-    total_bms = sum(v.get('bms', 0) for v in asset_counts.values()) if 'bms' in active_type_keys else 0
+    # BMs: use UPDATED BM live count (filtered by creator) instead of Created Assets
+    _bm_filt = bm_live_df.copy() if not bm_live_df.empty else pd.DataFrame()
+    if not _bm_filt.empty and selected:
+        _bm_filt = _bm_filt[_bm_filt['advertiser'].isin({c.upper() for c in selected})]
+    total_bms = len(_bm_filt) if ('bms' in active_type_keys and not _bm_filt.empty) else (sum(v.get('bms', 0) for v in asset_counts.values()) if 'bms' in active_type_keys else 0)
     total_all = total_gmail + total_fb + total_pages + total_bms
 
     # Show KPI cards only for selected types
@@ -117,18 +121,16 @@ def render_content(key_prefix="ca"):
     cond_data = count_assets_by_condition(filtered)
 
     # Aggregate across all creators (filtered by selected asset types)
-    asset_types = [at for at in ['gmail', 'fb_accounts', 'fb_pages', 'bms'] if at in active_type_keys]
+    # For BMs, use UPDATED BM live data instead of Created Assets
+    asset_types_no_bm = [at for at in ['gmail', 'fb_accounts', 'fb_pages'] if at in active_type_keys]
     asset_labels = {'gmail': 'Gmail/Outlook', 'fb_accounts': 'FB Accounts', 'fb_pages': 'FB Pages', 'bms': 'Business Managers'}
-    all_conditions = set()
-    type_cond_totals = {at: {} for at in asset_types}
 
+    type_cond_totals = {at: {} for at in asset_types_no_bm}
     for creator, types in cond_data.items():
-        for at in asset_types:
+        for at in asset_types_no_bm:
             for cond, cnt in types.get(at, {}).items():
                 type_cond_totals[at][cond] = type_cond_totals[at].get(cond, 0) + cnt
-                all_conditions.add(cond)
 
-    # Normalize conditions - group similar ones
     active_keys = {'ACTIVE', 'AVAILABLE'}
     disabled_keys = {'DISABLED', 'RESTRICTED', 'FOR VERIFY', 'SUSPENDED', 'CHECKPOINT'}
 
@@ -142,51 +144,86 @@ def render_content(key_prefix="ca"):
         else:
             return 'Other'
 
-    # Build summary: Active vs Disabled vs Other per asset type
-    status_groups = ['Active', 'Disabled/Restricted', 'Other']
-    status_colors = {'Active': '#16a34a', 'Disabled/Restricted': '#dc2626', 'Other': '#64748b'}
+    # Build BM counts from UPDATED BM live data
+    bm_filtered = bm_live_df.copy() if not bm_live_df.empty else pd.DataFrame()
+    if not bm_filtered.empty and selected:
+        selected_upper = {c.upper() for c in selected}
+        bm_filtered = bm_filtered[bm_filtered['advertiser'].isin(selected_upper)]
 
-    # KPI cards for Active vs Disabled
+    bm_live_active = int((bm_filtered['status'] == 'ACTIVE').sum()) if not bm_filtered.empty else 0
+    bm_live_ready = int((bm_filtered['status'] == 'READY').sum()) if not bm_filtered.empty else 0
+    bm_live_disabled = int((bm_filtered['status'] == 'DISABLED').sum()) if not bm_filtered.empty else 0
+    bm_live_total = len(bm_filtered) if not bm_filtered.empty else 0
+
+    # Build summary: Active vs Disabled vs Ready/Other per asset type
+    status_groups = ['Active', 'Ready', 'Disabled/Restricted', 'Other']
+    has_ready = 'bms' in active_type_keys and bm_live_ready > 0
+
+    # KPI cards
     total_active = 0
+    total_ready = 0
     total_disabled = 0
-    for at in asset_types:
+    for at in asset_types_no_bm:
         for cond, cnt in type_cond_totals[at].items():
-            status = classify_status(cond)
-            if status == 'Active':
+            s = classify_status(cond)
+            if s == 'Active':
                 total_active += cnt
-            elif status == 'Disabled/Restricted':
+            elif s == 'Disabled/Restricted':
                 total_disabled += cnt
+    if 'bms' in active_type_keys:
+        total_active += bm_live_active
+        total_ready += bm_live_ready
+        total_disabled += bm_live_disabled
 
-    total_other = total_all - total_active - total_disabled
-    active_pct = (total_active / total_all * 100) if total_all > 0 else 0
+    # Recalculate total_all using live BM count
+    total_all_live = total_gmail + total_fb + total_pages + (bm_live_total if 'bms' in active_type_keys else 0)
+    total_other = total_all_live - total_active - total_ready - total_disabled
+    active_pct = (total_active / total_all_live * 100) if total_all_live > 0 else 0
 
-    sc1, sc2, sc3, sc4 = st.columns(4)
+    sc1, sc2, sc3, sc4, sc5 = st.columns(5)
     sc1.metric("Active", f"{total_active:,}", f"{active_pct:.0f}%")
-    sc2.metric("Disabled/Restricted", f"{total_disabled:,}")
-    sc3.metric("Other", f"{total_other:,}")
-    sc4.metric("Total", f"{total_all:,}")
+    sc2.metric("Ready", f"{total_ready:,}")
+    sc3.metric("Disabled/Restricted", f"{total_disabled:,}")
+    sc4.metric("Other", f"{total_other:,}")
+    sc5.metric("Total", f"{total_all_live:,}")
 
     # Status table per asset type
     status_rows = []
-    for at in asset_types:
+    for at in asset_types_no_bm:
         row = {'Asset Type': asset_labels[at]}
         at_total = 0
-        for sg in status_groups:
+        for sg in ['Active', 'Ready', 'Disabled/Restricted', 'Other']:
             count = 0
-            for cond, cnt in type_cond_totals[at].items():
-                if classify_status(cond) == sg:
-                    count += cnt
+            if sg == 'Ready':
+                count = 0  # Only BMs have Ready status
+            else:
+                for cond, cnt in type_cond_totals[at].items():
+                    if classify_status(cond) == sg:
+                        count += cnt
             row[sg] = count
             at_total += count
         row['Total'] = at_total
         row['Active %'] = f"{row['Active'] / at_total * 100:.0f}%" if at_total > 0 else "0%"
         status_rows.append(row)
 
+    # BM row from live data
+    if 'bms' in active_type_keys:
+        bm_row = {
+            'Asset Type': 'Business Managers',
+            'Active': bm_live_active,
+            'Ready': bm_live_ready,
+            'Disabled/Restricted': bm_live_disabled,
+            'Other': 0,
+            'Total': bm_live_total,
+            'Active %': f"{bm_live_active / bm_live_total * 100:.0f}%" if bm_live_total > 0 else "0%",
+        }
+        status_rows.append(bm_row)
+
     # Total row
     total_row = {'Asset Type': 'TOTAL'}
     for sg in status_groups:
         total_row[sg] = sum(r[sg] for r in status_rows)
-    total_row['Total'] = total_all
+    total_row['Total'] = total_all_live
     total_row['Active %'] = f"{active_pct:.0f}%"
     status_rows.append(total_row)
 
@@ -197,6 +234,7 @@ def render_content(key_prefix="ca"):
     html += f'<tr style="background:#f1f5f9;color:#1e293b">'
     html += f'<th style="{th};text-align:left">Asset Type</th>'
     html += f'<th style="{th};color:#16a34a">Active</th>'
+    html += f'<th style="{th};color:#f59e0b">Ready</th>'
     html += f'<th style="{th};color:#dc2626">Disabled/Restricted</th>'
     html += f'<th style="{th};color:#64748b">Other</th>'
     html += f'<th style="{th}">Total</th>'
@@ -209,6 +247,7 @@ def render_content(key_prefix="ca"):
         html += f'<tr style="background:{bg};color:#1e293b;{fw}">'
         html += f'<td style="{td};text-align:left;{fw}">{r["Asset Type"]}</td>'
         html += f'<td style="{td};color:#16a34a;{fw}">{r["Active"]:,}</td>'
+        html += f'<td style="{td};color:#f59e0b;{fw}">{r["Ready"]:,}</td>'
         html += f'<td style="{td};color:#dc2626;{fw}">{r["Disabled/Restricted"]:,}</td>'
         html += f'<td style="{td};color:#64748b;{fw}">{r["Other"]:,}</td>'
         html += f'<td style="{td};{fw}">{r["Total"]:,}</td>'
@@ -216,26 +255,51 @@ def render_content(key_prefix="ca"):
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
 
-    # Per-creator status breakdown
+    # Per-creator status breakdown (non-BM from Created Assets + BM from live data)
     st.markdown("#### Per-Creator Status")
+
+    # Build per-creator BM counts from live data
+    bm_per_creator = {}
+    if 'bms' in active_type_keys and not bm_filtered.empty:
+        for adv, grp in bm_filtered.groupby('advertiser'):
+            bm_per_creator[adv] = {
+                'active': int((grp['status'] == 'ACTIVE').sum()),
+                'ready': int((grp['status'] == 'READY').sum()),
+                'disabled': int((grp['status'] == 'DISABLED').sum()),
+                'total': len(grp),
+            }
+
+    # Merge all creator names from both sources
+    all_creators = set(cond_data.keys()) | set(bm_per_creator.keys())
+
     creator_status_rows = []
-    for creator in sorted(cond_data.keys()):
-        types = cond_data[creator]
+    for creator in sorted(all_creators):
+        types = cond_data.get(creator, {})
         row = {'Creator': creator}
         cr_active = 0
+        cr_ready = 0
         cr_disabled = 0
         cr_total = 0
-        for at in asset_types:
+        # Non-BM types from Created Assets
+        for at in asset_types_no_bm:
             for cond, cnt in types.get(at, {}).items():
-                status = classify_status(cond)
-                if status == 'Active':
+                s = classify_status(cond)
+                if s == 'Active':
                     cr_active += cnt
-                elif status == 'Disabled/Restricted':
+                elif s == 'Disabled/Restricted':
                     cr_disabled += cnt
                 cr_total += cnt
+        # BM from live data
+        bm_c = bm_per_creator.get(creator, {})
+        cr_active += bm_c.get('active', 0)
+        cr_ready += bm_c.get('ready', 0)
+        cr_disabled += bm_c.get('disabled', 0)
+        cr_total += bm_c.get('total', 0)
+
         row['Active'] = cr_active
+        row['Ready'] = cr_ready
         row['Disabled'] = cr_disabled
-        row['Other'] = cr_total - cr_active - cr_disabled
+        row['Other'] = cr_total - cr_active - cr_ready - cr_disabled
         row['Total'] = cr_total
         row['Active %'] = f"{cr_active / cr_total * 100:.0f}%" if cr_total > 0 else "0%"
         creator_status_rows.append(row)
@@ -244,18 +308,20 @@ def render_content(key_prefix="ca"):
         cst_df = pd.DataFrame(creator_status_rows)
         st.dataframe(cst_df, use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_status")
 
-        # Stacked bar chart: Active vs Disabled per creator
+        # Stacked bar chart
         chart_rows = []
         for r in creator_status_rows:
             chart_rows.append({'Creator': r['Creator'], 'Status': 'Active', 'Count': r['Active']})
+            if r['Ready'] > 0:
+                chart_rows.append({'Creator': r['Creator'], 'Status': 'Ready', 'Count': r['Ready']})
             chart_rows.append({'Creator': r['Creator'], 'Status': 'Disabled/Restricted', 'Count': r['Disabled']})
             if r['Other'] > 0:
                 chart_rows.append({'Creator': r['Creator'], 'Status': 'Other', 'Count': r['Other']})
         chart_df = pd.DataFrame(chart_rows)
         fig_status = px.bar(
             chart_df, x='Creator', y='Count', color='Status',
-            barmode='stack', title='Active vs Disabled Assets by Creator',
-            color_discrete_map={'Active': '#16a34a', 'Disabled/Restricted': '#dc2626', 'Other': '#94a3b8'},
+            barmode='stack', title='Active vs Ready vs Disabled Assets by Creator',
+            color_discrete_map={'Active': '#16a34a', 'Ready': '#f59e0b', 'Disabled/Restricted': '#dc2626', 'Other': '#94a3b8'},
         )
         fig_status.update_layout(height=400, xaxis_title="", yaxis_title="Count")
         st.plotly_chart(fig_status, use_container_width=True, key=f"{key_prefix}_chart_status")
