@@ -45,7 +45,7 @@ def render_content(key_prefix="ca"):
     has_dates = assets_df['date_parsed'].notna().any()
     if has_dates:
         min_date = assets_df['date_parsed'].min().date()
-        max_date = assets_df['date_parsed'].max().date()
+        max_date = max(assets_df['date_parsed'].max().date(), datetime.now().date())
         default_start = max(min_date, max_date - timedelta(days=30))
 
         with fc1:
