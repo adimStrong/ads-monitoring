@@ -571,7 +571,7 @@ def main():
         st.subheader("Other Reports")
         st.markdown("📈 [Daily ROI](/Daily_ROI)")
         st.markdown("📈 [Roll Back](/Roll_Back)")
-        st.markdown("📈 [Violet](/Violet)")
+        st.markdown("📈 [Retention Channel](/Retention_Channel)")
 
     # Filter by date
     filtered_df = selected_df[(selected_df['date'].dt.date >= date_from) & (selected_df['date'].dt.date <= date_to)]

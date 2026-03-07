@@ -26,6 +26,7 @@ from daily_report import (
     generate_facebook_ads_section,
     generate_by_campaign_section,
     generate_ab_testing_section, generate_account_dev_section,
+    generate_executive_summary, generate_operations_summary,
 )
 from config import (
     DAILY_REPORT_ENABLED,
@@ -171,7 +172,7 @@ def build_account_dev_summary():
 
 
 def send_report():
-    """Load P-tab data, generate report, and send to Telegram."""
+    """Load P-tab data, generate clean 2-message report, and send to Telegram."""
     if not DAILY_REPORT_ENABLED:
         logger.warning("Daily report sending is disabled in config.py")
         return False
@@ -198,74 +199,67 @@ def send_report():
 
     # T+1 reporting: yesterday's data
     yesterday = (datetime.now() - timedelta(days=1)).date()
-
     logger.info(f"Generating T+1 report for {yesterday}...")
-    report = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}\n\n"
 
-    # Facebook Ads overview section (from daily data)
-    if not daily_df.empty:
-        fb_section = generate_facebook_ads_section(daily_df, yesterday)
-        if fb_section:
-            report += fb_section
+    reporter = TelegramReporter()
+    mentions = ' '.join(f"@{v}" for v in TELEGRAM_MENTIONS.values())
 
-    # By Campaign section (from ad accounts data)
-    if not ad_accounts_df.empty:
-        report += generate_by_campaign_section(ad_accounts_df, yesterday)
-
-    report += '\n@xxxadsron @Adsbasty'
-
-    logger.info("Sending to Telegram...")
     try:
-        reporter = TelegramReporter()
+        # ── Message 1: Executive Summary ──
+        exec_summary = generate_executive_summary(daily_df, yesterday)
+        if exec_summary:
+            send_long_message(reporter, exec_summary)
+            logger.info("Message 1: Executive Summary sent!")
+        else:
+            # Fallback to old format if executive summary fails
+            report = f"<b>Advertiser KPI Report</b> - {yesterday.strftime('%b %d, %Y')}\n\n"
+            if not daily_df.empty:
+                fb_section = generate_facebook_ads_section(daily_df, yesterday)
+                if fb_section:
+                    report += fb_section
+            send_long_message(reporter, report)
+            logger.info("Message 1: Fallback report sent!")
 
-        # Capture and send dashboard screenshot (split into 2 parts)
-        logger.info("Capturing dashboard screenshot...")
-        screenshot_parts = generate_dashboard_screenshot(split=True)
-        if screenshot_parts and isinstance(screenshot_parts, list):
-            for i, part_path in enumerate(screenshot_parts):
-                caption = f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')} (Part {i+1}/{len(screenshot_parts)})"
-                reporter.send_photo(part_path, caption=caption)
-            logger.info(f"Dashboard screenshot sent ({len(screenshot_parts)} parts)!")
-        elif screenshot_parts:
-            reporter.send_photo(
-                screenshot_parts,
-                caption=f"📊 <b>BINGO365 T+1 Report</b> - {yesterday.strftime('%b %d, %Y')}"
+        # ── Message 2: Operations Dashboard ──
+        logger.info("Building operations summary...")
+
+        # Fetch reporting accuracy from Chat Listener API
+        reporting_data = None
+        try:
+            resp = http_requests.get(
+                f"{CHAT_API_URL}/api/reporting",
+                params={'key': CHAT_API_KEY},
+                timeout=10,
             )
-            logger.info("Dashboard screenshot sent!")
+            resp.raise_for_status()
+            reporting_data = resp.json()
+        except Exception as e:
+            logger.warning(f"Could not fetch reporting accuracy: {e}")
+
+        # Load A/B Testing data
+        ab_data = None
+        try:
+            ab_data = load_ab_testing_data()
+        except Exception as e:
+            logger.warning(f"Could not load A/B Testing data: {e}")
+
+        # Load Account Dev data
+        assets_df = None
+        try:
+            assets_df = load_created_assets_data()
+        except Exception as e:
+            logger.warning(f"Could not load Account Dev data: {e}")
+
+        ops_summary = generate_operations_summary(reporting_data, ab_data, assets_df)
+        if ops_summary:
+            ops_summary += f"\n\n{mentions}"
+            send_long_message(reporter, ops_summary)
+            logger.info("Message 2: Operations Dashboard sent!")
         else:
-            logger.warning("Screenshot capture failed, continuing with text report")
+            reporter.send_message(f"Operations data unavailable.\n\n{mentions}")
+            logger.warning("No operations data available")
 
-        send_long_message(reporter, report)
-        logger.info("By Campaign report sent!")
-
-        # Send Reporting Accuracy Summary
-        logger.info("Fetching reporting accuracy summary...")
-        summary = build_reporting_summary()
-        if summary:
-            reporter.send_message(summary)
-            logger.info("Reporting accuracy summary sent!")
-        else:
-            logger.warning("No reporting accuracy data available")
-
-        # Send A/B Testing Progress
-        logger.info("Building A/B Testing summary...")
-        ab_summary = build_ab_testing_summary()
-        if ab_summary:
-            reporter.send_message(ab_summary)
-            logger.info("A/B Testing summary sent!")
-        else:
-            logger.warning("No A/B Testing data available")
-
-        # Send Account Dev Progress
-        logger.info("Building Account Dev summary...")
-        acct_summary = build_account_dev_summary()
-        if acct_summary:
-            reporter.send_message(acct_summary)
-            logger.info("Account Dev summary sent!")
-        else:
-            logger.warning("No Account Dev data available")
-
-        logger.info("Report sent to KPI Ads group!")
+        logger.info("Daily report complete! (2 messages)")
         return True
     except Exception as e:
         logger.error(f"Failed to send report: {e}")

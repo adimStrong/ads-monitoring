@@ -1220,7 +1220,7 @@ PLATFORM_METRICS = {
 SECTION_LABELS = {
     'daily_roi': 'Daily ROI',
     'roll_back': 'Roll Back',
-    'violet': 'Violet',
+    'violet': 'Retention',
 }
 
 

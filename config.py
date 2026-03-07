@@ -682,7 +682,7 @@ SIDEBAR_HIDE_CSS = """
 <style>
     [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Violet"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Retention_Channel"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Team_Channel"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Team_Overview"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="KPI_Monitoring"] { display: none !important; }

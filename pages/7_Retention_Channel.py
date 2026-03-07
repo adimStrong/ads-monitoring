@@ -1,6 +1,6 @@
 """
-Channel ROI - Violet
-Shows Facebook and Google Violet performance comparison
+Channel ROI - Retention Channel
+Shows Facebook and Google Retention Channel performance comparison
 """
 import streamlit as st
 import pandas as pd
@@ -49,14 +49,14 @@ def format_number(value):
 
 def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
                     fb_rb_df=None, google_rb_df=None, key_prefix="vi"):
-    """Render Violet content. Can be called standalone or from a wrapper page."""
+    """Render Retention Channel content. Can be called standalone or from a wrapper page."""
     if fb_rb_df is None:
         fb_rb_df = pd.DataFrame()
     if google_rb_df is None:
         google_rb_df = pd.DataFrame()
 
     # Summary with 5 metrics (registration from Roll Back)
-    st.markdown('<div class="section-header"><h3>💜 VIOLET SUMMARY</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"><h3>RETENTION CHANNEL SUMMARY</h3></div>', unsafe_allow_html=True)
 
     def calc_metrics(cost, ftd, ftd_recharge, register):
         return {
@@ -94,7 +94,7 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
             fb_m = calc_metrics(fb_df['cost'].sum(), fb_df['ftd'].sum(), fb_df['ftd_recharge'].sum(), fb_reg)
             st.markdown(render_card("FACEBOOK", "📘", "fb-card", fb_m), unsafe_allow_html=True)
         else:
-            st.info("No Facebook Violet data")
+            st.info("No Facebook Retention Channel data")
 
     with col2:
         if show_google:
@@ -102,12 +102,12 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
             g_m = calc_metrics(google_df['cost'].sum(), google_df['ftd'].sum(), google_df['ftd_recharge'].sum(), g_reg)
             st.markdown(render_card("GOOGLE", "🔍", "google-card", g_m), unsafe_allow_html=True)
         else:
-            st.info("No Google Violet data")
+            st.info("No Google Retention Channel data")
 
     st.markdown("---")
 
     # Daily trend
-    st.markdown('<div class="section-header"><h3>📅 DAILY TREND</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"><h3>DAILY TREND</h3></div>', unsafe_allow_html=True)
 
     chart_data = []
     if show_fb:
@@ -148,7 +148,7 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
     st.markdown("---")
 
     # Weekly Summary
-    st.markdown('<div class="section-header"><h3>📆 WEEKLY SUMMARY</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"><h3>WEEKLY SUMMARY</h3></div>', unsafe_allow_html=True)
 
     weekly_data = []
     if show_fb:
@@ -201,7 +201,7 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
     st.markdown("---")
 
     # Monthly Summary
-    st.markdown('<div class="section-header"><h3>📊 MONTHLY SUMMARY</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"><h3>MONTHLY SUMMARY</h3></div>', unsafe_allow_html=True)
 
     monthly_data = []
     if show_fb:
@@ -244,9 +244,9 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
     st.markdown("---")
 
     # Data tables
-    st.markdown('<div class="section-header"><h3>📋 DETAILED DATA</h3></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header"><h3>DETAILED DATA</h3></div>', unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["📘 Facebook Data", "🔍 Google Data"])
+    tab1, tab2 = st.tabs(["Facebook Data", "Google Data"])
 
     with tab1:
         if show_fb:
@@ -255,7 +255,7 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
             display_df = display_df.sort_values('date', ascending=False)
             display_df.columns = ['Date', 'First Recharge', 'Recharge Amount', 'Cost (USD)', 'Cost/Recharge', 'ROAS']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download FB CSV", display_df.to_csv(index=False), f"fb_violet_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_fb")
+            st.download_button("Download FB CSV", display_df.to_csv(index=False), f"fb_retention_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_fb")
         else:
             st.info("No Facebook data available")
 
@@ -266,18 +266,18 @@ def render_content(fb_df, google_df, show_fb, show_google, date_from, date_to,
             display_df = display_df.sort_values('date', ascending=False)
             display_df.columns = ['Date', 'First Recharge', 'Recharge Amount', 'Cost (USD)', 'Cost/Recharge', 'ROAS']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
-            st.download_button("📥 Download Google CSV", display_df.to_csv(index=False), f"google_violet_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_g")
+            st.download_button("Download Google CSV", display_df.to_csv(index=False), f"google_retention_{datetime.now():%Y%m%d}.csv", key=f"{key_prefix}_dl_g")
         else:
             st.info("No Google data available")
 
-    st.caption(f"Violet Dashboard | {date_from} to {date_to}")
+    st.caption(f"Retention Channel Dashboard | {date_from} to {date_to}")
 
 
 def main():
-    st.set_page_config(page_title="Violet", page_icon="💜", layout="wide")
+    st.set_page_config(page_title="Retention Channel", page_icon="🔄", layout="wide")
     st.markdown(_PAGE_CSS, unsafe_allow_html=True)
-    st.title("💜 Violet Dashboard")
-    st.markdown("Facebook vs Google - Violet Performance Comparison")
+    st.title("Retention Channel Dashboard")
+    st.markdown("Facebook vs Google - Retention Channel Performance Comparison")
 
     if not CHANNEL_ROI_ENABLED:
         st.warning("Channel ROI Dashboard is disabled.")
@@ -295,7 +295,7 @@ def main():
     has_google = not google_df.empty
 
     if not has_fb and not has_google:
-        st.error("No Violet data available.")
+        st.error("No Retention Channel data available.")
         return
 
     if not fb_rb_df.empty:
@@ -318,12 +318,12 @@ def main():
 
     with st.sidebar:
         st.header("Controls")
-        if st.button("🔄 Refresh", type="primary", use_container_width=True):
+        if st.button("Refresh", type="primary", use_container_width=True):
             refresh_channel_data()
             st.cache_data.clear()
             st.rerun()
         st.markdown("---")
-        st.subheader("📅 Date Range")
+        st.subheader("Date Range")
         default_start = max(data_min_date, max_selectable_date - timedelta(days=30))
         date_from = st.date_input("From", value=default_start, min_value=data_min_date, max_value=max_selectable_date)
         date_to = st.date_input("To", value=max_selectable_date, min_value=data_min_date, max_value=max_selectable_date)

@@ -871,6 +871,189 @@ def generate_account_dev_section(assets_df):
         return None
 
 
+def generate_executive_summary(daily_df, target_date):
+    """
+    Generate a clean, single-message executive summary (VIP Handler style).
+    Includes overall KPIs with day-over-day delta + agent performance table.
+    """
+    if daily_df is None or daily_df.empty:
+        return None
+
+    df = daily_df.copy()
+    df['date_only'] = pd.to_datetime(df['date']).dt.date
+    t1 = df[df['date_only'] == target_date]
+
+    if t1.empty:
+        return None
+
+    # Previous day for delta
+    prev_date = target_date - timedelta(days=1)
+    prev = df[df['date_only'] == prev_date]
+
+    # 7-day average
+    week_ago = target_date - timedelta(days=7)
+    week_data = df[(df['date_only'] > week_ago) & (df['date_only'] <= target_date)]
+    n_days = week_data['date_only'].nunique()
+
+    # Totals
+    def _totals(data):
+        cost = data['cost'].sum()
+        reg = int(data['register'].sum())
+        ftd = int(data['ftd'].sum())
+        impr = int(data['impressions'].sum())
+        clicks = int(data['clicks'].sum())
+        ctr = (clicks / impr * 100) if impr > 0 else 0
+        conv = (ftd / reg * 100) if reg > 0 else 0
+        cpa = (cost / ftd) if ftd > 0 else 0
+        cpr = (cost / reg) if reg > 0 else 0
+        return {'cost': cost, 'register': reg, 'ftd': ftd, 'impressions': impr,
+                'clicks': clicks, 'ctr': ctr, 'conv': conv, 'cpa': cpa, 'cpr': cpr}
+
+    curr = _totals(t1)
+    prev_t = _totals(prev) if not prev.empty else None
+
+    def _delta(val, prev_val, fmt='num', inverse=False):
+        if prev_val is None or prev_val == 0:
+            return ""
+        pct = (val - prev_val) / abs(prev_val) * 100
+        if abs(pct) < 0.5:
+            return ""
+        sign = "+" if pct > 0 else ""
+        return f" ({sign}{pct:.0f}%)"
+
+    # Build report
+    lines = []
+    lines.append(f"<b>Advertiser KPI Dashboard</b>")
+    lines.append(f"<b>Daily Report - {target_date.strftime('%B %d, %Y')}</b>")
+    lines.append("")
+
+    # Executive Summary
+    lines.append("<b>Executive Summary</b>")
+    p = prev_t
+    lines.append(f"Cost: <b>${curr['cost']:,.2f}</b>{_delta(curr['cost'], p['cost'] if p else 0)}")
+    lines.append(f"Register: <b>{curr['register']:,}</b>{_delta(curr['register'], p['register'] if p else 0)} | FTD: <b>{curr['ftd']:,}</b>{_delta(curr['ftd'], p['ftd'] if p else 0)}")
+    lines.append(f"CPA: <b>${curr['cpa']:,.2f}</b>{_delta(curr['cpa'], p['cpa'] if p else 0, inverse=True)} | Conv: <b>{curr['conv']:.1f}%</b>{_delta(curr['conv'], p['conv'] if p else 0)}")
+    lines.append(f"CTR: <b>{curr['ctr']:.2f}%</b>{_delta(curr['ctr'], p['ctr'] if p else 0)} | CPR: <b>${curr['cpr']:,.2f}</b>{_delta(curr['cpr'], p['cpr'] if p else 0, inverse=True)}")
+
+    if n_days > 1:
+        avg_cost = week_data.groupby('date_only')['cost'].sum().mean()
+        avg_ftd = week_data.groupby('date_only')['ftd'].sum().mean()
+        lines.append(f"<i>7D Avg: ${avg_cost:,.0f}/day | {avg_ftd:.0f} FTD/day</i>")
+
+    # Agent Performance Table
+    lines.append("")
+    lines.append("<b>Agent Performance</b>")
+
+    agent_t1 = t1.groupby('agent').agg(
+        cost=('cost', 'sum'), register=('register', 'sum'),
+        ftd=('ftd', 'sum'), clicks=('clicks', 'sum'),
+        impressions=('impressions', 'sum')
+    ).reset_index()
+
+    agent_prev = None
+    if not prev.empty:
+        agent_prev = prev.groupby('agent').agg(
+            cost=('cost', 'sum'), ftd=('ftd', 'sum')
+        ).reset_index().set_index('agent')
+
+    agent_t1['conv'] = agent_t1.apply(lambda r: r['ftd'] / r['register'] * 100 if r['register'] > 0 else 0, axis=1)
+    agent_t1['cpa'] = agent_t1.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+    agent_t1 = agent_t1.sort_values('ftd', ascending=False)
+
+    lines.append(f"<pre>{'Agent':<8} {'Cost':>8} {'Reg':>5} {'FTD':>4} {'Conv':>6} {'CPA':>7} {'Chg':>5}</pre>")
+
+    expected_agents = [t['agent'] for t in AGENT_PERFORMANCE_TABS]
+    for _, row in agent_t1.iterrows():
+        cost_s = f"${row['cost']:,.0f}"
+        conv_s = f"{row['conv']:.1f}%"
+        cpa_s = f"${row['cpa']:,.0f}" if row['cpa'] > 0 else "-"
+        chg = ""
+        if agent_prev is not None and row['agent'] in agent_prev.index:
+            prev_ftd = agent_prev.loc[row['agent'], 'ftd']
+            diff = int(row['ftd'] - prev_ftd)
+            chg = f"+{diff}" if diff > 0 else str(diff)
+        lines.append(f"<pre>{row['agent']:<8} {cost_s:>8} {int(row['register']):>5} {int(row['ftd']):>4} {conv_s:>6} {cpa_s:>7} {chg:>5}</pre>")
+
+    # No data agents
+    agents_with_data = set(agent_t1['agent'].values)
+    no_data = [a for a in expected_agents if a not in agents_with_data]
+    for a in no_data:
+        lines.append(f"<pre>{a:<8}  No data</pre>")
+
+    # Grand total line
+    lines.append(f"<pre>{'─' * 48}</pre>")
+    total_conv = f"{curr['conv']:.1f}%"
+    total_cpa = f"${curr['cpa']:,.0f}" if curr['cpa'] > 0 else "-"
+    lines.append(f"<pre>{'TOTAL':<8} ${curr['cost']:>7,.0f} {curr['register']:>5} {curr['ftd']:>4} {total_conv:>6} {total_cpa:>7}</pre>")
+
+    return "\n".join(lines)
+
+
+def generate_operations_summary(reporting_data=None, ab_data=None, assets_df=None):
+    """
+    Generate a clean operations summary combining reporting accuracy,
+    A/B testing, and account dev into one message.
+    """
+    lines = []
+    lines.append("<b>Operations Dashboard</b>")
+    lines.append("")
+
+    has_content = False
+
+    # Reporting Accuracy
+    if reporting_data:
+        has_content = True
+        agents = sorted(reporting_data.items(), key=lambda x: x[1].get('avg_minute', 99))
+        lines.append("<b>Reporting Accuracy</b>")
+        lines.append(f"<pre>{'Agent':<10} {'Rpts':>4} {'Avg':>5} {'Score':>5}</pre>")
+        for agent, info in agents:
+            count = info.get('report_count', 0)
+            avg = info.get('avg_minute', 0)
+            score = info.get('score', 0)
+            lines.append(f"<pre>{agent:<10} {count:>4} {avg:>4.0f}m {score:>3}/4</pre>")
+        lines.append("")
+
+    # A/B Testing
+    if ab_data:
+        counts = count_ab_testing(ab_data)
+        if counts:
+            has_content = True
+            sorted_agents = sorted(counts.items(), key=lambda x: x[1].get('published_ad', 0), reverse=True)
+            lines.append("<b>A/B Testing</b>")
+            lines.append(f"<pre>{'Agent':<10} {'Texts':>5} {'Pub':>4} {'Score':>5}</pre>")
+            for agent, info in sorted_agents:
+                texts = info.get('primary_text', 0)
+                published = info.get('published_ad', 0)
+                score = score_ab_testing(published)
+                t_s = str(texts) if texts > 0 else '-'
+                p_s = str(published) if published > 0 else '-'
+                lines.append(f"<pre>{agent.title():<10} {t_s:>5} {p_s:>4} {score:>3}/4</pre>")
+            lines.append("")
+
+    # Account Dev
+    if assets_df is not None and not assets_df.empty:
+        counts = count_created_assets(assets_df)
+        if counts:
+            has_content = True
+            sorted_agents = sorted(counts.items(), key=lambda x: x[1].get('total_accounts', 0), reverse=True)
+            lines.append("<b>Account Dev</b>")
+            lines.append(f"<pre>{'Agent':<10} {'Gmail':>5} {'FB':>4} {'Tot':>4} {'Score':>5}</pre>")
+            for agent, info in sorted_agents:
+                gmail = info.get('gmail', 0)
+                fb = info.get('fb_accounts', 0)
+                total = info.get('total_accounts', 0)
+                score = score_account_dev(total)
+                lines.append(f"<pre>{agent.title():<10} {gmail:>5} {fb:>4} {total:>4} {score:>3}/4</pre>")
+            lines.append("")
+
+    if not has_content:
+        return None
+
+    lines.append("<a href='https://ads-monitoring.streamlit.app'>View Dashboard</a>")
+
+    return "\n".join(lines)
+
+
 def generate_daily_report(report_date=None, send_to_telegram=True):
     """Generate and optionally send daily report using P-tab data only"""
     if report_date is None:

@@ -1,5 +1,5 @@
 """
-Recharge Statistics - Combined view of Daily ROI, Roll Back, and Violet
+Recharge Statistics - Combined view of Daily ROI, Roll Back, and Retention Channel
 """
 import streamlit as st
 import pandas as pd
@@ -50,13 +50,13 @@ def _load_render(filename):
 
 _daily_roi_render = _load_render('19_Daily_ROI.py')
 _roll_back_render = _load_render('6_Roll_Back.py')
-_violet_render = _load_render('7_Violet.py')
+_violet_render = _load_render('7_Retention_Channel.py')
 del st._is_recharge_import
 
 
 def main():
     st.title("💰 Recharge Statistics")
-    st.markdown("Combined view: Daily ROI, Roll Back, and Violet")
+    st.markdown("Combined view: Daily ROI, Roll Back, and Retention Channel")
 
     if not CHANNEL_ROI_ENABLED:
         st.warning("Channel ROI Dashboard is disabled.")
@@ -163,7 +163,7 @@ def main():
 
     # Create 4 tabs
     tab_all, tab_dr, tab_rb, tab_vi = st.tabs([
-        "📋 Combined Overview", "📊 Daily ROI", "🔄 Roll Back", "💜 Violet"
+        "📋 Combined Overview", "📊 Daily ROI", "🔄 Roll Back", "🔄 Retention"
     ])
 
     # ================================================================
@@ -173,10 +173,10 @@ def main():
         fmt_c = lambda v: f"${v:,.2f}" if v else "$0.00"
         fmt_n = lambda v: f"{int(v):,}"
 
-        type_labels = {'daily_roi': 'Daily ROI', 'roll_back': 'Roll Back', 'violet': 'Violet'}
+        type_labels = {'daily_roi': 'Daily ROI', 'roll_back': 'Roll Back', 'violet': 'Retention'}
         type_colors = {'daily_roi': '#3b82f6', 'roll_back': '#f59e0b', 'violet': '#9333ea'}
 
-        # Get Roll Back register for Violet's metrics
+        # Get Roll Back register for Retention's metrics
         rb = filtered['roll_back']
         rb_reg = 0
         if rb['show_fb'] and not rb['fb'].empty:
@@ -184,7 +184,7 @@ def main():
         if rb['show_g'] and not rb['google'].empty:
             rb_reg += rb['google']['register'].sum()
 
-        # Compute per-type totals (Violet uses Roll Back register)
+        # Compute per-type totals (Retention uses Roll Back register)
         type_totals = {}
         for key in type_labels:
             d = filtered[key]
@@ -268,7 +268,7 @@ def main():
             if not parts:
                 return pd.DataFrame()
             df = pd.concat(parts, ignore_index=True).groupby('date').sum().reset_index()
-            # For Violet, replace register with Roll Back's daily register
+            # For Retention, replace register with Roll Back's daily register
             if use_rb_register:
                 rb_daily = _build_daily('roll_back')
                 if not rb_daily.empty:
@@ -351,7 +351,7 @@ def main():
 
         # ---- Shared chart builder: 3 views grouped on one chart ----
         def _grouped_chart(view_data_map, x_col, title, bar_metric, line_metrics, chart_key):
-            """One chart with Daily ROI / Roll Back / Violet bars side-by-side + line overlays."""
+            """One chart with Daily ROI / Roll Back / Retention bars side-by-side + line overlays."""
             fig = make_subplots(specs=[[{"secondary_y": True}]])
             bar_def = METRIC_DEFS[bar_metric]
             has_data = False
@@ -822,11 +822,11 @@ def main():
             _roll_back_render(d['fb'], d['google'], d['show_fb'], d['show_g'], date_from, date_to, key_prefix="rs_rb")
 
     # ================================================================
-    # TAB: VIOLET
+    # TAB: RETENTION CHANNEL
     # ================================================================
     with tab_vi:
         d = filtered['violet']
-        # Violet needs Roll Back data for registration counts
+        # Retention needs Roll Back data for registration counts
         fb_rb = data_sets['roll_back']['fb'].copy()
         g_rb = data_sets['roll_back']['google'].copy()
         if not fb_rb.empty:
@@ -835,7 +835,7 @@ def main():
             g_rb = g_rb[(g_rb['date'].dt.date >= date_from) & (g_rb['date'].dt.date <= date_to)]
 
         if not d['show_fb'] and not d['show_g']:
-            st.warning("No Violet data in selected range.")
+            st.warning("No Retention Channel data in selected range.")
         else:
             _violet_render(d['fb'], d['google'], d['show_fb'], d['show_g'], date_from, date_to, fb_rb, g_rb, key_prefix="rs_vi")
 
