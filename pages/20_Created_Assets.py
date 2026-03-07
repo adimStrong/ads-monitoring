@@ -57,7 +57,11 @@ def render_content(key_prefix="ca"):
         end_date = None
 
     with fc3:
-        creators = sorted(assets_df['creator'].str.strip().unique())
+        # Merge creators from Created Assets + BM advertisers
+        ca_creators = set(assets_df['creator'].str.strip().unique())
+        if not bm_live_df.empty:
+            ca_creators |= set(bm_live_df['advertiser'].str.strip().unique())
+        creators = sorted(ca_creators)
         selected = st.multiselect("Creator", creators, default=creators, key=f"{key_prefix}_creator")
 
     ALL_ASSET_TYPES = ['Gmail/Outlook', 'FB Accounts', 'FB Pages', 'Business Managers']
