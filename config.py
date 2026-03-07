@@ -496,6 +496,21 @@ UPDATED_ACCOUNTS_PAGES_COLUMNS = {
 }
 
 # ============================================================
+# UPDATED BM (LIVE BM INVENTORY) CONFIGURATION
+# ============================================================
+# From Facebook Ads sheet, "UPDATED BM" tab - live BM status tracking
+UPDATED_BM_SHEET_ID = "13oDZjGctd8mkVik2_kUxSPpIQQUyC_iIuIHplIFWeUM"
+UPDATED_BM_TAB = {"name": "UPDATED BM", "gid": 1424781521}
+# Columns: A=empty, B=DATE, C=BM NAME, D=BM ID, E=STATUS, F=ADVERTISER
+UPDATED_BM_COLUMNS = {
+    'date': 1,        # B - Date
+    'bm_name': 2,     # C - BM Name
+    'bm_id': 3,       # D - BM ID
+    'status': 4,      # E - Status (ACTIVE / DISABLED / READY)
+    'advertiser': 5,  # F - Advertiser
+}
+
+# ============================================================
 # AGENT PERFORMANCE (P-TABS) CONFIGURATION
 # ============================================================
 # Each P-tab has one agent's FB advertising data (monthly + daily + ad accounts)

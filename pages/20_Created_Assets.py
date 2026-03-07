@@ -12,7 +12,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from channel_data_loader import load_created_assets_data, refresh_created_assets_data, count_created_assets, count_assets_by_condition, load_updated_accounts_data, refresh_updated_accounts_data
+from channel_data_loader import load_created_assets_data, refresh_created_assets_data, count_created_assets, count_assets_by_condition, load_updated_accounts_data, refresh_updated_accounts_data, load_updated_bm_data, refresh_updated_bm_data
 from config import SIDEBAR_HIDE_CSS
 
 _PAGE_CSS = """
@@ -30,8 +30,7 @@ def render_content(key_prefix="ca"):
 
     with st.spinner("Loading data..."):
         assets_df = load_created_assets_data()
-        updated_data = load_updated_accounts_data()
-        bm_df = updated_data.get('bm', pd.DataFrame()) if updated_data else pd.DataFrame()
+        bm_live_df = load_updated_bm_data()
 
     if assets_df.empty:
         st.error("No Created Assets data available.")
@@ -341,73 +340,69 @@ def render_content(key_prefix="ca"):
         fig4 = px.pie(cond_counts, names='Condition', values='Count', title='BM Conditions')
         st.plotly_chart(fig4, use_container_width=True, key=f"{key_prefix}_pie_bm")
 
-    # ── BM Inventory (from Updated Accounts sheet) ──
-    if 'bms' in active_type_keys and not bm_df.empty:
+    # ── BM Inventory (from UPDATED BM tab — live status) ──
+    if 'bms' in active_type_keys and not bm_live_df.empty:
         st.divider()
-        st.markdown('<div class="section-header"><h3>BM Inventory (Updated Accounts)</h3></div>', unsafe_allow_html=True)
-        st.caption("Source: Updated Accounts sheet → BM tab (live inventory)")
+        st.markdown('<div class="section-header"><h3>📋 BM INVENTORY (Live Status)</h3></div>', unsafe_allow_html=True)
+        st.caption("Source: UPDATED BM tab — Active Business Manager & Pixel tracker")
 
-        # Normalize employee names
-        bm_inv = bm_df.copy()
-        bm_inv['Employee'] = bm_inv['Employee'].str.strip().str.upper()
-        bm_inv['BM Name'] = bm_inv['BM Name'].str.strip()
-        bm_inv = bm_inv[bm_inv['BM Name'] != '']
+        bm_inv = bm_live_df.copy()
 
-        # Filter by selected creators if applicable
+        # Filter by selected creators
         if selected:
             selected_upper = {c.upper() for c in selected}
-            bm_inv = bm_inv[bm_inv['Employee'].isin(selected_upper)]
+            bm_inv = bm_inv[bm_inv['advertiser'].isin(selected_upper)]
 
         if not bm_inv.empty:
-            # Cross-reference with Created Assets to get status
-            # Build a lookup: bm_name (upper) -> condition from Created Assets
-            bm_condition_lookup = {}
-            if not filtered.empty and 'bm_name' in filtered.columns:
-                for _, row in filtered.iterrows():
-                    bm_n = str(row.get('bm_name', '')).strip()
-                    bm_c = str(row.get('bm_condition', '')).strip().upper()
-                    if bm_n and bm_c:
-                        bm_condition_lookup[bm_n.upper()] = bm_c
-
-            bm_inv['Status'] = bm_inv['BM Name'].str.upper().map(bm_condition_lookup).fillna('—')
+            total_bm = len(bm_inv)
+            bm_active = len(bm_inv[bm_inv['status'] == 'ACTIVE'])
+            bm_ready = len(bm_inv[bm_inv['status'] == 'READY'])
+            bm_disabled = len(bm_inv[bm_inv['status'] == 'DISABLED'])
 
             # KPI cards
-            total_bm_inv = len(bm_inv)
-            bm_active = len(bm_inv[bm_inv['Status'].isin(['ACTIVE', 'AVAILABLE'])])
-            bm_disabled = len(bm_inv[bm_inv['Status'].isin(['DISABLED', 'RESTRICTED', 'SUSPENDED', 'CHECKPOINT', 'FOR VERIFY'])])
-            bm_unknown = total_bm_inv - bm_active - bm_disabled
-
             bc1, bc2, bc3, bc4 = st.columns(4)
-            bc1.metric("Total BMs", f"{total_bm_inv}")
-            bc2.metric("Active", f"{bm_active}", f"{bm_active/total_bm_inv*100:.0f}%" if total_bm_inv > 0 else "0%")
-            bc3.metric("Disabled", f"{bm_disabled}")
-            bc4.metric("Unmatched", f"{bm_unknown}", help="BMs not found in Created Assets log — status unknown")
+            bc1.metric("Total BMs", f"{total_bm}")
+            bc2.metric("Active", f"{bm_active}", f"{bm_active/total_bm*100:.0f}%" if total_bm > 0 else "0%")
+            bc3.metric("Ready", f"{bm_ready}", f"{bm_ready/total_bm*100:.0f}%" if total_bm > 0 else "0%")
+            bc4.metric("Disabled", f"{bm_disabled}", f"{bm_disabled/total_bm*100:.0f}%" if total_bm > 0 else "0%")
 
-            # Per-agent BM count
-            agent_bm = bm_inv.groupby('Employee').agg(
-                Total=('BM Name', 'count'),
-                Active=('Status', lambda x: sum(1 for v in x if v in ('ACTIVE', 'AVAILABLE'))),
-                Disabled=('Status', lambda x: sum(1 for v in x if v in ('DISABLED', 'RESTRICTED', 'SUSPENDED', 'CHECKPOINT', 'FOR VERIFY'))),
-            ).reset_index()
-            agent_bm['Unmatched'] = agent_bm['Total'] - agent_bm['Active'] - agent_bm['Disabled']
+            # Per-agent status breakdown table
+            agent_bm = bm_inv.groupby('advertiser').agg(
+                Total=('bm_name', 'count'),
+                Active=('status', lambda x: (x == 'ACTIVE').sum()),
+                Ready=('status', lambda x: (x == 'READY').sum()),
+                Disabled=('status', lambda x: (x == 'DISABLED').sum()),
+            ).reset_index().rename(columns={'advertiser': 'Advertiser'})
             agent_bm = agent_bm.sort_values('Total', ascending=False)
 
             col_tbl, col_chart = st.columns([1, 1])
             with col_tbl:
-                st.markdown("**Per-Agent BM Count**")
+                st.markdown("**Per-Advertiser BM Status**")
                 st.dataframe(agent_bm, use_container_width=True, hide_index=True, key=f"{key_prefix}_bm_agent")
             with col_chart:
                 fig_bm = px.bar(
-                    agent_bm, x='Employee', y=['Active', 'Disabled', 'Unmatched'],
-                    barmode='stack', title='BMs per Agent',
-                    color_discrete_map={'Active': '#16a34a', 'Disabled': '#dc2626', 'Unmatched': '#94a3b8'},
+                    agent_bm, x='Advertiser', y=['Active', 'Ready', 'Disabled'],
+                    barmode='stack', title='BM Status per Advertiser',
+                    color_discrete_map={'Active': '#16a34a', 'Ready': '#f59e0b', 'Disabled': '#dc2626'},
                 )
                 fig_bm.update_layout(height=350, xaxis_title="", yaxis_title="Count")
                 st.plotly_chart(fig_bm, use_container_width=True, key=f"{key_prefix}_bm_chart")
 
+            # Status pie chart
+            status_counts = bm_inv['status'].value_counts().reset_index()
+            status_counts.columns = ['Status', 'Count']
+            fig_pie = px.pie(
+                status_counts, names='Status', values='Count', title='BM Status Distribution',
+                color='Status', color_discrete_map={'ACTIVE': '#16a34a', 'READY': '#f59e0b', 'DISABLED': '#dc2626'},
+            )
+            fig_pie.update_layout(height=350)
+            st.plotly_chart(fig_pie, use_container_width=True, key=f"{key_prefix}_bm_pie")
+
             # Full BM list
             with st.expander("Full BM List", expanded=False):
-                display_bm = bm_inv[['Employee', 'BM Name', 'Status']].sort_values(['Employee', 'BM Name'])
+                display_bm = bm_inv[['date', 'bm_name', 'bm_id', 'status', 'advertiser']].copy()
+                display_bm.columns = ['Date', 'BM Name', 'BM ID', 'Status', 'Advertiser']
+                display_bm = display_bm.sort_values(['Advertiser', 'Status', 'BM Name'])
                 st.dataframe(display_bm, use_container_width=True, hide_index=True, height=400, key=f"{key_prefix}_bm_list")
         else:
             st.info("No BM data for selected creators.")

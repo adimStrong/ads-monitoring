@@ -67,6 +67,9 @@ from config import (
     AB_TESTING_ROW,
     REPORTING_ROW,
     FACEBOOK_ADS_PERSONS,
+    UPDATED_BM_SHEET_ID,
+    UPDATED_BM_TAB,
+    UPDATED_BM_COLUMNS,
 )
 
 
@@ -1113,6 +1116,50 @@ def load_updated_accounts_data():
 def refresh_updated_accounts_data():
     """Clear Updated Accounts data cache."""
     load_updated_accounts_data.clear()
+
+
+@st.cache_data(ttl=600)
+def load_updated_bm_data():
+    """
+    Load BM inventory from UPDATED BM tab in Facebook Ads sheet.
+    Columns: DATE, BM NAME, BM ID, STATUS (ACTIVE/DISABLED/READY), ADVERTISER.
+    Header on row 3, data starts row 4.
+    """
+    try:
+        client = get_google_client()
+        if client is None:
+            return pd.DataFrame()
+
+        ss = client.open_by_key(UPDATED_BM_SHEET_ID)
+        ws = ss.get_worksheet_by_id(UPDATED_BM_TAB['gid'])
+        data = ws.get_all_values()
+
+        cols = UPDATED_BM_COLUMNS
+        records = []
+        for row in data[3:]:  # Skip title row, subtitle row, header row
+            bm_name = row[cols['bm_name']].strip() if len(row) > cols['bm_name'] else ''
+            if not bm_name:
+                continue
+            records.append({
+                'date': row[cols['date']].strip() if len(row) > cols['date'] else '',
+                'bm_name': bm_name,
+                'bm_id': row[cols['bm_id']].strip() if len(row) > cols['bm_id'] else '',
+                'status': row[cols['status']].strip().upper() if len(row) > cols['status'] else '',
+                'advertiser': row[cols['advertiser']].strip().upper() if len(row) > cols['advertiser'] else '',
+            })
+        print(f"[OK] Loaded {len(records)} UPDATED BM records")
+        return pd.DataFrame(records) if records else pd.DataFrame()
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load UPDATED BM data: {e}")
+        import traceback
+        traceback.print_exc()
+        return pd.DataFrame()
+
+
+def refresh_updated_bm_data():
+    """Clear UPDATED BM data cache."""
+    load_updated_bm_data.clear()
 
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
