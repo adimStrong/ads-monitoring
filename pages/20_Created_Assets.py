@@ -57,7 +57,7 @@ def render_content(key_prefix="ca"):
 
     with fc3:
         creators = sorted(assets_df['creator'].str.strip().unique())
-        selected = st.selectbox("Creator", ["All"] + creators, key=f"{key_prefix}_creator")
+        selected = st.multiselect("Creator", creators, default=creators, key=f"{key_prefix}_creator")
 
     filtered = assets_df.copy()
 
@@ -69,8 +69,11 @@ def render_content(key_prefix="ca"):
             (filtered['date_parsed'].dt.date <= end_date)
         ]
 
-    if selected != "All":
-        filtered = filtered[filtered['creator'].str.strip() == selected]
+    if selected:
+        filtered = filtered[filtered['creator'].str.strip().isin(selected)]
+    else:
+        st.warning("No creators selected.")
+        return
 
     # Count assets
     asset_counts = count_created_assets(filtered)
