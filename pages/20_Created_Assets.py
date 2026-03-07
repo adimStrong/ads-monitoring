@@ -39,7 +39,7 @@ def render_content(key_prefix="ca"):
     assets_df['date_parsed'] = pd.to_datetime(assets_df['date'], errors='coerce')
 
     # Inline filters
-    fc1, fc2, fc3, fc4 = st.columns([1.5, 1.5, 2, 1])
+    fc1, fc2, fc3, fc4 = st.columns([1.5, 1.5, 2, 2])
 
     has_dates = assets_df['date_parsed'].notna().any()
     if has_dates:
@@ -58,6 +58,12 @@ def render_content(key_prefix="ca"):
     with fc3:
         creators = sorted(assets_df['creator'].str.strip().unique())
         selected = st.multiselect("Creator", creators, default=creators, key=f"{key_prefix}_creator")
+
+    ALL_ASSET_TYPES = ['Gmail/Outlook', 'FB Accounts', 'FB Pages', 'Business Managers']
+    ASSET_TYPE_MAP = {'Gmail/Outlook': 'gmail', 'FB Accounts': 'fb_accounts', 'FB Pages': 'fb_pages', 'Business Managers': 'bms'}
+    with fc4:
+        selected_types = st.multiselect("Asset Type", ALL_ASSET_TYPES, default=ALL_ASSET_TYPES, key=f"{key_prefix}_types")
+    active_type_keys = {ASSET_TYPE_MAP[t] for t in selected_types}
 
     filtered = assets_df.copy()
 
@@ -81,18 +87,27 @@ def render_content(key_prefix="ca"):
     # Overall KPI cards
     st.markdown('<div class="section-header"><h3>📊 ASSETS OVERVIEW</h3></div>', unsafe_allow_html=True)
 
-    total_gmail = sum(v.get('gmail', 0) for v in asset_counts.values())
-    total_fb = sum(v.get('fb_accounts', 0) for v in asset_counts.values())
-    total_pages = sum(v.get('fb_pages', 0) for v in asset_counts.values())
-    total_bms = sum(v.get('bms', 0) for v in asset_counts.values())
+    total_gmail = sum(v.get('gmail', 0) for v in asset_counts.values()) if 'gmail' in active_type_keys else 0
+    total_fb = sum(v.get('fb_accounts', 0) for v in asset_counts.values()) if 'fb_accounts' in active_type_keys else 0
+    total_pages = sum(v.get('fb_pages', 0) for v in asset_counts.values()) if 'fb_pages' in active_type_keys else 0
+    total_bms = sum(v.get('bms', 0) for v in asset_counts.values()) if 'bms' in active_type_keys else 0
     total_all = total_gmail + total_fb + total_pages + total_bms
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Total Assets", f"{total_all:,}")
-    c2.metric("Gmail/Outlook", f"{total_gmail:,}")
-    c3.metric("FB Accounts", f"{total_fb:,}")
-    c4.metric("FB Pages", f"{total_pages:,}")
-    c5.metric("Business Managers", f"{total_bms:,}")
+    # Show KPI cards only for selected types
+    kpi_items = []
+    kpi_items.append(("Total Assets", f"{total_all:,}"))
+    if 'gmail' in active_type_keys:
+        kpi_items.append(("Gmail/Outlook", f"{total_gmail:,}"))
+    if 'fb_accounts' in active_type_keys:
+        kpi_items.append(("FB Accounts", f"{total_fb:,}"))
+    if 'fb_pages' in active_type_keys:
+        kpi_items.append(("FB Pages", f"{total_pages:,}"))
+    if 'bms' in active_type_keys:
+        kpi_items.append(("Business Managers", f"{total_bms:,}"))
+
+    cols = st.columns(len(kpi_items))
+    for i, (label, val) in enumerate(kpi_items):
+        cols[i].metric(label, val)
 
     # ── Asset Status Breakdown (Active vs Disabled vs Others) ──
     st.divider()
@@ -100,8 +115,8 @@ def render_content(key_prefix="ca"):
 
     cond_data = count_assets_by_condition(filtered)
 
-    # Aggregate across all creators
-    asset_types = ['gmail', 'fb_accounts', 'fb_pages', 'bms']
+    # Aggregate across all creators (filtered by selected asset types)
+    asset_types = [at for at in ['gmail', 'fb_accounts', 'fb_pages', 'bms'] if at in active_type_keys]
     asset_labels = {'gmail': 'Gmail/Outlook', 'fb_accounts': 'FB Accounts', 'fb_pages': 'FB Pages', 'bms': 'Business Managers'}
     all_conditions = set()
     type_cond_totals = {at: {} for at in asset_types}
@@ -249,12 +264,11 @@ def render_content(key_prefix="ca"):
     st.markdown('<div class="section-header"><h3>📈 ASSETS PER CREATOR</h3></div>', unsafe_allow_html=True)
 
     if asset_counts:
+        type_chart_map = {'gmail': 'Gmail', 'fb_accounts': 'FB Accounts', 'fb_pages': 'FB Pages', 'bms': 'BMs'}
         chart_rows = []
         for creator, counts in sorted(asset_counts.items()):
-            chart_rows.append({'Creator': creator, 'Type': 'Gmail', 'Count': counts['gmail']})
-            chart_rows.append({'Creator': creator, 'Type': 'FB Accounts', 'Count': counts['fb_accounts']})
-            chart_rows.append({'Creator': creator, 'Type': 'FB Pages', 'Count': counts['fb_pages']})
-            chart_rows.append({'Creator': creator, 'Type': 'BMs', 'Count': counts['bms']})
+            for at_key in active_type_keys:
+                chart_rows.append({'Creator': creator, 'Type': type_chart_map.get(at_key, at_key), 'Count': counts.get(at_key, 0)})
 
         chart_df = pd.DataFrame(chart_rows)
         fig = px.bar(
@@ -268,19 +282,25 @@ def render_content(key_prefix="ca"):
         fig.update_layout(height=400, xaxis_title="", yaxis_title="Count")
         st.plotly_chart(fig, use_container_width=True, key=f"{key_prefix}_chart_creators")
 
-        # Summary table
+        # Summary table (filtered by selected asset types)
         summary_rows = []
         for creator, counts in sorted(asset_counts.items()):
-            summary_rows.append({
-                'Creator': creator,
-                'Gmail': counts['gmail'],
-                'FB Accounts': counts['fb_accounts'],
-                'FB Pages': counts['fb_pages'],
-                'BMs': counts['bms'],
-                'Total Accounts': counts['total_accounts'],
-                'Total Assets': counts['total_assets'],
-                'Grand Total': counts['gmail'] + counts['fb_accounts'] + counts['fb_pages'] + counts['bms'],
-            })
+            row = {'Creator': creator}
+            grand = 0
+            if 'gmail' in active_type_keys:
+                row['Gmail'] = counts['gmail']
+                grand += counts['gmail']
+            if 'fb_accounts' in active_type_keys:
+                row['FB Accounts'] = counts['fb_accounts']
+                grand += counts['fb_accounts']
+            if 'fb_pages' in active_type_keys:
+                row['FB Pages'] = counts['fb_pages']
+                grand += counts['fb_pages']
+            if 'bms' in active_type_keys:
+                row['BMs'] = counts['bms']
+                grand += counts['bms']
+            row['Total'] = grand
+            summary_rows.append(row)
         summary = pd.DataFrame(summary_rows)
         st.dataframe(summary, use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_summary")
 
