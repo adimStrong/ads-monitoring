@@ -156,20 +156,18 @@ def load_overall_channel():
     return google_data, fb_data
 
 
+GOOGLE_ADS_V2_GID = 1001851643
+
 @st.cache_data(ttl=300)
-def load_fb_cost_daily_summary():
-    """Load FB cost from Daily Summary Advertising V2 (monthly rows, up to Dec 2025)."""
+def load_daily_summary_data():
+    """Load REG, FTD, Recharge from both Daily Summary tabs + FB Cost up to Dec 2025."""
     client = get_google_client()
     if client is None:
-        return {}
+        return {}, {}
 
     ss = client.open_by_key(DAILY_SUMMARY_SHEET_ID)
-    ws = ss.get_worksheet_by_id(FB_ADS_V2_GID)
-    rows = ws.get_all_values()
 
-    # Monthly rows: row 4-12 (index 3-11)
-    # Col A=Month name, Col B=Cost
-    month_map = {
+    fb_month_map = {
         'June': 'June 2025', 'July': 'July 2025', 'August': 'August 2025',
         'September': 'September 2025', 'October': 'October 2025',
         'November': 'November 2025', 'December': 'December 2025',
@@ -177,17 +175,48 @@ def load_fb_cost_daily_summary():
         'March': 'March 2026',
     }
 
-    fb_cost = {}
-    for i in range(3, min(15, len(rows))):
-        row = rows[i]
-        month_name = row[0].strip()
-        if month_name in month_map:
-            full_month = month_map[month_name]
-            # Only use cost up to December 2025
-            if '2025' in full_month:
-                fb_cost[full_month] = parse_currency(row[1])
+    google_month_map = {
+        'August': 'August 2025', 'September': 'September 2025',
+        'October': 'October 2025', 'November': 'November 2025',
+        'December': 'December 2025', 'January': 'January 2026',
+        'February': 'February 2026', 'March': 'March 2026',
+    }
 
-    return fb_cost
+    # --- FB Advertising V2 ---
+    # Col A(0)=Month, B(1)=Cost, E(4)=REG, F(5)=DTD(FTD), J(9)=Recharge
+    ws_fb = ss.get_worksheet_by_id(FB_ADS_V2_GID)
+    fb_rows = ws_fb.get_all_values()
+    fb_summary = {}
+    for i in range(3, min(15, len(fb_rows))):
+        row = fb_rows[i]
+        month_name = row[0].strip()
+        if month_name in fb_month_map:
+            full_month = fb_month_map[month_name]
+            fb_summary[full_month] = {
+                'register': parse_int_val(row[4]),
+                'ftd': parse_int_val(row[5]),
+                'recharge': parse_currency(row[9]),
+                'cost': parse_currency(row[1]) if '2025' in full_month else 0,
+            }
+
+    # --- Google Ads V2 ---
+    # Col A(0)=Month, B(1)=Cost, E(4)=Registration, F(5)=First Deposit, J(9)=Recharge
+    ws_g = ss.get_worksheet_by_id(GOOGLE_ADS_V2_GID)
+    g_rows = ws_g.get_all_values()
+    google_summary = {}
+    for i in range(3, min(15, len(g_rows))):
+        row = g_rows[i]
+        month_name = row[0].strip()
+        if month_name in google_month_map:
+            full_month = google_month_map[month_name]
+            google_summary[full_month] = {
+                'register': parse_int_val(row[4]),
+                'ftd': parse_int_val(row[5]),
+                'recharge': parse_currency(row[9]),
+                'cost': 0,  # Google cost comes from Overall Channel
+            }
+
+    return fb_summary, google_summary
 
 
 def build_monthly_table(data, label):
@@ -328,16 +357,27 @@ st.markdown("Monthly report: Roll Back + Violet combined | Register, FTD, Rechar
 
 with st.spinner("Loading data..."):
     google_data, fb_data = load_overall_channel()
-    fb_cost_old = load_fb_cost_daily_summary()
+    fb_summary, google_summary = load_daily_summary_data()
 
 if google_data is None or fb_data is None:
     st.error("Failed to load data. Check Google credentials.")
     st.stop()
 
-# Merge FB cost from Daily Summary (up to Dec 2025) into fb_data
-for month, cost in fb_cost_old.items():
+# Merge Daily Summary FB data (REG, FTD, Recharge + Cost up to Dec 2025) into fb_data
+for month, ds in fb_summary.items():
     fb_data.setdefault(month, {'register': 0, 'ftd': 0, 'recharge': 0, 'cost': 0})
-    fb_data[month]['cost'] = cost
+    fb_data[month]['register'] += ds['register']
+    fb_data[month]['ftd'] += ds['ftd']
+    fb_data[month]['recharge'] += ds['recharge']
+    if ds['cost'] > 0:  # Cost only for 2025 months
+        fb_data[month]['cost'] = ds['cost']
+
+# Merge Daily Summary Google data (REG, FTD, Recharge) into google_data
+for month, ds in google_summary.items():
+    google_data.setdefault(month, {'register': 0, 'ftd': 0, 'recharge': 0, 'cost': 0})
+    google_data[month]['register'] += ds['register']
+    google_data[month]['ftd'] += ds['ftd']
+    google_data[month]['recharge'] += ds['recharge']
 
 # Two tabs
 tab_fb, tab_google = st.tabs(["🔵 Facebook Ads", "🟢 Google Ads"])
