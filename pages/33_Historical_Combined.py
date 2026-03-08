@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import get_google_client
+from config import SIDEBAR_HIDE_CSS
 
 # --- Constants ---
 CHANNEL_ROI_SHEET_ID = "1P6GoOQUa7FdiGKPLJiytMzYvkRJwt7jPmqqHo0p0p0c"
@@ -352,6 +353,7 @@ def render_channel_view(data, channel_name, color_primary, color_secondary):
 
 # --- Main ---
 st.set_page_config(page_title="Historical Combined Data", page_icon="📊", layout="wide")
+st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
 st.title("📊 Historical / Combined Data")
 st.markdown("Monthly report: Roll Back + Violet combined | Register, FTD, Recharge, Cost")
 

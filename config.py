@@ -695,20 +695,24 @@ EXCLUDED_FROM_REPORTING = []
 # ============================================================
 SIDEBAR_HIDE_CSS = """
 <style>
-    [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
+    /* Hide all sub-pages and duplicates.
+       Visible: app, Agent Performance, Content Analysis, Team,
+       Report Dashboard, Recharge Statistics, Counterpart Performance,
+       Operations, KPI, Monthly/Weekly/Daily Analysis, Historical Combined */
+    [data-testid="stSidebarNav"] a[href*="Team_Overview"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Retention_Channel"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Team_Channel"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Team_Overview"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="KPI_Monitoring"] { display: none !important; }
-    [data-testid="stSidebarNav"] a[href*="Team_KPI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Created_Assets"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="AB_Testing"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="KPI_Monitoring"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Chat_Monitor"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Reporting_Accuracy"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Ad_Spend_Tracker"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Team_KPI"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Team_Channel_By_Team"] { display: none !important; }
+    [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Weekly_KPI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Weekly_Team_KPI"] { display: none !important; }
-
 </style>
 """
