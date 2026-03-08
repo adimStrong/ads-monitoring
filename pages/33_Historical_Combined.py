@@ -196,7 +196,7 @@ def build_monthly_table(data, label):
     for month in MONTH_ORDER:
         if month in data:
             d = data[month]
-            if d['register'] == 0 and d['ftd'] == 0 and d['recharge'] == 0 and d['cost'] == 0:
+            if d['register'] == 0 and d['ftd'] == 0 and d['recharge'] == 0:
                 continue
             cost = d['cost']
             reg = d['register']
