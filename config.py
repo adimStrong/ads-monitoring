@@ -427,7 +427,7 @@ TEAM_CHANNEL_COLUMNS = {
 
 # Known channel sources (DEERPROMO01 through DEERPROMO13)
 TEAM_CHANNEL_SOURCES = [
-    f"FB-FB-FB-DEERPROMO{str(i).zfill(2)}" for i in range(1, 15)
+    f"FB-FB-FB-DEERPROMO{str(i).zfill(2)}" for i in range(1, 18)
 ]
 
 # ============================================================

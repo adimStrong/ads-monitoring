@@ -945,9 +945,9 @@ def load_team_channel_data():
         daily_df = pd.DataFrame(daily_records)
         team_actual_df = pd.DataFrame(team_actual_records)
 
-        # All 14 active channels (DEERPROMO01-14)
+        # All 17 active channels (DEERPROMO01-17)
         ACTIVE_CHANNELS = {
-            f'FB-FB-FB-DEERPROMO{str(i).zfill(2)}' for i in range(1, 15)
+            f'FB-FB-FB-DEERPROMO{str(i).zfill(2)}' for i in range(1, 18)
         }
         ACTIVE_CHANNEL_TEAM = {
             'FB-FB-FB-DEERPROMO01': 'MIKA / JOMAR',
@@ -964,6 +964,9 @@ def load_team_channel_data():
             'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO14': 'DER',
+            'FB-FB-FB-DEERPROMO15': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO16': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO17': 'MIKA / JOMAR',
         }
 
         # Filter overall and daily to active channels only, assign correct team
