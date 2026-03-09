@@ -377,15 +377,15 @@ def render_trends(daily, dates):
     overall['ctr'] = overall.apply(lambda r: r['clicks'] / r['impressions'] * 100 if r['impressions'] > 0 else 0, axis=1)
     overall['date_label'] = overall['date'].dt.strftime('%b %d')
 
-    # Cost + FTD dual bar
+    # Cost (line) + FTD (bar) dual axis
     st.markdown("#### Cost & FTD Trend")
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=overall['date_label'], y=overall['cost'], name='Cost ($)', marker_color='#3b82f6', yaxis='y'))
+    fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['cost'], name='Cost ($)', mode='lines+markers', line=dict(color='#3b82f6', width=3), yaxis='y'))
     fig.add_trace(go.Bar(x=overall['date_label'], y=overall['ftd'], name='FTD', marker_color='#22c55e', yaxis='y2'))
     fig.update_layout(
         yaxis=dict(title='Cost ($)', side='left'),
         yaxis2=dict(title='FTD', side='right', overlaying='y'),
-        barmode='group', height=350, margin=dict(t=30, b=30),
+        height=350, margin=dict(t=30, b=30),
         legend=dict(orientation='h', yanchor='bottom', y=1.02),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -408,20 +408,6 @@ def render_trends(daily, dates):
         fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['ctr'], mode='lines+markers', name='CTR', line=dict(color='#f59e0b')))
         fig.update_layout(title='CTR (%)', height=250, margin=dict(t=40, b=20))
         st.plotly_chart(fig, use_container_width=True)
-
-    # Per-agent trend
-    st.markdown("#### Per-Agent Trend")
-    metric_sel = st.selectbox("Select Metric", ['cost', 'ftd', 'cpa', 'conv_rate', 'ctr'], format_func=lambda x: METRIC_CONFIG[x]['label'], key='da_agent_metric')
-    fig = go.Figure()
-    colors = ['#3b82f6', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
-    for i, agent in enumerate(sorted(daily['agent'].unique())):
-        agent_df = daily[daily['agent'] == agent].sort_values('date')
-        fig.add_trace(go.Scatter(
-            x=agent_df['date'].dt.strftime('%b %d'), y=agent_df[metric_sel],
-            mode='lines+markers', name=agent, line=dict(color=colors[i % len(colors)]),
-        ))
-    fig.update_layout(height=350, margin=dict(t=30, b=30), legend=dict(orientation='h', yanchor='bottom', y=1.02))
-    st.plotly_chart(fig, use_container_width=True)
 
     # 7-day rolling average
     if len(dates) >= 7:
