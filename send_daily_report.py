@@ -35,7 +35,7 @@ from config import (
     TELEGRAM_MENTIONS,
 )
 from telegram_reporter import TelegramReporter
-from realtime_reporter import generate_dashboard_screenshot
+from realtime_reporter import generate_dashboard_screenshot, generate_dashboard_screenshots_3part
 
 # Lock file to prevent duplicate scheduler instances
 LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.daily_report.lock')
@@ -159,6 +159,124 @@ def build_ab_testing_summary():
         return None
 
 
+def build_album_caption(daily_df, target_date):
+    """Build a concise VIP/Booster-style caption for the Daily Analysis album.
+    Today-only key metrics with DoD delta, weekly/monthly avg comparison,
+    top agent, 3-day trend, and dashboard link. Max 1024 chars."""
+    import pandas as pd
+    from config import AGENT_PERFORMANCE_TABS, KPI_PHP_USD_RATE
+
+    df = daily_df.copy()
+    df['date_only'] = pd.to_datetime(df['date']).dt.date
+    t1 = df[df['date_only'] == target_date]
+
+    if t1.empty:
+        return f"<b>Advertiser Daily Analysis</b> — {target_date.strftime('%b %d, %Y')}"
+
+    prev_date = target_date - timedelta(days=1)
+    prev = df[df['date_only'] == prev_date]
+
+    # Current totals
+    cost = t1['cost'].sum()
+    reg = int(t1['register'].sum())
+    ftd = int(t1['ftd'].sum())
+    conv = (ftd / reg * 100) if reg > 0 else 0
+    cpa = cost / ftd if ftd > 0 else 0
+    cpr = cost / reg if reg > 0 else 0
+    # ARPPU + ROAS
+    arppu_vals = pd.to_numeric(t1['arppu'], errors='coerce').fillna(0)
+    arppu = arppu_vals[arppu_vals > 0].mean() if (arppu_vals > 0).any() else 0
+    roas = (arppu / KPI_PHP_USD_RATE / cpa) if cpa > 0 else 0
+
+    def _delta(val, prev_val):
+        if prev_val is None or prev_val == 0:
+            return ""
+        pct = (val - prev_val) / abs(prev_val) * 100
+        if abs(pct) < 0.5:
+            return ""
+        sign = "+" if pct > 0 else ""
+        return f" ({sign}{pct:.0f}%)"
+
+    # Previous totals
+    p_cost = prev['cost'].sum() if not prev.empty else 0
+    p_ftd = int(prev['ftd'].sum()) if not prev.empty else 0
+    p_reg = int(prev['register'].sum()) if not prev.empty else 0
+    p_cpa = p_cost / p_ftd if p_ftd > 0 else 0
+
+    # Weekly avg (Mon-Sun of target week)
+    monday = target_date - timedelta(days=target_date.weekday())
+    sunday = monday + timedelta(days=6)
+    wk_data = df[(df['date_only'] >= monday) & (df['date_only'] <= sunday)]
+    wk_days = wk_data['date_only'].nunique() or 1
+    wk_ftd = wk_data['ftd'].sum() / wk_days
+
+    # Monthly avg
+    month_start = target_date.replace(day=1)
+    next_m = (month_start + timedelta(days=32)).replace(day=1)
+    month_end = next_m - timedelta(days=1)
+    mo_data = df[(df['date_only'] >= month_start) & (df['date_only'] <= month_end)]
+    mo_days = mo_data['date_only'].nunique() or 1
+    mo_ftd = mo_data['ftd'].sum() / mo_days
+
+    # ABOVE/BELOW tags (same as Booster)
+    def _tag(val, avg):
+        if avg == 0:
+            return ""
+        pct = round((val - avg) / abs(avg) * 100, 1)
+        tag = "ABOVE" if pct > 0 else "BELOW" if pct < 0 else "AT"
+        return f"<b>{abs(pct)}% {tag}</b>"
+
+    ftd_wk_tag = _tag(ftd, wk_ftd)
+    ftd_mo_tag = _tag(ftd, mo_ftd)
+
+    # Top performer by FTD + best CPA
+    agent_agg = t1.groupby('agent').agg(ftd=('ftd', 'sum'), cost=('cost', 'sum')).reset_index()
+    agent_agg['cpa'] = agent_agg.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+    top_ftd = agent_agg.sort_values('ftd', ascending=False).iloc[0] if len(agent_agg) > 0 else None
+    best_cpa = agent_agg[agent_agg['cpa'] > 0].sort_values('cpa').iloc[0] if (agent_agg['cpa'] > 0).any() else None
+
+    # No data agents
+    expected = {t['agent'] for t in AGENT_PERFORMANCE_TABS}
+    actual = set(t1['agent'].unique())
+    no_data = expected - actual
+    no_data_str = ", ".join(sorted(no_data)) if no_data else "none"
+
+    # 3-Day Trend
+    available = sorted(df['date_only'].unique(), reverse=True)
+    trend_line = ""
+    if len(available) >= 3:
+        last3 = available[:3]
+        last3_ftd = []
+        for d in reversed(last3):
+            day_ftd = int(df[df['date_only'] == d]['ftd'].sum())
+            last3_ftd.append((d.strftime("%b %d"), day_ftd))
+        trend_diff = last3_ftd[-1][1] - last3_ftd[0][1]
+        trend_word = "Upward" if trend_diff > 0 else "Downward" if trend_diff < 0 else "Flat"
+        trend_line = f"\u2022 Trend: <b>{trend_word}</b> ({'+' if trend_diff > 0 else ''}{trend_diff:,} FTD over 3 days)"
+
+    lines = [
+        f"<b>Advertiser Daily Analysis — {target_date.strftime('%b %d, %Y')}</b>",
+        "",
+        f"\u2022 Cost: <b>${cost:,.0f}</b>{_delta(cost, p_cost)} | FTD: <b>{ftd:,}</b>{_delta(ftd, p_ftd)}",
+        f"\u2022 Reg: <b>{reg:,}</b>{_delta(reg, p_reg)} | Conv: <b>{conv:.1f}%</b>",
+        f"\u2022 CPA: <b>${cpa:,.2f}</b>{_delta(cpa, p_cpa)} | ROAS: <b>{roas:.4f}x</b>",
+        f"\u2022 {ftd_wk_tag} wk avg | {ftd_mo_tag} mo avg",
+    ]
+
+    if top_ftd is not None:
+        lines.append(f"\u2022 Top FTD: <b>{top_ftd['agent']}</b> ({int(top_ftd['ftd'])})")
+    if best_cpa is not None and top_ftd is not None and best_cpa['agent'] != top_ftd['agent']:
+        lines.append(f"\u2022 Best CPA: <b>{best_cpa['agent']}</b> (${best_cpa['cpa']:,.2f})")
+    if no_data_str != "none":
+        lines.append(f"\u2022 No data: {no_data_str}")
+    if trend_line:
+        lines.append(trend_line)
+
+    lines.append(f'\n<a href="https://ads-monitoring.streamlit.app/Daily_Analysis">View Dashboard</a>')
+
+    return "\n".join(lines)
+
+
 def build_account_dev_summary():
     """Load Created Assets data and build Account Dev summary message."""
     try:
@@ -205,61 +323,38 @@ def send_report():
     mentions = ' '.join(f"@{v}" for v in TELEGRAM_MENTIONS.values())
 
     try:
-        # ── Message 1: Executive Summary ──
-        exec_summary = generate_executive_summary(daily_df, yesterday)
-        if exec_summary:
-            send_long_message(reporter, exec_summary)
-            logger.info("Message 1: Executive Summary sent!")
-        else:
-            # Fallback to old format if executive summary fails
-            report = f"<b>Advertiser KPI Report</b> - {yesterday.strftime('%b %d, %Y')}\n\n"
-            if not daily_df.empty:
-                fb_section = generate_facebook_ads_section(daily_df, yesterday)
-                if fb_section:
-                    report += fb_section
-            send_long_message(reporter, report)
-            logger.info("Message 1: Fallback report sent!")
-
-        # ── Message 2: Operations Dashboard ──
-        logger.info("Building operations summary...")
-
-        # Fetch reporting accuracy from Chat Listener API
-        reporting_data = None
+        # ── Screenshot Album: 4-part dashboard capture ──
+        logger.info("Capturing 4-part dashboard screenshots...")
+        screenshot_paths = None
         try:
-            resp = http_requests.get(
-                f"{CHAT_API_URL}/api/reporting",
-                params={'key': CHAT_API_KEY},
-                timeout=10,
-            )
-            resp.raise_for_status()
-            reporting_data = resp.json()
+            screenshot_paths = generate_dashboard_screenshots_3part()
+            if screenshot_paths and len(screenshot_paths) == 4:
+                caption = build_album_caption(daily_df, yesterday)
+                reporter.send_album(screenshot_paths, caption=caption)
+                logger.info("Screenshot album sent! (4 photos)")
+            else:
+                # Fallback to old 2-split approach
+                logger.warning("3-part failed, falling back to 2-split...")
+                screenshot_parts = generate_dashboard_screenshot(split=True)
+                if isinstance(screenshot_parts, str):
+                    screenshot_parts = [screenshot_parts]
+                if screenshot_parts:
+                    for i, part_path in enumerate(screenshot_parts):
+                        cap = f"📊 <b>Advertiser KPI Report</b> — {yesterday.strftime('%b %d, %Y')}" if i == 0 else None
+                        reporter.send_photo(part_path, caption=cap)
+                    logger.info(f"Fallback screenshot sent! ({len(screenshot_parts)} parts)")
         except Exception as e:
-            logger.warning(f"Could not fetch reporting accuracy: {e}")
+            logger.warning(f"Screenshot failed (continuing with text): {e}")
+        finally:
+            # Clean up temp screenshot files
+            if screenshot_paths:
+                for p in screenshot_paths:
+                    try:
+                        os.remove(p)
+                    except OSError:
+                        pass
 
-        # Load A/B Testing data
-        ab_data = None
-        try:
-            ab_data = load_ab_testing_data()
-        except Exception as e:
-            logger.warning(f"Could not load A/B Testing data: {e}")
-
-        # Load Account Dev data
-        assets_df = None
-        try:
-            assets_df = load_created_assets_data()
-        except Exception as e:
-            logger.warning(f"Could not load Account Dev data: {e}")
-
-        ops_summary = generate_operations_summary(reporting_data, ab_data, assets_df)
-        if ops_summary:
-            ops_summary += f"\n\n{mentions}"
-            send_long_message(reporter, ops_summary)
-            logger.info("Message 2: Operations Dashboard sent!")
-        else:
-            reporter.send_message(f"Operations data unavailable.\n\n{mentions}")
-            logger.warning("No operations data available")
-
-        logger.info("Daily report complete! (2 messages)")
+        logger.info("Daily report complete! (album only, 4 photos)")
         return True
     except Exception as e:
         logger.error(f"Failed to send report: {e}")

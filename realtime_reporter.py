@@ -311,6 +311,194 @@ def generate_dashboard_screenshot(output_path=None, split=False):
         return None
 
 
+def generate_dashboard_screenshots_3part(output_dir=None):
+    """
+    Capture 3 screenshots from the Daily Analysis page (same pattern as VIP Handler).
+    Navigates to Daily Analysis, clicks tabs, screenshots each section.
+
+    Screenshot 1: Overview tab (summary cards + DoD table + top/bottom)
+    Screenshot 2: Agent Breakdown tab (all-agent comparison table + rankings)
+    Screenshot 3: Trends tab (Cost & FTD trend + efficiency charts)
+
+    Returns:
+        list: [path1, path2, path3] or None if failed
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+        from PIL import Image
+        import numpy as np
+
+        screenshot_dir = output_dir or os.path.join(get_project_dir(), SCREENSHOT_DIR)
+        Path(screenshot_dir).mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        DAILY_ANALYSIS_URL = DASHBOARD_URL.replace("Report_Dashboard", "Daily_Analysis")
+
+        HIDE_JS = """() => {
+            const hide = (sel) => {
+                document.querySelectorAll(sel).forEach(el => el.style.display = 'none');
+            };
+            hide('[data-testid="stSidebar"]');
+            hide('[data-testid="stSidebarCollapsedControl"]');
+            hide('[data-testid="collapsedControl"]');
+            hide('[data-testid="stMainMenu"]');
+            hide('[data-testid="stHeader"]');
+            hide('[data-testid="stToolbar"]');
+            hide('.stDeployButton');
+            hide('button[kind="header"]');
+            document.querySelectorAll(
+                '[data-testid="stAppViewBlockContainer"], .stMainBlockContainer, ' +
+                '.main .block-container, [data-testid="block-container"]'
+            ).forEach(el => {
+                el.style.maxWidth = '100%';
+                el.style.paddingLeft = '2rem';
+                el.style.paddingRight = '2rem';
+            });
+        }"""
+
+        print(f"[INFO] Capturing 4-part Daily Analysis screenshots...")
+        print(f"[INFO] URL: {DAILY_ANALYSIS_URL}")
+
+        # Tab names to click and screenshot
+        tabs = ["Overview", "Agent Breakdown", "Team Breakdown", "Trends"]
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 1280, "height": 900})
+
+            page.goto(DAILY_ANALYSIS_URL, wait_until='networkidle', timeout=60000)
+            page.wait_for_timeout(8000)
+
+            # Find Streamlit inner iframe (tabs live here)
+            inner_frame = None
+            for f in page.frames:
+                if '~/+/' in f.url:
+                    inner_frame = f
+                    break
+
+            if inner_frame:
+                inner_frame.evaluate(HIDE_JS)
+            else:
+                page.evaluate(HIDE_JS)
+                print("[WARNING] Could not find Streamlit iframe")
+            page.wait_for_timeout(500)
+
+            paths = []
+
+            for i, tab_name in enumerate(tabs):
+                out_path = os.path.join(screenshot_dir, f"daily_{timestamp}_p{i+1}.png")
+
+                # Click the tab via iframe
+                target = inner_frame or page
+                tab_clicked = target.evaluate(f'''() => {{
+                    const btns = document.querySelectorAll('button[role="tab"]');
+                    for (const b of btns) {{
+                        if (b.textContent.trim() === "{tab_name}") {{
+                            b.click();
+                            return true;
+                        }}
+                    }}
+                    return false;
+                }}''')
+                if tab_clicked:
+                    page.wait_for_timeout(3000)
+                    print(f"[INFO] Clicked tab: {tab_name}")
+                else:
+                    print(f"[WARNING] Tab '{tab_name}' not found, using current view")
+
+                if inner_frame:
+                    inner_frame.evaluate(HIDE_JS)
+                else:
+                    page.evaluate(HIDE_JS)
+                page.wait_for_timeout(500)
+
+                # Scroll through content to force chart rendering
+                scroll_height = page.evaluate("""() => {
+                    const sc = document.querySelector('[data-testid="stAppViewContainer"]')
+                            || document.querySelector('.main');
+                    return sc ? sc.scrollHeight : document.documentElement.scrollHeight;
+                }""")
+                for y in range(0, scroll_height + 500, 400):
+                    page.evaluate("""(y) => {
+                        const sc = document.querySelector('[data-testid="stAppViewContainer"]')
+                                || document.querySelector('.main');
+                        if (sc) sc.scrollTop = y;
+                        else window.scrollTo(0, y);
+                    }""", y)
+                    page.wait_for_timeout(200)
+
+                # Scroll back to top, resize tall, capture
+                page.evaluate("""() => {
+                    const sc = document.querySelector('[data-testid="stAppViewContainer"]')
+                            || document.querySelector('.main');
+                    if (sc) sc.scrollTop = 0;
+                    else window.scrollTo(0, 0);
+                }""")
+                page.set_viewport_size({"width": 1280, "height": 2400})
+                page.wait_for_timeout(2000)
+                if inner_frame:
+                    inner_frame.evaluate(HIDE_JS)
+                else:
+                    page.evaluate(HIDE_JS)
+                page.wait_for_timeout(500)
+
+                page.screenshot(path=out_path, full_page=True, type='png')
+
+                # Reset viewport for next tab
+                page.set_viewport_size({"width": 1280, "height": 900})
+                page.wait_for_timeout(500)
+
+                paths.append(out_path)
+                print(f"[OK] Screenshot {i+1} ({tab_name}) saved: {out_path}")
+
+            browser.close()
+
+        # Trim blank whitespace from bottom of each screenshot
+        # Streamlit renders a bottom toolbar (dark bar) at the very bottom,
+        # so we find the largest blank gap and crop at its start.
+        for p_path in paths:
+            try:
+                img = Image.open(p_path)
+                arr = np.array(img)
+                row_min = arr[:, :, :3].min(axis=1).min(axis=1)
+                is_blank = row_min >= 254
+                non_blank = np.where(~is_blank)[0]
+
+                if len(non_blank) < 2:
+                    continue
+
+                # Find the largest gap between non-blank rows
+                gaps = []
+                for j in range(1, len(non_blank)):
+                    gap = non_blank[j] - non_blank[j - 1]
+                    if gap > 100:
+                        gaps.append((gap, non_blank[j - 1]))
+
+                if gaps:
+                    # Crop at the end of content before the largest gap
+                    gaps.sort(reverse=True)
+                    _, content_end = gaps[0]
+                    crop_bottom = min(content_end + 40, img.height)
+                    if crop_bottom < img.height - 100:
+                        cropped = img.crop((0, 0, img.width, crop_bottom))
+                        cropped.save(p_path)
+                        print(f"[OK] Trimmed: {img.height} → {crop_bottom}px")
+            except Exception as e:
+                print(f"[WARNING] Failed to trim {p_path}: {e}")
+
+        print(f"[OK] 4-part Daily Analysis screenshots captured successfully")
+        return paths
+
+    except Exception as e:
+        print(f"[ERROR] 3-part screenshot failed: {e}")
+        try:
+            import traceback
+            traceback.print_exc()
+        except OSError:
+            pass
+        return None
+
+
 def _split_screenshot(image_path, split_y=None):
     """Split a screenshot at a given Y position (or midpoint if not provided).
 
