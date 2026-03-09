@@ -960,7 +960,9 @@ def generate_executive_summary(daily_df, target_date):
     agent_t1['cpa'] = agent_t1.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
     agent_t1 = agent_t1.sort_values('ftd', ascending=False)
 
-    lines.append(f"<pre>{'Agent':<8} {'Cost':>8} {'Reg':>5} {'FTD':>4} {'Conv':>6} {'CPA':>7} {'Chg':>5}</pre>")
+    table = []
+    table.append(f"{'Agent':<8} {'Cost':>8} {'Reg':>5} {'FTD':>4} {'Conv':>6} {'CPA':>7} {'Chg':>5}")
+    table.append('─' * 48)
 
     expected_agents = [t['agent'] for t in AGENT_PERFORMANCE_TABS]
     for _, row in agent_t1.iterrows():
@@ -972,19 +974,21 @@ def generate_executive_summary(daily_df, target_date):
             prev_ftd = agent_prev.loc[row['agent'], 'ftd']
             diff = int(row['ftd'] - prev_ftd)
             chg = f"+{diff}" if diff > 0 else str(diff)
-        lines.append(f"<pre>{row['agent']:<8} {cost_s:>8} {int(row['register']):>5} {int(row['ftd']):>4} {conv_s:>6} {cpa_s:>7} {chg:>5}</pre>")
+        table.append(f"{row['agent']:<8} {cost_s:>8} {int(row['register']):>5} {int(row['ftd']):>4} {conv_s:>6} {cpa_s:>7} {chg:>5}")
 
     # No data agents
     agents_with_data = set(agent_t1['agent'].values)
     no_data = [a for a in expected_agents if a not in agents_with_data]
     for a in no_data:
-        lines.append(f"<pre>{a:<8}  No data</pre>")
+        table.append(f"{a:<8}  No data")
 
     # Grand total line
-    lines.append(f"<pre>{'─' * 48}</pre>")
+    table.append('─' * 48)
     total_conv = f"{curr['conv']:.1f}%"
     total_cpa = f"${curr['cpa']:,.0f}" if curr['cpa'] > 0 else "-"
-    lines.append(f"<pre>{'TOTAL':<8} ${curr['cost']:>7,.0f} {curr['register']:>5} {curr['ftd']:>4} {total_conv:>6} {total_cpa:>7}</pre>")
+    table.append(f"{'TOTAL':<8} ${curr['cost']:>7,.0f} {curr['register']:>5} {curr['ftd']:>4} {total_conv:>6} {total_cpa:>7}")
+
+    lines.append("<pre>" + "\n".join(table) + "</pre>")
 
     return "\n".join(lines)
 
@@ -1005,12 +1009,15 @@ def generate_operations_summary(reporting_data=None, ab_data=None, assets_df=Non
         has_content = True
         agents = sorted(reporting_data.items(), key=lambda x: x[1].get('avg_minute', 99))
         lines.append("<b>Reporting Accuracy</b>")
-        lines.append(f"<pre>{'Agent':<10} {'Rpts':>4} {'Avg':>5} {'Score':>5}</pre>")
+        tbl = []
+        tbl.append(f"{'Agent':<10} {'Rpts':>4} {'Avg':>5} {'Score':>5}")
+        tbl.append('─' * 28)
         for agent, info in agents:
             count = info.get('report_count', 0)
             avg = info.get('avg_minute', 0)
             score = info.get('score', 0)
-            lines.append(f"<pre>{agent:<10} {count:>4} {avg:>4.0f}m {score:>3}/4</pre>")
+            tbl.append(f"{agent:<10} {count:>4} {avg:>4.0f}m {score:>3}/4")
+        lines.append("<pre>" + "\n".join(tbl) + "</pre>")
         lines.append("")
 
     # A/B Testing
@@ -1020,14 +1027,17 @@ def generate_operations_summary(reporting_data=None, ab_data=None, assets_df=Non
             has_content = True
             sorted_agents = sorted(counts.items(), key=lambda x: x[1].get('published_ad', 0), reverse=True)
             lines.append("<b>A/B Testing</b>")
-            lines.append(f"<pre>{'Agent':<10} {'Texts':>5} {'Pub':>4} {'Score':>5}</pre>")
+            tbl = []
+            tbl.append(f"{'Agent':<10} {'Texts':>5} {'Pub':>4} {'Score':>5}")
+            tbl.append('─' * 28)
             for agent, info in sorted_agents:
                 texts = info.get('primary_text', 0)
                 published = info.get('published_ad', 0)
                 score = score_ab_testing(published)
                 t_s = str(texts) if texts > 0 else '-'
                 p_s = str(published) if published > 0 else '-'
-                lines.append(f"<pre>{agent.title():<10} {t_s:>5} {p_s:>4} {score:>3}/4</pre>")
+                tbl.append(f"{agent.title():<10} {t_s:>5} {p_s:>4} {score:>3}/4")
+            lines.append("<pre>" + "\n".join(tbl) + "</pre>")
             lines.append("")
 
     # Account Dev
@@ -1037,13 +1047,16 @@ def generate_operations_summary(reporting_data=None, ab_data=None, assets_df=Non
             has_content = True
             sorted_agents = sorted(counts.items(), key=lambda x: x[1].get('total_accounts', 0), reverse=True)
             lines.append("<b>Account Dev</b>")
-            lines.append(f"<pre>{'Agent':<10} {'Gmail':>5} {'FB':>4} {'Tot':>4} {'Score':>5}</pre>")
+            tbl = []
+            tbl.append(f"{'Agent':<10} {'Gmail':>5} {'FB':>4} {'Tot':>4} {'Score':>5}")
+            tbl.append('─' * 32)
             for agent, info in sorted_agents:
                 gmail = info.get('gmail', 0)
                 fb = info.get('fb_accounts', 0)
                 total = info.get('total_accounts', 0)
                 score = score_account_dev(total)
-                lines.append(f"<pre>{agent.title():<10} {gmail:>5} {fb:>4} {total:>4} {score:>3}/4</pre>")
+                tbl.append(f"{agent.title():<10} {gmail:>5} {fb:>4} {total:>4} {score:>3}/4")
+            lines.append("<pre>" + "\n".join(tbl) + "</pre>")
             lines.append("")
 
     if not has_content:
