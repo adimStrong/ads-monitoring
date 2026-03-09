@@ -380,8 +380,8 @@ def render_trends(daily, dates):
     # Cost (line) + FTD (bar) dual axis
     st.markdown("#### Cost & FTD Trend")
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['cost'], name='Cost ($)', mode='lines+markers', line=dict(color='#3b82f6', width=3), yaxis='y'))
     fig.add_trace(go.Bar(x=overall['date_label'], y=overall['ftd'], name='FTD', marker_color='#22c55e', yaxis='y2'))
+    fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['cost'], name='Cost ($)', mode='lines+markers', line=dict(color='#3b82f6', width=3), yaxis='y'))
     fig.update_layout(
         yaxis=dict(title='Cost ($)', side='left'),
         yaxis2=dict(title='FTD', side='right', overlaying='y'),
