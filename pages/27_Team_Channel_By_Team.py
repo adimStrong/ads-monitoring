@@ -132,7 +132,12 @@ def render_content(key_prefix="tc"):
         filtered_team_df['roas'] = filtered_team_df.apply(
             lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
 
-        ch_map = team_actual_df.set_index('team')['channel_source'].to_dict()
+        # Build channel labels from CHANNEL_TO_TEAM mapping
+        team_ch_labels = {}
+        for ch, t in sorted(CHANNEL_TO_TEAM.items()):
+            num = ch.replace('FB-FB-FB-DEERPROMO', '')
+            team_ch_labels.setdefault(t, []).append(num)
+        ch_map = {t: 'Promo ' + ' - '.join(nums) for t, nums in team_ch_labels.items()}
         filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
 
         filtered_overall = filtered_daily.groupby('channel').agg({
@@ -141,6 +146,14 @@ def render_content(key_prefix="tc"):
         filtered_overall['team'] = filtered_overall['channel'].map(CHANNEL_TO_TEAM)
     else:
         filtered_team_df = team_actual_df.copy()
+        # Override channel_source with our mapping
+        team_ch_labels = {}
+        for ch, t in sorted(CHANNEL_TO_TEAM.items()):
+            num = ch.replace('FB-FB-FB-DEERPROMO', '')
+            team_ch_labels.setdefault(t, []).append(num)
+        ch_map = {t: 'Promo ' + ' - '.join(nums) for t, nums in team_ch_labels.items()}
+        if 'team' in filtered_team_df.columns:
+            filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
         filtered_overall = overall_df.copy()
 
     # HEADER
