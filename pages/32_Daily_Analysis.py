@@ -108,6 +108,13 @@ def build_daily_data(daily_df):
     agg['roas'] = agg.apply(
         lambda r: r['arppu'] / KPI_PHP_USD_RATE / (r['cost'] / r['ftd']) if r['ftd'] > 0 and r['cost'] > 0 else 0, axis=1)
 
+    # Ensure ALL agents appear for every date (fill missing with zeros)
+    all_agents = [t['agent'] for t in AGENT_PERFORMANCE_TABS
+                  if t['agent'].upper() not in EXCLUDED_FROM_REPORTING]
+    all_dates = agg['date'].unique()
+    full_idx = pd.MultiIndex.from_product([all_agents, all_dates], names=['agent', 'date'])
+    agg = agg.set_index(['agent', 'date']).reindex(full_idx, fill_value=0).reset_index()
+
     agg['team'] = agg['agent'].map(TEAM_MAP).fillna('Unknown')
     agg['date_label'] = agg['date'].dt.strftime('%b %d (%a)')
 
