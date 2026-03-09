@@ -1,0 +1,897 @@
+2026-02-12 11:18:45,429 - INFO - Loading Facebook Ads data from INDIVIDUAL KPI sheet...
+2026-02-12 11:18:48,127 - INFO - Generating T+1 report for 2026-02-11...
+2026-02-12 11:18:48,129 - INFO - Sending to Telegram...
+2026-02-12 11:18:49,350 - INFO - Report sent to KPI Ads group!
+2026-02-12 13:24:33,205 - INFO - Loading P-tab data...
+2026-02-12 13:24:45,799 - INFO - Generating T+1 report for 2026-02-11...
+2026-02-12 13:24:45,809 - INFO - Sending to Telegram...
+2026-02-12 13:24:46,671 - ERROR - Failed to send report: Telegram API error: Bad Request: message is too long
+2026-02-12 13:25:19,405 - INFO - Loading P-tab data...
+2026-02-12 13:25:32,078 - INFO - Generating T+1 report for 2026-02-11...
+2026-02-12 13:25:32,089 - INFO - Sending to Telegram...
+2026-02-12 13:25:34,327 - INFO - Report sent to KPI Ads group!
+2026-02-12 13:26:10,589 - INFO - Loading P-tab data...
+2026-02-12 13:26:22,383 - INFO - Generating T+1 report for 2026-02-11...
+2026-02-12 13:26:22,391 - INFO - Sending to Telegram...
+2026-02-12 13:26:23,713 - INFO - Report sent to KPI Ads group!
+2026-02-12 14:00:02,446 - INFO - Starting Daily Report Scheduler...
+2026-02-12 14:00:02,458 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-12 14:00:02,460 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-12 14:00:02,461 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-12 14:00:02,461 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-12 14:00:02,461 - INFO - Scheduled report at 14:00
+2026-02-12 14:00:02,461 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-12 14:00:02,462 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-12 14:00:02,462 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-12 14:00:02,462 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-12 14:00:02,462 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-12 14:00:02,462 - INFO - Scheduler started
+2026-02-13 14:00:02,889 - INFO - Starting Daily Report Scheduler...
+2026-02-13 14:00:02,893 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-13 14:00:02,895 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-13 14:00:02,896 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-13 14:00:02,897 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-13 14:00:02,897 - INFO - Scheduled report at 14:00
+2026-02-13 14:00:02,897 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-13 14:00:02,897 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-13 14:00:02,897 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-13 14:00:02,897 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-13 14:00:02,897 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-13 14:00:02,897 - INFO - Scheduler started
+2026-02-14 10:26:33,305 - INFO - Loading P-tab data...
+2026-02-14 10:26:46,544 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 10:26:46,546 - INFO - Sending to Telegram...
+2026-02-14 10:26:47,767 - INFO - Report sent to KPI Ads group!
+2026-02-14 10:31:45,023 - INFO - Loading P-tab data...
+2026-02-14 10:31:55,216 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 10:31:55,218 - INFO - Sending to Telegram...
+2026-02-14 10:31:56,278 - INFO - Report sent to KPI Ads group!
+2026-02-14 12:38:56,901 - INFO - Loading P-tab data...
+2026-02-14 12:39:06,973 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 12:39:06,977 - INFO - Sending to Telegram...
+2026-02-14 12:39:08,066 - INFO - By Campaign report sent!
+2026-02-14 12:39:08,066 - INFO - Fetching reporting accuracy summary...
+2026-02-14 12:39:10,025 - INFO - Reporting accuracy summary sent!
+2026-02-14 12:39:10,025 - INFO - Building A/B Testing summary...
+2026-02-14 12:39:13,422 - INFO - A/B Testing summary sent!
+2026-02-14 12:39:13,422 - INFO - Building Account Dev summary...
+2026-02-14 12:39:16,783 - INFO - Account Dev summary sent!
+2026-02-14 12:39:16,783 - INFO - Report sent to KPI Ads group!
+2026-02-14 12:49:22,793 - INFO - Starting Daily Report Scheduler...
+2026-02-14 12:49:22,824 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 12:49:22,824 - INFO - Scheduled reminder: 1 hour before → 13:00
+2026-02-14 12:49:22,824 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 12:49:22,824 - INFO - Scheduled reminder: 30 minutes before → 13:30
+2026-02-14 12:49:22,824 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 12:49:22,824 - INFO - Scheduled reminder: 15 minutes before → 13:45
+2026-02-14 12:49:22,824 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 12:49:22,824 - INFO - Scheduled report at 14:00
+2026-02-14 12:49:22,824 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-14 12:49:22,824 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-14 12:49:22,825 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-14 12:49:22,825 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-14 12:49:22,825 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-14 12:49:22,825 - INFO - Scheduler started
+2026-02-14 13:00:00,002 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-15 13:00:00 CST)" (scheduled at 2026-02-14 13:00:00+08:00)
+2026-02-14 13:00:01,095 - INFO - Reminder sent: 1 hour before report
+2026-02-14 13:00:01,095 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-15 13:00:00 CST)" executed successfully
+2026-02-14 13:00:01,095 - INFO - Job reminder_60min executed successfully
+2026-02-14 13:30:00,011 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-15 13:30:00 CST)" (scheduled at 2026-02-14 13:30:00+08:00)
+2026-02-14 13:30:01,297 - INFO - Reminder sent: 30 minutes before report
+2026-02-14 13:30:01,297 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-15 13:30:00 CST)" executed successfully
+2026-02-14 13:30:01,298 - INFO - Job reminder_30min executed successfully
+2026-02-14 13:45:00,012 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-15 13:45:00 CST)" (scheduled at 2026-02-14 13:45:00+08:00)
+2026-02-14 13:45:01,146 - INFO - Reminder sent: 15 minutes before report
+2026-02-14 13:45:01,146 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-15 13:45:00 CST)" executed successfully
+2026-02-14 13:45:01,146 - INFO - Job reminder_15min executed successfully
+2026-02-14 14:00:00,002 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-15 14:00:00 CST)" (scheduled at 2026-02-14 14:00:00+08:00)
+2026-02-14 14:00:00,002 - INFO - Loading P-tab data...
+2026-02-14 14:00:02,728 - INFO - Starting Daily Report Scheduler...
+2026-02-14 14:00:02,758 - INFO - Scheduler started at report time - sending report now!
+2026-02-14 14:00:02,759 - INFO - Loading P-tab data...
+2026-02-14 14:00:09,894 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:00:09,899 - INFO - Sending to Telegram...
+2026-02-14 14:00:11,007 - INFO - By Campaign report sent!
+2026-02-14 14:00:11,007 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:00:12,294 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:00:12,299 - INFO - Sending to Telegram...
+2026-02-14 14:00:13,054 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:00:13,054 - INFO - Building A/B Testing summary...
+2026-02-14 14:00:13,390 - INFO - By Campaign report sent!
+2026-02-14 14:00:13,390 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:00:15,426 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:00:15,426 - INFO - Building A/B Testing summary...
+2026-02-14 14:00:16,575 - INFO - A/B Testing summary sent!
+2026-02-14 14:00:16,575 - INFO - Building Account Dev summary...
+2026-02-14 14:00:19,107 - INFO - A/B Testing summary sent!
+2026-02-14 14:00:19,107 - INFO - Building Account Dev summary...
+2026-02-14 14:00:20,144 - INFO - Account Dev summary sent!
+2026-02-14 14:00:20,144 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:00:20,144 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-15 14:00:00 CST)" executed successfully
+2026-02-14 14:00:20,144 - INFO - Job daily_t1_report executed successfully
+2026-02-14 14:00:22,447 - INFO - Account Dev summary sent!
+2026-02-14 14:00:22,447 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:00:22,449 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 14:00:22,451 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 14:00:22,452 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 14:00:22,453 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-14 14:00:22,453 - INFO - Scheduled report at 14:00
+2026-02-14 14:00:22,453 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-14 14:00:22,453 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-14 14:00:22,453 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-14 14:00:22,453 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-14 14:00:22,453 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-14 14:00:22,453 - INFO - Scheduler started
+2026-02-14 14:13:03,687 - INFO - Loading P-tab data...
+2026-02-14 14:13:15,907 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:13:15,917 - INFO - Sending to Telegram...
+2026-02-14 14:13:15,917 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:13:37,246 - INFO - Dashboard screenshot sent!
+2026-02-14 14:13:38,537 - INFO - By Campaign report sent!
+2026-02-14 14:13:38,537 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:13:40,725 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:13:40,725 - INFO - Building A/B Testing summary...
+2026-02-14 14:13:45,209 - INFO - A/B Testing summary sent!
+2026-02-14 14:13:45,209 - INFO - Building Account Dev summary...
+2026-02-14 14:13:49,606 - INFO - Account Dev summary sent!
+2026-02-14 14:13:49,606 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:20:04,955 - INFO - Loading P-tab data...
+2026-02-14 14:20:17,842 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:20:17,851 - INFO - Sending to Telegram...
+2026-02-14 14:20:17,852 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:20:43,567 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-14 14:20:44,652 - INFO - By Campaign report sent!
+2026-02-14 14:20:44,652 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:20:46,597 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:20:46,597 - INFO - Building A/B Testing summary...
+2026-02-14 14:20:50,555 - INFO - A/B Testing summary sent!
+2026-02-14 14:20:50,555 - INFO - Building Account Dev summary...
+2026-02-14 14:20:54,471 - INFO - Account Dev summary sent!
+2026-02-14 14:20:54,471 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:21:57,752 - INFO - Loading P-tab data...
+2026-02-14 14:22:07,525 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:22:07,529 - INFO - Sending to Telegram...
+2026-02-14 14:22:07,529 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:22:25,845 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-14 14:22:27,023 - INFO - By Campaign report sent!
+2026-02-14 14:22:27,023 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:22:28,986 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:22:28,986 - INFO - Building A/B Testing summary...
+2026-02-14 14:22:32,589 - INFO - A/B Testing summary sent!
+2026-02-14 14:22:32,589 - INFO - Building Account Dev summary...
+2026-02-14 14:22:35,892 - INFO - Account Dev summary sent!
+2026-02-14 14:22:35,892 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:23:34,499 - INFO - Loading P-tab data...
+2026-02-14 14:23:44,068 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:23:44,072 - INFO - Sending to Telegram...
+2026-02-14 14:23:44,072 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:24:04,560 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-14 14:24:05,628 - INFO - By Campaign report sent!
+2026-02-14 14:24:05,629 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:24:07,617 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:24:07,617 - INFO - Building A/B Testing summary...
+2026-02-14 14:24:11,149 - INFO - A/B Testing summary sent!
+2026-02-14 14:24:11,149 - INFO - Building Account Dev summary...
+2026-02-14 14:24:14,515 - INFO - Account Dev summary sent!
+2026-02-14 14:24:14,515 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:25:22,580 - INFO - Loading P-tab data...
+2026-02-14 14:25:32,608 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:25:32,613 - INFO - Sending to Telegram...
+2026-02-14 14:25:32,613 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:25:53,149 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-14 14:25:54,232 - INFO - By Campaign report sent!
+2026-02-14 14:25:54,232 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:25:56,035 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:25:56,035 - INFO - Building A/B Testing summary...
+2026-02-14 14:25:59,534 - INFO - A/B Testing summary sent!
+2026-02-14 14:25:59,534 - INFO - Building Account Dev summary...
+2026-02-14 14:26:02,989 - INFO - Account Dev summary sent!
+2026-02-14 14:26:02,989 - INFO - Report sent to KPI Ads group!
+2026-02-14 14:37:42,251 - INFO - Loading P-tab data...
+2026-02-14 14:37:53,999 - INFO - Generating T+1 report for 2026-02-13...
+2026-02-14 14:37:54,009 - INFO - Sending to Telegram...
+2026-02-14 14:37:54,010 - INFO - Capturing dashboard screenshot...
+2026-02-14 14:38:16,527 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-14 14:38:17,799 - INFO - By Campaign report sent!
+2026-02-14 14:38:17,799 - INFO - Fetching reporting accuracy summary...
+2026-02-14 14:38:19,948 - INFO - Reporting accuracy summary sent!
+2026-02-14 14:38:19,949 - INFO - Building A/B Testing summary...
+2026-02-14 14:38:24,806 - INFO - A/B Testing summary sent!
+2026-02-14 14:38:24,807 - INFO - Building Account Dev summary...
+2026-02-14 14:38:29,659 - INFO - Account Dev summary sent!
+2026-02-14 14:38:29,659 - INFO - Report sent to KPI Ads group!
+2026-02-15 13:00:03,195 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-16 13:00:00 CST)" (scheduled at 2026-02-15 13:00:00+08:00)
+2026-02-15 13:00:04,462 - INFO - Reminder sent: 1 hour before report
+2026-02-15 13:00:04,463 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-16 13:00:00 CST)" executed successfully
+2026-02-15 13:00:04,463 - INFO - Job reminder_60min executed successfully
+2026-02-15 13:30:00,013 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-16 13:30:00 CST)" (scheduled at 2026-02-15 13:30:00+08:00)
+2026-02-15 13:30:01,396 - INFO - Reminder sent: 30 minutes before report
+2026-02-15 13:30:01,397 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-16 13:30:00 CST)" executed successfully
+2026-02-15 13:30:01,397 - INFO - Job reminder_30min executed successfully
+2026-02-15 13:45:00,010 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-16 13:45:00 CST)" (scheduled at 2026-02-15 13:45:00+08:00)
+2026-02-15 13:45:01,205 - INFO - Reminder sent: 15 minutes before report
+2026-02-15 13:45:01,205 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-16 13:45:00 CST)" executed successfully
+2026-02-15 13:45:01,205 - INFO - Job reminder_15min executed successfully
+2026-02-15 14:00:00,014 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-16 14:00:00 CST)" (scheduled at 2026-02-15 14:00:00+08:00)
+2026-02-15 14:00:00,015 - INFO - Loading P-tab data...
+2026-02-15 14:00:02,736 - INFO - Starting Daily Report Scheduler...
+2026-02-15 14:00:02,771 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-15 14:00:02,773 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-15 14:00:02,774 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-15 14:00:02,775 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-15 14:00:02,775 - INFO - Scheduled report at 14:00
+2026-02-15 14:00:02,775 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-15 14:00:02,775 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-15 14:00:02,775 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-15 14:00:02,775 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-15 14:00:02,775 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-15 14:00:02,775 - INFO - Scheduler started
+2026-02-15 14:00:10,944 - INFO - Generating T+1 report for 2026-02-14...
+2026-02-15 14:00:10,948 - INFO - Sending to Telegram...
+2026-02-15 14:00:12,354 - INFO - By Campaign report sent!
+2026-02-15 14:00:12,354 - INFO - Fetching reporting accuracy summary...
+2026-02-15 14:00:14,611 - INFO - Reporting accuracy summary sent!
+2026-02-15 14:00:14,612 - INFO - Building A/B Testing summary...
+2026-02-15 14:00:18,653 - INFO - A/B Testing summary sent!
+2026-02-15 14:00:18,654 - INFO - Building Account Dev summary...
+2026-02-15 14:00:22,615 - INFO - Account Dev summary sent!
+2026-02-15 14:00:22,616 - INFO - Report sent to KPI Ads group!
+2026-02-15 14:00:22,616 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-16 14:00:00 CST)" executed successfully
+2026-02-15 14:00:22,616 - INFO - Job daily_t1_report executed successfully
+2026-02-16 13:00:03,476 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-17 13:00:00 CST)" (scheduled at 2026-02-16 13:00:00+08:00)
+2026-02-16 13:00:04,873 - INFO - Reminder sent: 1 hour before report
+2026-02-16 13:00:04,873 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-17 13:00:00 CST)" executed successfully
+2026-02-16 13:00:04,873 - INFO - Job reminder_60min executed successfully
+2026-02-16 13:30:00,016 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-17 13:30:00 CST)" (scheduled at 2026-02-16 13:30:00+08:00)
+2026-02-16 13:30:01,181 - INFO - Reminder sent: 30 minutes before report
+2026-02-16 13:30:01,182 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-17 13:30:00 CST)" executed successfully
+2026-02-16 13:30:01,182 - INFO - Job reminder_30min executed successfully
+2026-02-16 13:45:00,003 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-17 13:45:00 CST)" (scheduled at 2026-02-16 13:45:00+08:00)
+2026-02-16 13:45:01,217 - INFO - Reminder sent: 15 minutes before report
+2026-02-16 13:45:01,217 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-17 13:45:00 CST)" executed successfully
+2026-02-16 13:45:01,217 - INFO - Job reminder_15min executed successfully
+2026-02-16 14:00:00,017 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-17 14:00:00 CST)" (scheduled at 2026-02-16 14:00:00+08:00)
+2026-02-16 14:00:00,018 - INFO - Loading P-tab data...
+2026-02-16 14:00:02,715 - WARNING - Stale lock file (PID 11476 dead), removing...
+2026-02-16 14:00:02,716 - INFO - Starting Daily Report Scheduler...
+2026-02-16 14:00:02,749 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-16 14:00:02,752 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-16 14:00:02,752 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-16 14:00:02,753 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-16 14:00:02,753 - INFO - Scheduled report at 14:00
+2026-02-16 14:00:02,753 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-16 14:00:02,753 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-16 14:00:02,753 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-16 14:00:02,753 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-16 14:00:02,754 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-16 14:00:02,754 - INFO - Scheduler started
+2026-02-16 14:00:11,780 - ERROR - No P-tab ad accounts data loaded!
+2026-02-16 14:00:11,780 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-17 14:00:00 CST)" executed successfully
+2026-02-16 14:00:11,781 - INFO - Job daily_t1_report executed successfully
+2026-02-16 14:18:51,080 - INFO - Loading P-tab data...
+2026-02-16 14:19:01,400 - ERROR - No P-tab ad accounts data loaded!
+2026-02-16 14:22:53,251 - INFO - Loading P-tab data...
+2026-02-16 14:23:03,471 - INFO - Generating T+1 report for 2026-02-15...
+2026-02-16 14:23:03,480 - INFO - Sending to Telegram...
+2026-02-16 14:23:03,480 - INFO - Capturing dashboard screenshot...
+2026-02-16 14:23:27,376 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-16 14:23:28,657 - INFO - By Campaign report sent!
+2026-02-16 14:23:28,657 - INFO - Fetching reporting accuracy summary...
+2026-02-16 14:23:31,005 - INFO - Reporting accuracy summary sent!
+2026-02-16 14:23:31,005 - INFO - Building A/B Testing summary...
+2026-02-16 14:23:35,036 - INFO - A/B Testing summary sent!
+2026-02-16 14:23:35,036 - INFO - Building Account Dev summary...
+2026-02-16 14:23:39,017 - INFO - Account Dev summary sent!
+2026-02-16 14:23:39,017 - INFO - Report sent to KPI Ads group!
+2026-02-17 13:00:03,354 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-18 13:00:00 CST)" (scheduled at 2026-02-17 13:00:00+08:00)
+2026-02-17 13:00:04,506 - INFO - Reminder sent: 1 hour before report
+2026-02-17 13:00:04,506 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-18 13:00:00 CST)" executed successfully
+2026-02-17 13:00:04,507 - INFO - Job reminder_60min executed successfully
+2026-02-17 13:30:00,015 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-18 13:30:00 CST)" (scheduled at 2026-02-17 13:30:00+08:00)
+2026-02-17 13:30:01,245 - INFO - Reminder sent: 30 minutes before report
+2026-02-17 13:30:01,245 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-18 13:30:00 CST)" executed successfully
+2026-02-17 13:30:01,245 - INFO - Job reminder_30min executed successfully
+2026-02-17 13:45:00,001 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-18 13:45:00 CST)" (scheduled at 2026-02-17 13:45:00+08:00)
+2026-02-17 13:45:01,256 - INFO - Reminder sent: 15 minutes before report
+2026-02-17 13:45:01,256 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-18 13:45:00 CST)" executed successfully
+2026-02-17 13:45:01,256 - INFO - Job reminder_15min executed successfully
+2026-02-17 14:00:00,010 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-18 14:00:00 CST)" (scheduled at 2026-02-17 14:00:00+08:00)
+2026-02-17 14:00:00,010 - INFO - Loading P-tab data...
+2026-02-17 14:00:02,717 - WARNING - Stale lock file (PID 52804 dead), removing...
+2026-02-17 14:00:02,717 - INFO - Starting Daily Report Scheduler...
+2026-02-17 14:00:02,750 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 14:00:02,753 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 14:00:02,754 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 14:00:02,754 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-17 14:00:02,754 - INFO - Scheduled report at 14:00
+2026-02-17 14:00:02,754 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-17 14:00:02,755 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-17 14:00:02,755 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-17 14:00:02,755 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-17 14:00:02,755 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-17 14:00:02,755 - INFO - Scheduler started
+2026-02-17 14:00:11,421 - ERROR - No P-tab ad accounts data loaded!
+2026-02-17 14:00:11,421 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-18 14:00:00 CST)" executed successfully
+2026-02-17 14:00:11,421 - INFO - Job daily_t1_report executed successfully
+2026-02-17 14:28:37,337 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-17 14:28:48,629 - INFO - Generating T+1 report for 2026-02-16...
+2026-02-17 14:28:48,638 - INFO - Sending to Telegram...
+2026-02-17 14:28:48,638 - INFO - Capturing dashboard screenshot...
+2026-02-17 14:29:10,564 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-17 14:29:11,623 - INFO - Sent message part 1/2 (3998 chars)
+2026-02-17 14:29:12,670 - INFO - Sent message part 2/2 (288 chars)
+2026-02-17 14:29:12,670 - INFO - By Campaign report sent!
+2026-02-17 14:29:12,670 - INFO - Fetching reporting accuracy summary...
+2026-02-17 14:29:14,662 - INFO - Reporting accuracy summary sent!
+2026-02-17 14:29:14,662 - INFO - Building A/B Testing summary...
+2026-02-17 14:29:19,081 - INFO - A/B Testing summary sent!
+2026-02-17 14:29:19,082 - INFO - Building Account Dev summary...
+2026-02-17 14:29:22,675 - INFO - Account Dev summary sent!
+2026-02-17 14:29:22,675 - INFO - Report sent to KPI Ads group!
+2026-02-18 13:00:03,202 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-19 13:00:00 CST)" (scheduled at 2026-02-18 13:00:00+08:00)
+2026-02-18 13:00:04,419 - INFO - Reminder sent: 1 hour before report
+2026-02-18 13:00:04,419 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-19 13:00:00 CST)" executed successfully
+2026-02-18 13:00:04,420 - INFO - Job reminder_60min executed successfully
+2026-02-18 13:30:00,002 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-19 13:30:00 CST)" (scheduled at 2026-02-18 13:30:00+08:00)
+2026-02-18 13:30:01,261 - INFO - Reminder sent: 30 minutes before report
+2026-02-18 13:30:01,261 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-19 13:30:00 CST)" executed successfully
+2026-02-18 13:30:01,261 - INFO - Job reminder_30min executed successfully
+2026-02-18 13:45:00,012 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-19 13:45:00 CST)" (scheduled at 2026-02-18 13:45:00+08:00)
+2026-02-18 13:45:01,173 - INFO - Reminder sent: 15 minutes before report
+2026-02-18 13:45:01,173 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-19 13:45:00 CST)" executed successfully
+2026-02-18 13:45:01,173 - INFO - Job reminder_15min executed successfully
+2026-02-18 14:00:00,008 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-19 14:00:00 CST)" (scheduled at 2026-02-18 14:00:00+08:00)
+2026-02-18 14:00:00,008 - INFO - Loading P-tab data...
+2026-02-18 14:00:02,840 - WARNING - Stale lock file (PID 76244 dead), removing...
+2026-02-18 14:00:02,840 - INFO - Starting Daily Report Scheduler...
+2026-02-18 14:00:02,875 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-18 14:00:02,878 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-18 14:00:02,879 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-18 14:00:02,880 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-18 14:00:02,880 - INFO - Scheduled report at 14:00
+2026-02-18 14:00:02,880 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-18 14:00:02,880 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-18 14:00:02,880 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-18 14:00:02,880 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-18 14:00:02,880 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-18 14:00:02,880 - INFO - Scheduler started
+2026-02-18 14:00:09,434 - ERROR - No P-tab ad accounts data loaded!
+2026-02-18 14:00:09,434 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-19 14:00:00 CST)" executed successfully
+2026-02-18 14:00:09,434 - INFO - Job daily_t1_report executed successfully
+2026-02-19 13:00:03,340 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-20 13:00:00 CST)" (scheduled at 2026-02-19 13:00:00+08:00)
+2026-02-19 13:00:04,609 - INFO - Reminder sent: 1 hour before report
+2026-02-19 13:00:04,609 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-02-20 13:00:00 CST)" executed successfully
+2026-02-19 13:00:04,609 - INFO - Job reminder_60min executed successfully
+2026-02-19 13:30:00,004 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-20 13:30:00 CST)" (scheduled at 2026-02-19 13:30:00+08:00)
+2026-02-19 13:30:02,603 - INFO - Reminder sent: 30 minutes before report
+2026-02-19 13:30:02,603 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-02-20 13:30:00 CST)" executed successfully
+2026-02-19 13:30:02,603 - INFO - Job reminder_30min executed successfully
+2026-02-19 13:45:00,004 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-20 13:45:00 CST)" (scheduled at 2026-02-19 13:45:00+08:00)
+2026-02-19 13:45:01,218 - INFO - Reminder sent: 15 minutes before report
+2026-02-19 13:45:01,218 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-02-20 13:45:00 CST)" executed successfully
+2026-02-19 13:45:01,218 - INFO - Job reminder_15min executed successfully
+2026-02-19 14:00:00,009 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-20 14:00:00 CST)" (scheduled at 2026-02-19 14:00:00+08:00)
+2026-02-19 14:00:00,010 - INFO - Loading P-tab data...
+2026-02-19 14:00:02,858 - WARNING - Stale lock file (PID 71672 dead), removing...
+2026-02-19 14:00:02,859 - INFO - Starting Daily Report Scheduler...
+2026-02-19 14:00:02,892 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-19 14:00:02,895 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-19 14:00:02,895 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-19 14:00:02,896 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-19 14:00:02,896 - INFO - Scheduled report at 14:00
+2026-02-19 14:00:02,896 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-19 14:00:02,896 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-19 14:00:02,896 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-19 14:00:02,896 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-19 14:00:02,896 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-19 14:00:02,897 - INFO - Scheduler started
+2026-02-19 14:00:11,337 - ERROR - No P-tab ad accounts data loaded!
+2026-02-19 14:00:11,337 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-02-20 14:00:00 CST)" executed successfully
+2026-02-19 14:00:11,338 - INFO - Job daily_t1_report executed successfully
+2026-02-20 12:43:29,003 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-20 12:43:40,366 - INFO - Generating T+1 report for 2026-02-19...
+2026-02-20 12:43:40,376 - INFO - Sending to Telegram...
+2026-02-20 12:43:40,376 - INFO - Capturing dashboard screenshot...
+2026-02-20 12:44:02,924 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-20 12:44:05,074 - ERROR - Failed to send report: Telegram API error: Bad Request: can't parse entities: Can't find end tag corresponding to start tag "pre"
+2026-02-20 12:45:24,373 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-20 12:45:34,754 - INFO - Generating T+1 report for 2026-02-19...
+2026-02-20 12:45:34,768 - INFO - Sending to Telegram...
+2026-02-20 12:45:34,768 - INFO - Capturing dashboard screenshot...
+2026-02-20 12:45:54,919 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-20 12:45:56,241 - INFO - Sent message part 1/2 (3982 chars)
+2026-02-20 12:45:58,087 - INFO - Sent message part 2/2 (298 chars)
+2026-02-20 12:45:58,087 - INFO - By Campaign report sent!
+2026-02-20 12:45:58,087 - INFO - Fetching reporting accuracy summary...
+2026-02-20 12:46:00,406 - INFO - Reporting accuracy summary sent!
+2026-02-20 12:46:00,406 - INFO - Building A/B Testing summary...
+2026-02-20 12:46:04,459 - INFO - A/B Testing summary sent!
+2026-02-20 12:46:04,459 - INFO - Building Account Dev summary...
+2026-02-20 12:46:08,294 - INFO - Account Dev summary sent!
+2026-02-20 12:46:08,294 - INFO - Report sent to KPI Ads group!
+2026-02-20 14:00:02,844 - WARNING - Stale lock file (PID 108808 dead), removing...
+2026-02-20 14:00:02,845 - INFO - Starting Daily Report Scheduler...
+2026-02-20 14:00:02,882 - INFO - Scheduler started at report time - sending report now!
+2026-02-20 14:00:02,882 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-20 14:00:13,134 - INFO - Generating T+1 report for 2026-02-19...
+2026-02-20 14:00:13,156 - INFO - Sending to Telegram...
+2026-02-20 14:00:13,157 - INFO - Capturing dashboard screenshot...
+2026-02-20 14:00:38,045 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-20 14:00:40,307 - INFO - Sent message part 1/2 (3982 chars)
+2026-02-20 14:00:41,571 - INFO - Sent message part 2/2 (298 chars)
+2026-02-20 14:00:41,571 - INFO - By Campaign report sent!
+2026-02-20 14:00:41,571 - INFO - Fetching reporting accuracy summary...
+2026-02-20 14:00:43,954 - INFO - Reporting accuracy summary sent!
+2026-02-20 14:00:43,954 - INFO - Building A/B Testing summary...
+2026-02-20 14:00:48,530 - INFO - A/B Testing summary sent!
+2026-02-20 14:00:48,531 - INFO - Building Account Dev summary...
+2026-02-20 14:00:52,639 - INFO - Account Dev summary sent!
+2026-02-20 14:00:52,639 - INFO - Report sent to KPI Ads group!
+2026-02-20 14:00:52,642 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-20 14:00:52,645 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-20 14:00:52,646 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-20 14:00:52,647 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-20 14:00:52,647 - INFO - Scheduled report at 14:00
+2026-02-20 14:00:52,647 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-20 14:00:52,648 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-20 14:00:52,648 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-20 14:00:52,648 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-20 14:00:52,648 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-20 14:00:52,649 - INFO - Scheduler started
+2026-02-21 14:00:03,152 - WARNING - Stale lock file (PID 57556 dead), removing...
+2026-02-21 14:00:03,153 - INFO - Starting Daily Report Scheduler...
+2026-02-21 14:00:03,228 - INFO - Scheduler started at report time - sending report now!
+2026-02-21 14:00:03,228 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-21 14:00:13,079 - INFO - Generating T+1 report for 2026-02-20...
+2026-02-21 14:00:13,096 - INFO - Sending to Telegram...
+2026-02-21 14:00:13,097 - INFO - Capturing dashboard screenshot...
+2026-02-21 14:00:37,167 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-21 14:00:39,435 - INFO - Sent message part 1/2 (3986 chars)
+2026-02-21 14:00:41,082 - INFO - Sent message part 2/2 (73 chars)
+2026-02-21 14:00:41,082 - INFO - By Campaign report sent!
+2026-02-21 14:00:41,082 - INFO - Fetching reporting accuracy summary...
+2026-02-21 14:00:43,188 - INFO - Reporting accuracy summary sent!
+2026-02-21 14:00:43,189 - INFO - Building A/B Testing summary...
+2026-02-21 14:00:46,761 - INFO - A/B Testing summary sent!
+2026-02-21 14:00:46,761 - INFO - Building Account Dev summary...
+2026-02-21 14:00:50,226 - INFO - Account Dev summary sent!
+2026-02-21 14:00:50,226 - INFO - Report sent to KPI Ads group!
+2026-02-21 14:00:50,231 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-21 14:00:50,234 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-21 14:00:50,235 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-21 14:00:50,235 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-21 14:00:50,235 - INFO - Scheduled report at 14:00
+2026-02-21 14:00:50,236 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-21 14:00:50,236 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-21 14:00:50,236 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-21 14:00:50,236 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-21 14:00:50,236 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-21 14:00:50,236 - INFO - Scheduler started
+2026-02-22 14:00:03,489 - WARNING - Stale lock file (PID 70608 dead), removing...
+2026-02-22 14:00:03,490 - INFO - Starting Daily Report Scheduler...
+2026-02-22 14:00:03,542 - INFO - Scheduler started at report time - sending report now!
+2026-02-22 14:00:03,542 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-22 14:00:14,548 - INFO - Generating T+1 report for 2026-02-21...
+2026-02-22 14:00:14,563 - INFO - Sending to Telegram...
+2026-02-22 14:00:14,563 - INFO - Capturing dashboard screenshot...
+2026-02-22 14:00:41,688 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-22 14:00:42,830 - INFO - Sent message part 1/2 (3996 chars)
+2026-02-22 14:00:44,297 - INFO - Sent message part 2/2 (222 chars)
+2026-02-22 14:00:44,297 - INFO - By Campaign report sent!
+2026-02-22 14:00:44,297 - INFO - Fetching reporting accuracy summary...
+2026-02-22 14:00:47,623 - INFO - Reporting accuracy summary sent!
+2026-02-22 14:00:47,624 - INFO - Building A/B Testing summary...
+2026-02-22 14:00:51,438 - INFO - A/B Testing summary sent!
+2026-02-22 14:00:51,438 - INFO - Building Account Dev summary...
+2026-02-22 14:00:55,041 - INFO - Account Dev summary sent!
+2026-02-22 14:00:55,041 - INFO - Report sent to KPI Ads group!
+2026-02-22 14:00:55,045 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-22 14:00:55,048 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-22 14:00:55,049 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-22 14:00:55,050 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-22 14:00:55,050 - INFO - Scheduled report at 14:00
+2026-02-22 14:00:55,050 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-22 14:00:55,050 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-22 14:00:55,050 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-22 14:00:55,050 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-22 14:00:55,050 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-22 14:00:55,050 - INFO - Scheduler started
+2026-02-23 14:00:03,145 - WARNING - Stale lock file (PID 82932 dead), removing...
+2026-02-23 14:00:03,145 - INFO - Starting Daily Report Scheduler...
+2026-02-23 14:00:03,223 - INFO - Scheduler started at report time - sending report now!
+2026-02-23 14:00:03,223 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-23 14:00:11,713 - INFO - Generating T+1 report for 2026-02-22...
+2026-02-23 14:00:11,726 - INFO - Sending to Telegram...
+2026-02-23 14:00:11,726 - INFO - Capturing dashboard screenshot...
+2026-02-23 14:00:38,421 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-23 14:00:39,614 - INFO - By Campaign report sent!
+2026-02-23 14:00:39,614 - INFO - Fetching reporting accuracy summary...
+2026-02-23 14:00:41,646 - INFO - Reporting accuracy summary sent!
+2026-02-23 14:00:41,646 - INFO - Building A/B Testing summary...
+2026-02-23 14:00:44,510 - WARNING - No A/B Testing data available
+2026-02-23 14:00:44,510 - INFO - Building Account Dev summary...
+2026-02-23 14:00:48,335 - INFO - Account Dev summary sent!
+2026-02-23 14:00:48,335 - INFO - Report sent to KPI Ads group!
+2026-02-23 14:00:48,339 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-23 14:00:48,342 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-23 14:00:48,343 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-23 14:00:48,344 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-23 14:00:48,344 - INFO - Scheduled report at 14:00
+2026-02-23 14:00:48,344 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-23 14:00:48,344 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-23 14:00:48,344 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-23 14:00:48,344 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-23 14:00:48,344 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-23 14:00:48,344 - INFO - Scheduler started
+2026-02-24 14:00:02,936 - WARNING - Stale lock file (PID 36576 dead), removing...
+2026-02-24 14:00:02,936 - INFO - Starting Daily Report Scheduler...
+2026-02-24 14:00:02,986 - INFO - Scheduler started at report time - sending report now!
+2026-02-24 14:00:02,986 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-24 14:00:12,827 - INFO - Generating T+1 report for 2026-02-23...
+2026-02-24 14:00:12,838 - INFO - Sending to Telegram...
+2026-02-24 14:00:12,838 - INFO - Capturing dashboard screenshot...
+2026-02-24 14:00:40,941 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-24 14:00:42,055 - INFO - By Campaign report sent!
+2026-02-24 14:00:42,055 - INFO - Fetching reporting accuracy summary...
+2026-02-24 14:00:44,079 - INFO - Reporting accuracy summary sent!
+2026-02-24 14:00:44,080 - INFO - Building A/B Testing summary...
+2026-02-24 14:00:47,799 - INFO - A/B Testing summary sent!
+2026-02-24 14:00:47,799 - INFO - Building Account Dev summary...
+2026-02-24 14:00:51,821 - INFO - Account Dev summary sent!
+2026-02-24 14:00:51,821 - INFO - Report sent to KPI Ads group!
+2026-02-24 14:00:51,825 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-24 14:00:51,828 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-24 14:00:51,828 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-24 14:00:51,829 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-24 14:00:51,829 - INFO - Scheduled report at 14:00
+2026-02-24 14:00:51,829 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-24 14:00:51,829 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-24 14:00:51,829 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-24 14:00:51,830 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-24 14:00:51,830 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-24 14:00:51,830 - INFO - Scheduler started
+2026-02-25 14:00:03,024 - WARNING - Stale lock file (PID 89044 dead), removing...
+2026-02-25 14:00:03,026 - INFO - Starting Daily Report Scheduler...
+2026-02-25 14:00:03,064 - INFO - Scheduler started at report time - sending report now!
+2026-02-25 14:00:03,064 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-25 14:00:15,154 - INFO - Generating T+1 report for 2026-02-24...
+2026-02-25 14:00:15,165 - INFO - Sending to Telegram...
+2026-02-25 14:00:15,168 - INFO - Capturing dashboard screenshot...
+2026-02-25 14:00:39,072 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-25 14:00:40,223 - INFO - Sent message part 1/2 (3980 chars)
+2026-02-25 14:00:41,546 - INFO - Sent message part 2/2 (73 chars)
+2026-02-25 14:00:41,546 - INFO - By Campaign report sent!
+2026-02-25 14:00:41,546 - INFO - Fetching reporting accuracy summary...
+2026-02-25 14:00:44,016 - INFO - Reporting accuracy summary sent!
+2026-02-25 14:00:44,016 - INFO - Building A/B Testing summary...
+2026-02-25 14:00:48,604 - INFO - A/B Testing summary sent!
+2026-02-25 14:00:48,604 - INFO - Building Account Dev summary...
+2026-02-25 14:00:53,071 - INFO - Account Dev summary sent!
+2026-02-25 14:00:53,072 - INFO - Report sent to KPI Ads group!
+2026-02-25 14:00:53,075 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-25 14:00:53,078 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-25 14:00:53,080 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-25 14:00:53,083 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-25 14:00:53,083 - INFO - Scheduled report at 14:00
+2026-02-25 14:00:53,083 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-25 14:00:53,084 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-25 14:00:53,084 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-25 14:00:53,084 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-25 14:00:53,084 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-25 14:00:53,084 - INFO - Scheduler started
+2026-02-26 14:00:03,128 - WARNING - Stale lock file (PID 44596 dead), removing...
+2026-02-26 14:00:03,129 - INFO - Starting Daily Report Scheduler...
+2026-02-26 14:00:03,164 - INFO - Scheduler started at report time - sending report now!
+2026-02-26 14:00:03,164 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-26 14:00:13,349 - INFO - Generating T+1 report for 2026-02-25...
+2026-02-26 14:00:13,372 - INFO - Sending to Telegram...
+2026-02-26 14:00:13,372 - INFO - Capturing dashboard screenshot...
+2026-02-26 14:00:41,993 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-26 14:00:43,189 - INFO - Sent message part 1/2 (3980 chars)
+2026-02-26 14:00:44,419 - INFO - Sent message part 2/2 (20 chars)
+2026-02-26 14:00:44,419 - INFO - By Campaign report sent!
+2026-02-26 14:00:44,419 - INFO - Fetching reporting accuracy summary...
+2026-02-26 14:00:46,760 - INFO - Reporting accuracy summary sent!
+2026-02-26 14:00:46,760 - INFO - Building A/B Testing summary...
+2026-02-26 14:00:51,077 - INFO - A/B Testing summary sent!
+2026-02-26 14:00:51,077 - INFO - Building Account Dev summary...
+2026-02-26 14:00:56,056 - INFO - Account Dev summary sent!
+2026-02-26 14:00:56,056 - INFO - Report sent to KPI Ads group!
+2026-02-26 14:00:56,059 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-26 14:00:56,062 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-26 14:00:56,064 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-26 14:00:56,065 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-26 14:00:56,065 - INFO - Scheduled report at 14:00
+2026-02-26 14:00:56,065 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-26 14:00:56,065 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-26 14:00:56,066 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-26 14:00:56,066 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-26 14:00:56,066 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-26 14:00:56,066 - INFO - Scheduler started
+2026-02-27 14:00:03,136 - WARNING - Stale lock file (PID 48712 dead), removing...
+2026-02-27 14:00:03,137 - INFO - Starting Daily Report Scheduler...
+2026-02-27 14:00:03,167 - INFO - Scheduler started at report time - sending report now!
+2026-02-27 14:00:03,167 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-27 14:00:12,792 - INFO - Generating T+1 report for 2026-02-26...
+2026-02-27 14:00:12,803 - INFO - Sending to Telegram...
+2026-02-27 14:00:12,803 - INFO - Capturing dashboard screenshot...
+2026-02-27 14:00:42,841 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-27 14:00:43,998 - INFO - By Campaign report sent!
+2026-02-27 14:00:43,998 - INFO - Fetching reporting accuracy summary...
+2026-02-27 14:00:46,068 - INFO - Reporting accuracy summary sent!
+2026-02-27 14:00:46,069 - INFO - Building A/B Testing summary...
+2026-02-27 14:00:49,942 - INFO - A/B Testing summary sent!
+2026-02-27 14:00:49,943 - INFO - Building Account Dev summary...
+2026-02-27 14:00:53,813 - INFO - Account Dev summary sent!
+2026-02-27 14:00:53,813 - INFO - Report sent to KPI Ads group!
+2026-02-27 14:00:53,817 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-27 14:00:53,822 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-27 14:00:53,823 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-27 14:00:53,824 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-02-27 14:00:53,824 - INFO - Scheduled report at 14:00
+2026-02-27 14:00:53,824 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-02-27 14:00:53,824 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-02-27 14:00:53,824 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-02-27 14:00:53,825 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-02-27 14:00:53,825 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-02-27 14:00:53,825 - INFO - Scheduler started
+2026-02-28 13:00:03,446 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-01 13:00:00 CST)" (scheduled at 2026-02-28 13:00:00+08:00)
+2026-02-28 13:00:04,887 - INFO - Reminder sent: 1 hour before report
+2026-02-28 13:00:04,888 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-01 13:00:00 CST)" executed successfully
+2026-02-28 13:00:04,912 - INFO - Job reminder_60min executed successfully
+2026-02-28 13:30:00,067 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-01 13:30:00 CST)" (scheduled at 2026-02-28 13:30:00+08:00)
+2026-02-28 13:30:01,444 - INFO - Reminder sent: 30 minutes before report
+2026-02-28 13:30:01,444 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-01 13:30:00 CST)" executed successfully
+2026-02-28 13:30:01,445 - INFO - Job reminder_30min executed successfully
+2026-02-28 13:45:00,016 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-01 13:45:00 CST)" (scheduled at 2026-02-28 13:45:00+08:00)
+2026-02-28 13:45:01,344 - INFO - Reminder sent: 15 minutes before report
+2026-02-28 13:45:01,345 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-01 13:45:00 CST)" executed successfully
+2026-02-28 13:45:01,345 - INFO - Job reminder_15min executed successfully
+2026-02-28 14:00:00,012 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-01 14:00:00 CST)" (scheduled at 2026-02-28 14:00:00+08:00)
+2026-02-28 14:00:00,015 - INFO - Loading P-tab data... (attempt 1/3)
+2026-02-28 14:00:11,163 - INFO - Generating T+1 report for 2026-02-27...
+2026-02-28 14:00:11,191 - INFO - Sending to Telegram...
+2026-02-28 14:00:11,191 - INFO - Capturing dashboard screenshot...
+2026-02-28 14:00:41,290 - INFO - Dashboard screenshot sent (2 parts)!
+2026-02-28 14:00:42,614 - INFO - Sent message part 1/2 (3976 chars)
+2026-02-28 14:00:43,871 - INFO - Sent message part 2/2 (73 chars)
+2026-02-28 14:00:43,871 - INFO - By Campaign report sent!
+2026-02-28 14:00:43,871 - INFO - Fetching reporting accuracy summary...
+2026-02-28 14:00:46,305 - INFO - Reporting accuracy summary sent!
+2026-02-28 14:00:46,305 - INFO - Building A/B Testing summary...
+2026-02-28 14:00:50,754 - INFO - A/B Testing summary sent!
+2026-02-28 14:00:50,754 - INFO - Building Account Dev summary...
+2026-02-28 14:00:54,842 - INFO - Account Dev summary sent!
+2026-02-28 14:00:54,842 - INFO - Report sent to KPI Ads group!
+2026-02-28 14:00:54,843 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-01 14:00:00 CST)" executed successfully
+2026-02-28 14:00:54,843 - INFO - Job daily_t1_report executed successfully
+2026-03-01 13:00:03,529 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-02 13:00:00 CST)" (scheduled at 2026-03-01 13:00:00+08:00)
+2026-03-01 13:00:05,722 - INFO - Reminder sent: 1 hour before report
+2026-03-01 13:00:05,722 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-02 13:00:00 CST)" executed successfully
+2026-03-01 13:00:05,723 - INFO - Job reminder_60min executed successfully
+2026-03-01 13:30:00,014 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-02 13:30:00 CST)" (scheduled at 2026-03-01 13:30:00+08:00)
+2026-03-01 13:30:01,348 - INFO - Reminder sent: 30 minutes before report
+2026-03-01 13:30:01,348 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-02 13:30:00 CST)" executed successfully
+2026-03-01 13:30:01,349 - INFO - Job reminder_30min executed successfully
+2026-03-01 13:45:00,015 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-02 13:45:00 CST)" (scheduled at 2026-03-01 13:45:00+08:00)
+2026-03-01 13:45:01,289 - INFO - Reminder sent: 15 minutes before report
+2026-03-01 13:45:01,290 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-02 13:45:00 CST)" executed successfully
+2026-03-01 13:45:01,292 - INFO - Job reminder_15min executed successfully
+2026-03-01 14:00:00,007 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-02 14:00:00 CST)" (scheduled at 2026-03-01 14:00:00+08:00)
+2026-03-01 14:00:00,012 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-01 14:00:10,683 - INFO - Generating T+1 report for 2026-02-28...
+2026-03-01 14:00:10,779 - INFO - Sending to Telegram...
+2026-03-01 14:00:10,779 - INFO - Capturing dashboard screenshot...
+2026-03-01 14:00:41,786 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-01 14:00:43,115 - INFO - Sent message part 1/2 (3987 chars)
+2026-03-01 14:00:44,427 - INFO - Sent message part 2/2 (356 chars)
+2026-03-01 14:00:44,428 - INFO - By Campaign report sent!
+2026-03-01 14:00:44,428 - INFO - Fetching reporting accuracy summary...
+2026-03-01 14:00:46,896 - INFO - Reporting accuracy summary sent!
+2026-03-01 14:00:46,896 - INFO - Building A/B Testing summary...
+2026-03-01 14:00:50,949 - INFO - A/B Testing summary sent!
+2026-03-01 14:00:50,949 - INFO - Building Account Dev summary...
+2026-03-01 14:00:55,010 - INFO - Account Dev summary sent!
+2026-03-01 14:00:55,010 - INFO - Report sent to KPI Ads group!
+2026-03-01 14:00:55,010 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-02 14:00:00 CST)" executed successfully
+2026-03-01 14:00:55,010 - INFO - Job daily_t1_report executed successfully
+2026-03-02 13:00:03,421 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-03 13:00:00 CST)" (scheduled at 2026-03-02 13:00:00+08:00)
+2026-03-02 13:00:04,789 - INFO - Reminder sent: 1 hour before report
+2026-03-02 13:00:04,790 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-03 13:00:00 CST)" executed successfully
+2026-03-02 13:00:04,792 - INFO - Job reminder_60min executed successfully
+2026-03-02 14:00:03,326 - WARNING - Stale lock file (PID 74132 dead), removing...
+2026-03-02 14:00:03,327 - INFO - Starting Daily Report Scheduler...
+2026-03-02 14:00:03,399 - INFO - Scheduler started at report time - sending report now!
+2026-03-02 14:00:03,399 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-02 14:00:14,061 - INFO - Generating T+1 report for 2026-03-01...
+2026-03-02 14:00:14,136 - INFO - Sending to Telegram...
+2026-03-02 14:00:14,136 - INFO - Capturing dashboard screenshot...
+2026-03-02 14:00:45,301 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-02 14:00:46,665 - INFO - By Campaign report sent!
+2026-03-02 14:00:46,665 - INFO - Fetching reporting accuracy summary...
+2026-03-02 14:00:49,124 - INFO - Reporting accuracy summary sent!
+2026-03-02 14:00:49,124 - INFO - Building A/B Testing summary...
+2026-03-02 14:00:53,576 - INFO - A/B Testing summary sent!
+2026-03-02 14:00:53,576 - INFO - Building Account Dev summary...
+2026-03-02 14:00:58,066 - INFO - Account Dev summary sent!
+2026-03-02 14:00:58,067 - INFO - Report sent to KPI Ads group!
+2026-03-02 14:00:58,083 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-02 14:00:58,087 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-02 14:00:58,089 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-02 14:00:58,090 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-02 14:00:58,090 - INFO - Scheduled report at 14:00
+2026-03-02 14:00:58,090 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-02 14:00:58,090 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-02 14:00:58,091 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-02 14:00:58,091 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-02 14:00:58,091 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-02 14:00:58,092 - INFO - Scheduler started
+2026-03-03 14:00:02,402 - WARNING - Stale lock file (PID 138248 dead), removing...
+2026-03-03 14:00:02,404 - INFO - Starting Daily Report Scheduler...
+2026-03-03 14:00:02,454 - INFO - Scheduler started at report time - sending report now!
+2026-03-03 14:00:02,454 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-03 14:00:12,572 - INFO - Generating T+1 report for 2026-03-02...
+2026-03-03 14:00:12,581 - INFO - Sending to Telegram...
+2026-03-03 14:00:12,581 - INFO - Capturing dashboard screenshot...
+2026-03-03 14:00:40,254 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-03 14:00:41,635 - INFO - Sent message part 1/2 (3980 chars)
+2026-03-03 14:00:42,997 - INFO - Sent message part 2/2 (146 chars)
+2026-03-03 14:00:42,997 - INFO - By Campaign report sent!
+2026-03-03 14:00:42,998 - INFO - Fetching reporting accuracy summary...
+2026-03-03 14:00:46,325 - INFO - Reporting accuracy summary sent!
+2026-03-03 14:00:46,325 - INFO - Building A/B Testing summary...
+2026-03-03 14:00:51,159 - INFO - A/B Testing summary sent!
+2026-03-03 14:00:51,159 - INFO - Building Account Dev summary...
+2026-03-03 14:00:55,562 - INFO - Account Dev summary sent!
+2026-03-03 14:00:55,563 - INFO - Report sent to KPI Ads group!
+2026-03-03 14:00:55,574 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-03 14:00:55,577 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-03 14:00:55,577 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-03 14:00:55,578 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-03 14:00:55,578 - INFO - Scheduled report at 14:00
+2026-03-03 14:00:55,578 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-03 14:00:55,578 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-03 14:00:55,578 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-03 14:00:55,578 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-03 14:00:55,579 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-03 14:00:55,579 - INFO - Scheduler started
+2026-03-04 13:00:03,389 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-05 13:00:00 CST)" (scheduled at 2026-03-04 13:00:00+08:00)
+2026-03-04 13:00:04,909 - INFO - Reminder sent: 1 hour before report
+2026-03-04 13:00:04,909 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-05 13:00:00 CST)" executed successfully
+2026-03-04 13:00:04,931 - INFO - Job reminder_60min executed successfully
+2026-03-04 13:30:00,013 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-05 13:30:00 CST)" (scheduled at 2026-03-04 13:30:00+08:00)
+2026-03-04 13:30:01,507 - INFO - Reminder sent: 30 minutes before report
+2026-03-04 13:30:01,507 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-05 13:30:00 CST)" executed successfully
+2026-03-04 13:30:01,508 - INFO - Job reminder_30min executed successfully
+2026-03-04 13:45:00,008 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-05 13:45:00 CST)" (scheduled at 2026-03-04 13:45:00+08:00)
+2026-03-04 13:45:01,380 - INFO - Reminder sent: 15 minutes before report
+2026-03-04 13:45:01,381 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-05 13:45:00 CST)" executed successfully
+2026-03-04 13:45:01,381 - INFO - Job reminder_15min executed successfully
+2026-03-04 14:00:00,010 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-05 14:00:00 CST)" (scheduled at 2026-03-04 14:00:00+08:00)
+2026-03-04 14:00:00,013 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-04 14:00:08,509 - INFO - Generating T+1 report for 2026-03-03...
+2026-03-04 14:00:08,561 - INFO - Sending to Telegram...
+2026-03-04 14:00:08,562 - INFO - Capturing dashboard screenshot...
+2026-03-04 14:00:36,327 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-04 14:00:37,737 - INFO - By Campaign report sent!
+2026-03-04 14:00:37,737 - INFO - Fetching reporting accuracy summary...
+2026-03-04 14:00:40,188 - INFO - Reporting accuracy summary sent!
+2026-03-04 14:00:40,188 - INFO - Building A/B Testing summary...
+2026-03-04 14:00:44,628 - INFO - A/B Testing summary sent!
+2026-03-04 14:00:44,628 - INFO - Building Account Dev summary...
+2026-03-04 14:00:49,300 - INFO - Account Dev summary sent!
+2026-03-04 14:00:49,300 - INFO - Report sent to KPI Ads group!
+2026-03-04 14:00:49,301 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-05 14:00:00 CST)" executed successfully
+2026-03-04 14:00:49,301 - INFO - Job daily_t1_report executed successfully
+2026-03-05 14:00:02,627 - WARNING - Stale lock file (PID 144372 dead), removing...
+2026-03-05 14:00:02,628 - INFO - Starting Daily Report Scheduler...
+2026-03-05 14:00:02,683 - INFO - Scheduler started at report time - sending report now!
+2026-03-05 14:00:02,683 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-05 14:00:10,807 - INFO - Generating T+1 report for 2026-03-04...
+2026-03-05 14:00:10,831 - INFO - Sending to Telegram...
+2026-03-05 14:00:10,831 - INFO - Capturing dashboard screenshot...
+2026-03-05 14:00:40,215 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-05 14:00:41,601 - INFO - Sent message part 1/2 (3981 chars)
+2026-03-05 14:00:43,029 - INFO - Sent message part 2/2 (621 chars)
+2026-03-05 14:00:43,029 - INFO - By Campaign report sent!
+2026-03-05 14:00:43,029 - INFO - Fetching reporting accuracy summary...
+2026-03-05 14:00:45,891 - INFO - Reporting accuracy summary sent!
+2026-03-05 14:00:45,891 - INFO - Building A/B Testing summary...
+2026-03-05 14:00:50,042 - INFO - A/B Testing summary sent!
+2026-03-05 14:00:50,043 - INFO - Building Account Dev summary...
+2026-03-05 14:00:54,137 - INFO - Account Dev summary sent!
+2026-03-05 14:00:54,137 - INFO - Report sent to KPI Ads group!
+2026-03-05 14:00:54,144 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-05 14:00:54,148 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-05 14:00:54,149 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-05 14:00:54,151 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-05 14:00:54,151 - INFO - Scheduled report at 14:00
+2026-03-05 14:00:54,151 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-05 14:00:54,151 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-05 14:00:54,152 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-05 14:00:54,152 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-05 14:00:54,152 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-05 14:00:54,152 - INFO - Scheduler started
+2026-03-06 13:00:03,598 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-07 13:00:00 CST)" (scheduled at 2026-03-06 13:00:00+08:00)
+2026-03-06 13:00:05,563 - INFO - Reminder sent: 1 hour before report
+2026-03-06 13:00:05,563 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-07 13:00:00 CST)" executed successfully
+2026-03-06 13:00:05,575 - INFO - Job reminder_60min executed successfully
+2026-03-06 13:30:00,025 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-07 13:30:00 CST)" (scheduled at 2026-03-06 13:30:00+08:00)
+2026-03-06 13:30:01,463 - INFO - Reminder sent: 30 minutes before report
+2026-03-06 13:30:01,464 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-07 13:30:00 CST)" executed successfully
+2026-03-06 13:30:01,464 - INFO - Job reminder_30min executed successfully
+2026-03-06 13:45:00,005 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-07 13:45:00 CST)" (scheduled at 2026-03-06 13:45:00+08:00)
+2026-03-06 13:45:01,292 - INFO - Reminder sent: 15 minutes before report
+2026-03-06 13:45:01,292 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-07 13:45:00 CST)" executed successfully
+2026-03-06 13:45:01,292 - INFO - Job reminder_15min executed successfully
+2026-03-06 14:00:00,017 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-07 14:00:00 CST)" (scheduled at 2026-03-06 14:00:00+08:00)
+2026-03-06 14:00:00,018 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-06 14:00:12,042 - INFO - Generating T+1 report for 2026-03-05...
+2026-03-06 14:00:12,119 - INFO - Sending to Telegram...
+2026-03-06 14:00:12,120 - INFO - Capturing dashboard screenshot...
+2026-03-06 14:00:41,828 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-06 14:00:43,168 - INFO - Sent message part 1/2 (3988 chars)
+2026-03-06 14:00:44,468 - INFO - Sent message part 2/2 (1011 chars)
+2026-03-06 14:00:44,468 - INFO - By Campaign report sent!
+2026-03-06 14:00:44,469 - INFO - Fetching reporting accuracy summary...
+2026-03-06 14:00:46,969 - INFO - Reporting accuracy summary sent!
+2026-03-06 14:00:46,969 - INFO - Building A/B Testing summary...
+2026-03-06 14:00:51,672 - INFO - A/B Testing summary sent!
+2026-03-06 14:00:51,672 - INFO - Building Account Dev summary...
+2026-03-06 14:00:56,383 - INFO - Account Dev summary sent!
+2026-03-06 14:00:56,384 - INFO - Report sent to KPI Ads group!
+2026-03-06 14:00:56,384 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-07 14:00:00 CST)" executed successfully
+2026-03-06 14:00:56,384 - INFO - Job daily_t1_report executed successfully
+2026-03-07 14:00:03,571 - WARNING - Stale lock file (PID 97932 dead), removing...
+2026-03-07 14:00:03,572 - INFO - Starting Daily Report Scheduler...
+2026-03-07 14:00:03,628 - INFO - Scheduler started at report time - sending report now!
+2026-03-07 14:00:03,629 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-07 14:00:12,387 - INFO - Generating T+1 report for 2026-03-06...
+2026-03-07 14:00:12,398 - INFO - Sending to Telegram...
+2026-03-07 14:00:12,398 - INFO - Capturing dashboard screenshot...
+2026-03-07 14:00:42,956 - INFO - Dashboard screenshot sent (2 parts)!
+2026-03-07 14:00:44,028 - INFO - By Campaign report sent!
+2026-03-07 14:00:44,028 - INFO - Fetching reporting accuracy summary...
+2026-03-07 14:00:45,920 - INFO - Reporting accuracy summary sent!
+2026-03-07 14:00:45,920 - INFO - Building A/B Testing summary...
+2026-03-07 14:00:49,257 - INFO - A/B Testing summary sent!
+2026-03-07 14:00:49,257 - INFO - Building Account Dev summary...
+2026-03-07 14:00:52,261 - INFO - Account Dev summary sent!
+2026-03-07 14:00:52,262 - INFO - Report sent to KPI Ads group!
+2026-03-07 14:00:52,273 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-07 14:00:52,276 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-07 14:00:52,277 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-07 14:00:52,277 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-07 14:00:52,277 - INFO - Scheduled report at 14:00
+2026-03-07 14:00:52,277 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-07 14:00:52,278 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-07 14:00:52,278 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-07 14:00:52,278 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-07 14:00:52,278 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-07 14:00:52,278 - INFO - Scheduler started
+2026-03-07 18:22:02,061 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-07 18:22:10,722 - INFO - Generating T+1 report for 2026-03-06...
+2026-03-07 18:22:12,081 - INFO - Message 1: Executive Summary sent!
+2026-03-07 18:22:12,081 - INFO - Building operations summary...
+2026-03-07 18:22:18,889 - INFO - Message 2: Operations Dashboard sent!
+2026-03-07 18:22:18,889 - INFO - Daily report complete! (2 messages)
+2026-03-08 14:00:03,743 - WARNING - Stale lock file (PID 119968 dead), removing...
+2026-03-08 14:00:03,744 - INFO - Starting Daily Report Scheduler...
+2026-03-08 14:00:03,800 - INFO - Scheduler started at report time - sending report now!
+2026-03-08 14:00:03,800 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-08 14:00:13,623 - INFO - Generating T+1 report for 2026-03-07...
+2026-03-08 14:00:14,825 - INFO - Message 1: Executive Summary sent!
+2026-03-08 14:00:14,825 - INFO - Building operations summary...
+2026-03-08 14:00:21,473 - INFO - Message 2: Operations Dashboard sent!
+2026-03-08 14:00:21,473 - INFO - Daily report complete! (2 messages)
+2026-03-08 14:00:21,478 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-08 14:00:21,485 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-08 14:00:21,491 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-08 14:00:21,494 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-08 14:00:21,494 - INFO - Scheduled report at 14:00
+2026-03-08 14:00:21,494 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-08 14:00:21,495 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-08 14:00:21,495 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-08 14:00:21,495 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-08 14:00:21,495 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-08 14:00:21,495 - INFO - Scheduler started

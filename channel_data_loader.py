@@ -945,21 +945,25 @@ def load_team_channel_data():
         daily_df = pd.DataFrame(daily_records)
         team_actual_df = pd.DataFrame(team_actual_records)
 
-        # Only keep the 8 active channels (excludes DER, Krissa-only channels)
+        # All 14 active channels (DEERPROMO01-14)
         ACTIVE_CHANNELS = {
-            'FB-FB-FB-DEERPROMO06', 'FB-FB-FB-DEERPROMO07', 'FB-FB-FB-DEERPROMO08',
-            'FB-FB-FB-DEERPROMO09', 'FB-FB-FB-DEERPROMO10', 'FB-FB-FB-DEERPROMO11',
-            'FB-FB-FB-DEERPROMO12', 'FB-FB-FB-DEERPROMO13',
+            f'FB-FB-FB-DEERPROMO{str(i).zfill(2)}' for i in range(1, 15)
         }
         ACTIVE_CHANNEL_TEAM = {
-            'FB-FB-FB-DEERPROMO09': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO01': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO02': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO03': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO04': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO05': 'JASON / SHILA',
+            'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO09': 'DER',
+            'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
+            'FB-FB-FB-DEERPROMO11': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO11': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
+            'FB-FB-FB-DEERPROMO14': 'DER',
         }
 
         # Filter overall and daily to active channels only, assign correct team
@@ -975,7 +979,7 @@ def load_team_channel_data():
             'Jason + Shila': 'JASON / SHILA',
             'Ron + Adrian': 'RON / ADRIAN',
             'Mika + Jomar': 'MIKA / JOMAR',
-            'DER': None,  # excluded — no active channels
+            'DER': 'DER',
         }
         def remap_team(name):
             return TEAM_NAME_MAP.get(name, name)

@@ -30,9 +30,9 @@ TEAM_MAP = {
     'Jason': 'JASON / SHILA', 'Shila': 'JASON / SHILA',
     'Ron': 'RON / ADRIAN', 'Adrian': 'RON / ADRIAN',
     'Mika': 'MIKA / JOMAR', 'Jomar': 'MIKA / JOMAR',
-    'Der': 'DER (Solo)',
+    'Der': 'DER',
 }
-TEAM_NAMES = ['JASON / SHILA', 'RON / ADRIAN', 'MIKA / JOMAR']
+TEAM_NAMES = ['JASON / SHILA', 'RON / ADRIAN', 'MIKA / JOMAR', 'DER']
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
