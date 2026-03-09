@@ -273,6 +273,7 @@ def build_album_caption(daily_df, target_date):
         lines.append(trend_line)
 
     lines.append(f'\n<a href="https://ads-monitoring.streamlit.app/Daily_Analysis">View Dashboard</a>')
+    lines.append("\n@xxxadsron @Zzzzz103 @Adsbasty")
 
     return "\n".join(lines)
 

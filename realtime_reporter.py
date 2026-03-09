@@ -482,7 +482,7 @@ def generate_dashboard_screenshots_3part(output_dir=None):
                     if crop_bottom < img.height - 100:
                         cropped = img.crop((0, 0, img.width, crop_bottom))
                         cropped.save(p_path)
-                        print(f"[OK] Trimmed: {img.height} → {crop_bottom}px")
+                        print(f"[OK] Trimmed: {img.height} -> {crop_bottom}px")
             except Exception as e:
                 print(f"[WARNING] Failed to trim {p_path}: {e}")
 
