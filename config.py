@@ -249,6 +249,9 @@ TELEGRAM_MENTIONS = {
     "JOHNPAUL": "jhonpaulb28",
 }
 
+# Agents excluded from daily report @mentions (but still tracked in reporting accuracy)
+EXCLUDED_FROM_DAILY_MENTIONS = ["JOHNPAUL"]
+
 # Alternate TG usernames (agents with multiple accounts)
 TELEGRAM_ALT_USERNAMES = {
     "JASON": ["Dyazon"],

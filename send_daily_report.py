@@ -33,6 +33,7 @@ from config import (
     DAILY_REPORT_SEND_TIME,
     DAILY_REPORT_REMINDERS,
     TELEGRAM_MENTIONS,
+    EXCLUDED_FROM_DAILY_MENTIONS,
 )
 from telegram_reporter import TelegramReporter
 from realtime_reporter import generate_dashboard_screenshot, generate_dashboard_screenshots_3part
@@ -60,7 +61,7 @@ def send_reminder(minutes_before, label):
     """Send a reminder notification to Telegram before the report."""
     try:
         send_time = DAILY_REPORT_SEND_TIME['label']
-        mentions = ' '.join(f"@{v}" for v in TELEGRAM_MENTIONS.values())
+        mentions = ' '.join(f"@{v}" for k, v in TELEGRAM_MENTIONS.items() if k not in EXCLUDED_FROM_DAILY_MENTIONS)
 
         msg = (
             f"⏰ <b>REMINDER: T+1 Report in {label}</b>\n\n"
@@ -321,7 +322,7 @@ def send_report():
     logger.info(f"Generating T+1 report for {yesterday}...")
 
     reporter = TelegramReporter()
-    mentions = ' '.join(f"@{v}" for v in TELEGRAM_MENTIONS.values())
+    mentions = ' '.join(f"@{v}" for k, v in TELEGRAM_MENTIONS.items() if k not in EXCLUDED_FROM_DAILY_MENTIONS)
 
     try:
         # ── Screenshot Album: 4-part dashboard capture ──
