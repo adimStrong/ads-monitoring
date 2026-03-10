@@ -236,7 +236,7 @@ SCREENSHOT_DIR = "reports/screenshots"
 LAST_REPORT_DATA_FILE = "last_report_data.json"
 
 # Facebook Ads persons for reports
-FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "MIKA", "DER"]
+FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "MIKA", "DER", "JOHNPAUL"]
 
 # Telegram mentions for alerts (username without @)
 TELEGRAM_MENTIONS = {
@@ -246,6 +246,7 @@ TELEGRAM_MENTIONS = {
     "ADRIAN": "CrWn365",
     "MIKA": "yakis0va",
     "JOMAR": "HappyAllDaze",
+    "JOHNPAUL": "jhonpaulb28",
 }
 
 # Alternate TG usernames (agents with multiple accounts)
@@ -256,6 +257,7 @@ TELEGRAM_ALT_USERNAMES = {
     "ADRIAN": ["ecrwn365"],
     "MIKA": ["cocomew0n", "yakisOva"],
     "JOMAR": ["Jomarskii", "HappyA11Daze"],
+    "JOHNPAUL": [],
 }
 
 # ============================================================
