@@ -387,11 +387,11 @@ def render_trends(daily, dates):
     # Cost (line) + FTD (bar) dual axis
     st.markdown("#### Cost & FTD Trend")
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=overall['date_label'], y=overall['ftd'], name='FTD', marker_color='#22c55e', yaxis='y2'))
-    fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['cost'], name='Cost ($)', mode='lines+markers', line=dict(color='#3b82f6', width=3), yaxis='y'))
+    fig.add_trace(go.Bar(x=overall['date_label'], y=overall['ftd'], name='FTD', marker_color='rgba(34,197,94,0.5)', yaxis='y'))
+    fig.add_trace(go.Scatter(x=overall['date_label'], y=overall['cost'], name='Cost ($)', mode='lines+markers', line=dict(color='#3b82f6', width=3), marker=dict(size=8, color='#3b82f6'), yaxis='y2'))
     fig.update_layout(
-        yaxis=dict(title='Cost ($)', side='left'),
-        yaxis2=dict(title='FTD', side='right', overlaying='y'),
+        yaxis=dict(title='FTD', side='right'),
+        yaxis2=dict(title='Cost ($)', side='left', overlaying='y'),
         height=350, margin=dict(t=30, b=30),
         legend=dict(orientation='h', yanchor='bottom', y=1.02),
     )
