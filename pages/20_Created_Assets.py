@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel_data_loader import (
     load_created_assets_data, refresh_created_assets_data,
     count_created_assets, count_assets_by_condition,
-    load_updated_bm_data, refresh_updated_bm_data,
 )
 from config import SIDEBAR_HIDE_CSS
 
@@ -56,7 +55,6 @@ def render_content(key_prefix="ca"):
 
     with st.spinner("Loading data..."):
         assets_df = load_created_assets_data()
-        bm_live_df = load_updated_bm_data()
 
     if assets_df.empty:
         st.error("No Created Assets data available.")
@@ -84,8 +82,6 @@ def render_content(key_prefix="ca"):
 
     with fc3:
         ca_creators = set(assets_df['creator'].str.strip().unique())
-        if not bm_live_df.empty:
-            ca_creators |= set(bm_live_df['advertiser'].str.strip().unique())
         creators = sorted(ca_creators)
         selected = st.multiselect("Creator", creators, default=creators, key=f"{key_prefix}_creator")
 
@@ -323,58 +319,6 @@ def render_content(key_prefix="ca"):
         fig4 = px.pie(cond_counts, names='Condition', values='Count', title='BM Conditions')
         st.plotly_chart(fig4, use_container_width=True, key=f"{key_prefix}_pie_bm")
 
-    # ── BM Inventory (Live Status from UPDATED BM tab) ──
-    if 'bms' in active_type_keys and not bm_live_df.empty:
-        st.divider()
-        st.markdown('<div class="section-header"><h3>BM INVENTORY (Live Status)</h3></div>', unsafe_allow_html=True)
-        st.caption("Source: UPDATED BM tab — Active Business Manager & Pixel tracker")
-
-        bm_inv = bm_live_df.copy()
-        if selected:
-            selected_upper = {c.upper() for c in selected}
-            bm_inv = bm_inv[bm_inv['advertiser'].isin(selected_upper)]
-
-        if not bm_inv.empty:
-            total_bm = len(bm_inv)
-            bm_active = len(bm_inv[bm_inv['status'] == 'ACTIVE'])
-            bm_ready = len(bm_inv[bm_inv['status'] == 'READY'])
-            bm_disabled = len(bm_inv[bm_inv['status'] == 'DISABLED'])
-
-            bc1, bc2, bc3, bc4 = st.columns(4)
-            bc1.metric("Total BMs", f"{total_bm}")
-            bc2.metric("Active", f"{bm_active}", f"{bm_active/total_bm*100:.0f}%" if total_bm > 0 else "0%")
-            bc3.metric("Ready", f"{bm_ready}", f"{bm_ready/total_bm*100:.0f}%" if total_bm > 0 else "0%")
-            bc4.metric("Disabled", f"{bm_disabled}", f"{bm_disabled/total_bm*100:.0f}%" if total_bm > 0 else "0%")
-
-            agent_bm = bm_inv.groupby('advertiser').agg(
-                Total=('bm_name', 'count'),
-                Active=('status', lambda x: (x == 'ACTIVE').sum()),
-                Ready=('status', lambda x: (x == 'READY').sum()),
-                Disabled=('status', lambda x: (x == 'DISABLED').sum()),
-            ).reset_index().rename(columns={'advertiser': 'Advertiser'})
-            agent_bm = agent_bm.sort_values('Total', ascending=False)
-
-            col_tbl, col_chart = st.columns([1, 1])
-            with col_tbl:
-                st.markdown("**Per-Advertiser BM Status**")
-                st.dataframe(agent_bm, use_container_width=True, hide_index=True, key=f"{key_prefix}_bm_agent")
-            with col_chart:
-                fig_bm = px.bar(
-                    agent_bm, x='Advertiser', y=['Active', 'Ready', 'Disabled'],
-                    barmode='stack', title='BM Status per Advertiser',
-                    color_discrete_map={'Active': '#16a34a', 'Ready': '#f59e0b', 'Disabled': '#dc2626'},
-                )
-                fig_bm.update_layout(height=350, xaxis_title="", yaxis_title="Count")
-                st.plotly_chart(fig_bm, use_container_width=True, key=f"{key_prefix}_bm_chart")
-
-            with st.expander("Full BM List", expanded=False):
-                display_bm = bm_inv[['date', 'bm_name', 'bm_id', 'status', 'advertiser']].copy()
-                display_bm.columns = ['Date', 'BM Name', 'BM ID', 'Status', 'Advertiser']
-                display_bm = display_bm.sort_values(['Advertiser', 'Status', 'BM Name'])
-                st.dataframe(display_bm, use_container_width=True, hide_index=True, height=400, key=f"{key_prefix}_bm_list")
-        else:
-            st.info("No BM data for selected creators.")
-
     # ── Raw Data ──
     st.divider()
     st.markdown('<div class="section-header"><h3>ALL RECORDS</h3></div>', unsafe_allow_html=True)
@@ -403,7 +347,6 @@ def main():
         st.header("Controls")
         if st.button("🔄 Refresh Data", type="primary", use_container_width=True):
             refresh_created_assets_data()
-            refresh_updated_bm_data()
             st.rerun()
 
     render_content()
