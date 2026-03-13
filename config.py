@@ -260,7 +260,7 @@ TELEGRAM_ALT_USERNAMES = {
     "ADRIAN": ["ecrwn365"],
     "MIKA": ["cocomew0n", "yakisOva"],
     "JOMAR": ["Jomarskii", "HappyA11Daze"],
-    "JOHNPAUL": [],
+    "JOHNPAUL": ["jhonpaul0428"],
 }
 
 # ============================================================
