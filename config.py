@@ -700,10 +700,9 @@ EXCLUDED_FROM_REPORTING = []
 # ============================================================
 SIDEBAR_HIDE_CSS = """
 <style>
-    /* Hide all sub-pages and duplicates.
-       Visible: app, Agent Performance, Content Analysis, Team,
-       Report Dashboard, Recharge Statistics, Counterpart Performance,
-       Operations, KPI, Monthly/Weekly/Daily Analysis, Historical Combined */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    /* ─── Hide sub-pages ─── */
     [data-testid="stSidebarNav"] a[href*="Team_Overview"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Roll_Back"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Retention_Channel"] { display: none !important; }
@@ -719,5 +718,118 @@ SIDEBAR_HIDE_CSS = """
     [data-testid="stSidebarNav"] a[href*="Daily_ROI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Weekly_KPI"] { display: none !important; }
     [data-testid="stSidebarNav"] a[href*="Weekly_Team_KPI"] { display: none !important; }
+
+    /* ─── Cyberpunk Dark Theme (shared across all pages) ─── */
+    .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+    section[data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background-color: #0A0E1A !important;
+        color: #E2E8F0 !important;
+    }
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background: linear-gradient(180deg, #0D1321 0%, #111827 100%) !important;
+        border-right: 1px solid rgba(0,212,255,0.1) !important;
+    }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E2E8F0; }
+
+    /* ─── Metric Cards ─── */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(30,41,59,0.6) 100%) !important;
+        border: 1px solid rgba(0,212,255,0.2) !important;
+        border-radius: 12px !important;
+        padding: 1rem 1.2rem !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+        transition: all 0.3s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        border-color: rgba(0,212,255,0.5) !important;
+        box-shadow: 0 4px 30px rgba(0,212,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+        transform: translateY(-2px);
+    }
+    [data-testid="stMetric"] label {
+        color: #94A3B8 !important;
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #F1F5F9 !important;
+        font-weight: 700 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* ─── Tabs ─── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        background: rgba(17,24,39,0.6);
+        border-radius: 12px;
+        padding: 4px;
+        border: 1px solid rgba(0,212,255,0.1);
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        color: #94A3B8;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 0.5rem 1.2rem;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,97,255,0.2)) !important;
+        color: #00D4FF !important;
+        border: 1px solid rgba(0,212,255,0.3);
+    }
+    .stTabs [data-baseweb="tab-highlight"] { background: transparent !important; }
+
+    /* ─── Dataframes ─── */
+    [data-testid="stDataFrame"] {
+        border: 1px solid rgba(0,212,255,0.15) !important;
+        border-radius: 12px !important;
+        overflow: hidden;
+    }
+
+    /* ─── Sidebar labels ─── */
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stDateInput label,
+    [data-testid="stSidebar"] .stMultiSelect label,
+    [data-testid="stSidebar"] h3, [data-testid="stSidebar"] h2 {
+        color: #94A3B8 !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+    }
+
+    /* ─── Buttons ─── */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #00D4FF 0%, #7B61FF 100%) !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600;
+    }
+    .stButton > button[kind="secondary"] {
+        background: rgba(17,24,39,0.8) !important;
+        border: 1px solid rgba(0,212,255,0.3) !important;
+        border-radius: 8px !important;
+        color: #00D4FF !important;
+    }
+
+    /* ─── Headings ─── */
+    h1, h2, h3 { color: #F1F5F9 !important; letter-spacing: -0.01em; }
+
+    /* ─── Dividers ─── */
+    hr { border-color: rgba(0,212,255,0.1) !important; }
+
+    /* ─── Alerts ─── */
+    [data-testid="stAlert"] {
+        background: rgba(17,24,39,0.6) !important;
+        border: 1px solid rgba(0,212,255,0.15) !important;
+        border-radius: 8px !important;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0A0E1A; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
 </style>
 """
