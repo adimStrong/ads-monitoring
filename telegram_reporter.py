@@ -92,6 +92,57 @@ class TelegramReporter:
             response = requests.post(url, data=data, files=files, timeout=60)
             return response.json()
 
+    def send_album(self, photo_paths, caption=None, parse_mode='HTML'):
+        """
+        Send multiple photos as a Telegram album (media group).
+
+        Args:
+            photo_paths: List of file paths to photos
+            caption: Optional caption for the first photo (max 1024 chars)
+            parse_mode: 'HTML' or 'Markdown'
+
+        Returns:
+            dict: Telegram API response
+        """
+        import json as _json
+
+        url = f"{self.base_url}/sendMediaGroup"
+
+        media = []
+        for i in range(len(photo_paths)):
+            entry = {"type": "photo", "media": f"attach://p{i}"}
+            if i == 0 and caption:
+                entry["caption"] = caption[:1024]
+                entry["parse_mode"] = parse_mode
+            media.append(entry)
+
+        files = {}
+        file_handles = []
+        try:
+            for i, path in enumerate(photo_paths):
+                fh = open(path, "rb")
+                file_handles.append(fh)
+                files[f"p{i}"] = (f"p{i}.png", fh, "image/png")
+
+            response = requests.post(
+                url,
+                data={"chat_id": self.chat_id, "media": _json.dumps(media)},
+                files=files,
+                timeout=60,
+            )
+            result = response.json()
+
+            if not result.get('ok'):
+                error_desc = result.get('description', 'Unknown error')
+                raise Exception(f"Telegram API error: {error_desc}")
+
+            return result
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Failed to send Telegram album: {e}")
+        finally:
+            for fh in file_handles:
+                fh.close()
+
     def send_photo(self, photo_path, caption=None, parse_mode='HTML'):
         """
         Send a photo to Telegram

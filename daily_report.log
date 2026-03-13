@@ -895,3 +895,169 @@
 2026-03-08 14:00:21,495 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
 2026-03-08 14:00:21,495 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
 2026-03-08 14:00:21,495 - INFO - Scheduler started
+2026-03-09 14:00:06,971 - WARNING - Stale lock file (PID 142056 dead), removing...
+2026-03-09 14:00:06,972 - INFO - Starting Daily Report Scheduler...
+2026-03-09 14:00:07,056 - INFO - Scheduler started at report time - sending report now!
+2026-03-09 14:00:07,056 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 14:00:18,184 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 14:00:19,349 - INFO - Message 1: Executive Summary sent!
+2026-03-09 14:00:19,350 - INFO - Building operations summary...
+2026-03-09 14:00:27,035 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 14:00:27,035 - INFO - Daily report complete! (2 messages)
+2026-03-09 14:00:27,040 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 14:00:27,045 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 14:00:27,047 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 14:00:27,048 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-09 14:00:27,048 - INFO - Scheduled report at 14:00
+2026-03-09 14:00:27,048 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-09 14:00:27,048 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-09 14:00:27,048 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-09 14:00:27,049 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-09 14:00:27,050 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-09 14:00:27,050 - INFO - Scheduler started
+2026-03-09 14:42:18,714 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 14:42:28,753 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 14:42:30,019 - INFO - Message 1: Executive Summary sent!
+2026-03-09 14:42:30,019 - INFO - Building operations summary...
+2026-03-09 14:42:37,408 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 14:42:37,408 - INFO - Daily report complete! (2 messages)
+2026-03-09 15:09:42,146 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:09:52,435 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:09:52,435 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:10:25,518 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 15:10:30,777 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:10:30,777 - INFO - Building operations summary...
+2026-03-09 15:10:38,426 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 15:10:38,426 - INFO - Daily report complete! (2 messages)
+2026-03-09 15:12:02,219 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:12:11,456 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:12:11,457 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:12:33,284 - WARNING - 3-part failed, falling back to 2-split...
+2026-03-09 15:13:01,024 - INFO - Fallback screenshot sent! (2 parts)
+2026-03-09 15:13:02,106 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:13:02,106 - INFO - Building operations summary...
+2026-03-09 15:13:08,962 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 15:13:08,962 - INFO - Daily report complete! (2 messages)
+2026-03-09 15:14:29,998 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:14:38,827 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:14:38,828 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:15:07,087 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 15:15:14,615 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:15:14,615 - INFO - Building operations summary...
+2026-03-09 15:19:39,320 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:19:50,126 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:19:50,126 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:20:32,145 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 15:20:36,578 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:20:36,578 - INFO - Building operations summary...
+2026-03-09 15:20:45,931 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 15:20:45,931 - INFO - Daily report complete! (2 messages)
+2026-03-09 15:24:28,039 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:24:37,214 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:24:37,214 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:25:25,589 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 15:25:33,075 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:25:33,075 - INFO - Building operations summary...
+2026-03-09 15:25:40,012 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 15:25:40,012 - INFO - Daily report complete! (2 messages)
+2026-03-09 15:56:26,620 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 15:56:35,364 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 15:56:35,364 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 15:57:26,635 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 15:57:34,287 - INFO - Message 1: Executive Summary sent!
+2026-03-09 15:57:34,287 - INFO - Building operations summary...
+2026-03-09 15:57:40,988 - INFO - Message 2: Operations Dashboard sent!
+2026-03-09 15:57:40,988 - INFO - Daily report complete! (2 messages)
+2026-03-09 16:01:10,880 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 16:01:20,517 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 16:01:20,517 - INFO - Capturing 3-part dashboard screenshots...
+2026-03-09 16:02:11,083 - INFO - Screenshot album sent! (3 photos)
+2026-03-09 16:02:11,084 - INFO - Daily report complete! (album only)
+2026-03-09 16:35:15,418 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-09 16:35:25,239 - INFO - Generating T+1 report for 2026-03-08...
+2026-03-09 16:35:25,239 - INFO - Capturing 4-part dashboard screenshots...
+2026-03-09 16:36:27,375 - INFO - Screenshot album sent! (4 photos)
+2026-03-09 16:36:27,375 - INFO - Daily report complete! (album only, 4 photos)
+2026-03-10 13:00:03,294 - INFO - Running job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-11 13:00:00 CST)" (scheduled at 2026-03-10 13:00:00+08:00)
+2026-03-10 13:00:04,671 - INFO - Reminder sent: 1 hour before report
+2026-03-10 13:00:04,671 - INFO - Job "Reminder: 1 hour before report (trigger: cron[hour='13', minute='0'], next run at: 2026-03-11 13:00:00 CST)" executed successfully
+2026-03-10 13:00:04,683 - INFO - Job reminder_60min executed successfully
+2026-03-10 13:30:00,017 - INFO - Running job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-11 13:30:00 CST)" (scheduled at 2026-03-10 13:30:00+08:00)
+2026-03-10 13:30:01,335 - INFO - Reminder sent: 30 minutes before report
+2026-03-10 13:30:01,336 - INFO - Job "Reminder: 30 minutes before report (trigger: cron[hour='13', minute='30'], next run at: 2026-03-11 13:30:00 CST)" executed successfully
+2026-03-10 13:30:01,337 - INFO - Job reminder_30min executed successfully
+2026-03-10 13:45:00,007 - INFO - Running job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-11 13:45:00 CST)" (scheduled at 2026-03-10 13:45:00+08:00)
+2026-03-10 13:45:01,311 - INFO - Reminder sent: 15 minutes before report
+2026-03-10 13:45:01,311 - INFO - Job "Reminder: 15 minutes before report (trigger: cron[hour='13', minute='45'], next run at: 2026-03-11 13:45:00 CST)" executed successfully
+2026-03-10 13:45:01,313 - INFO - Job reminder_15min executed successfully
+2026-03-10 14:00:00,014 - INFO - Running job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-11 14:00:00 CST)" (scheduled at 2026-03-10 14:00:00+08:00)
+2026-03-10 14:00:00,016 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-10 14:00:09,865 - INFO - Generating T+1 report for 2026-03-09...
+2026-03-10 14:00:11,250 - INFO - Message 1: Executive Summary sent!
+2026-03-10 14:00:11,251 - INFO - Building operations summary...
+2026-03-10 14:00:20,861 - INFO - Message 2: Operations Dashboard sent!
+2026-03-10 14:00:20,861 - INFO - Daily report complete! (2 messages)
+2026-03-10 14:00:20,863 - INFO - Job "Daily T+1 Report at 2:00 PM (trigger: cron[hour='14', minute='0'], next run at: 2026-03-11 14:00:00 CST)" executed successfully
+2026-03-10 14:00:20,863 - INFO - Job daily_t1_report executed successfully
+2026-03-10 14:04:10,172 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-10 14:04:18,486 - INFO - Generating T+1 report for 2026-03-09...
+2026-03-10 14:04:18,486 - INFO - Capturing 4-part dashboard screenshots...
+2026-03-10 14:05:20,207 - INFO - Screenshot album sent! (4 photos)
+2026-03-10 14:05:20,208 - INFO - Daily report complete! (album only, 4 photos)
+2026-03-11 14:00:02,866 - WARNING - Stale lock file (PID 93236 dead), removing...
+2026-03-11 14:00:02,867 - INFO - Starting Daily Report Scheduler...
+2026-03-11 14:00:02,932 - INFO - Scheduler started at report time - sending report now!
+2026-03-11 14:00:02,932 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-11 14:00:12,251 - INFO - Generating T+1 report for 2026-03-10...
+2026-03-11 14:00:12,251 - INFO - Capturing 4-part dashboard screenshots...
+2026-03-11 14:01:09,049 - INFO - Screenshot album sent! (4 photos)
+2026-03-11 14:01:09,050 - INFO - Daily report complete! (album only, 4 photos)
+2026-03-11 14:01:09,053 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-11 14:01:09,057 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-11 14:01:09,058 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-11 14:01:09,059 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-11 14:01:09,059 - INFO - Scheduled report at 14:00
+2026-03-11 14:01:09,059 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-11 14:01:09,059 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-11 14:01:09,059 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-11 14:01:09,059 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-11 14:01:09,059 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-11 14:01:09,059 - INFO - Scheduler started
+2026-03-12 14:00:02,416 - WARNING - Stale lock file (PID 8668 dead), removing...
+2026-03-12 14:00:02,417 - INFO - Starting Daily Report Scheduler...
+2026-03-12 14:00:02,447 - INFO - Scheduler started at report time - sending report now!
+2026-03-12 14:00:02,448 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-12 14:00:09,698 - INFO - Generating T+1 report for 2026-03-11...
+2026-03-12 14:00:09,698 - INFO - Capturing 4-part dashboard screenshots...
+2026-03-12 14:01:06,680 - INFO - Screenshot album sent! (4 photos)
+2026-03-12 14:01:06,681 - INFO - Daily report complete! (album only, 4 photos)
+2026-03-12 14:01:06,684 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 14:01:06,693 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 14:01:06,703 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 14:01:06,710 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-12 14:01:06,711 - INFO - Scheduled report at 14:00
+2026-03-12 14:01:06,711 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-12 14:01:06,712 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-12 14:01:06,713 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-12 14:01:06,713 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-12 14:01:06,714 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-12 14:01:06,714 - INFO - Scheduler started
+2026-03-13 14:00:04,287 - WARNING - Stale lock file (PID 30596 dead), removing...
+2026-03-13 14:00:04,288 - INFO - Starting Daily Report Scheduler...
+2026-03-13 14:00:04,372 - INFO - Scheduler started at report time - sending report now!
+2026-03-13 14:00:04,372 - INFO - Loading P-tab data... (attempt 1/3)
+2026-03-13 14:00:15,580 - INFO - Generating T+1 report for 2026-03-12...
+2026-03-13 14:00:15,580 - INFO - Capturing 4-part dashboard screenshots...
+2026-03-13 14:01:11,194 - INFO - Screenshot album sent! (4 photos)
+2026-03-13 14:01:11,195 - INFO - Daily report complete! (album only, 4 photos)
+2026-03-13 14:01:11,199 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 14:01:11,202 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 14:01:11,202 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 14:01:11,203 - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-03-13 14:01:11,203 - INFO - Scheduled report at 14:00
+2026-03-13 14:01:11,203 - INFO - Scheduler started. Press Ctrl+C to exit.
+2026-03-13 14:01:11,203 - INFO - Added job "Reminder: 1 hour before report" to job store "default"
+2026-03-13 14:01:11,204 - INFO - Added job "Reminder: 30 minutes before report" to job store "default"
+2026-03-13 14:01:11,204 - INFO - Added job "Reminder: 15 minutes before report" to job store "default"
+2026-03-13 14:01:11,204 - INFO - Added job "Daily T+1 Report at 2:00 PM" to job store "default"
+2026-03-13 14:01:11,204 - INFO - Scheduler started

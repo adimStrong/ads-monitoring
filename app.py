@@ -27,47 +27,209 @@ from config import PAGE_TITLE, PAGE_ICON, AGENTS, SMS_TYPES, SIDEBAR_HIDE_CSS
 from data_loader import load_all_data, get_date_range
 from channel_data_loader import load_agent_performance_data as load_ptab_data
 
-# Custom CSS
+# Custom CSS — Cyberpunk Dark Theme
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+    /* ─── Base ─── */
+    .stApp { background: #0A0E1A; }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #00D4FF, #7B61FF, #FF6B9D);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
-        padding: 1rem 0;
+        padding: 0.5rem 0;
+        letter-spacing: -0.02em;
     }
+
+    /* ─── Section Headers ─── */
     .section-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 0.8rem;
-        border-radius: 8px;
-        color: white;
-        margin: 1rem 0;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(123,97,255,0.15) 100%);
+        border: 1px solid rgba(0,212,255,0.25);
+        padding: 0.7rem 1rem;
         border-radius: 10px;
-        color: white;
-        text-align: center;
+        color: #E2E8F0;
+        margin: 1.2rem 0 0.8rem 0;
+        backdrop-filter: blur(10px);
     }
-    .agent-card {
-        background: #f8f9fa;
-        padding: 1rem;
+    .section-header h3 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        background: linear-gradient(90deg, #00D4FF, #7B61FF);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    /* ─── Metric Cards ─── */
+    [data-testid="stMetric"] {
+        background: linear-gradient(135deg, rgba(17,24,39,0.8) 0%, rgba(30,41,59,0.6) 100%);
+        border: 1px solid rgba(0,212,255,0.2);
+        border-radius: 12px;
+        padding: 1rem 1.2rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+        transition: all 0.3s ease;
+    }
+    [data-testid="stMetric"]:hover {
+        border-color: rgba(0,212,255,0.5);
+        box-shadow: 0 4px 30px rgba(0,212,255,0.15), inset 0 1px 0 rgba(255,255,255,0.05);
+        transform: translateY(-2px);
+    }
+    [data-testid="stMetric"] label {
+        color: #94A3B8 !important;
+        font-size: 0.75rem !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #F1F5F9 !important;
+        font-weight: 700 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    [data-testid="stMetric"] [data-testid="stMetricDelta"] {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* ─── Tabs ─── */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 0;
+        background: rgba(17,24,39,0.6);
+        border-radius: 12px;
+        padding: 4px;
+        border: 1px solid rgba(0,212,255,0.1);
+    }
+    .stTabs [data-baseweb="tab"] {
         border-radius: 8px;
-        border-left: 4px solid #1f77b4;
-        margin-bottom: 1rem;
+        color: #94A3B8;
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 0.5rem 1.2rem;
+        transition: all 0.2s ease;
     }
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 1rem;
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,97,255,0.2)) !important;
+        color: #00D4FF !important;
+        border: 1px solid rgba(0,212,255,0.3);
+    }
+    .stTabs [data-baseweb="tab-highlight"] {
+        background: transparent !important;
+    }
+
+    /* ─── Dataframes ─── */
+    [data-testid="stDataFrame"] {
+        border: 1px solid rgba(0,212,255,0.15);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    [data-testid="stDataFrame"] table {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+    }
+
+    /* ─── Sidebar ─── */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0D1321 0%, #111827 100%);
+        border-right: 1px solid rgba(0,212,255,0.1);
+    }
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] .stDateInput label,
+    [data-testid="stSidebar"] h3 {
+        color: #94A3B8 !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+    }
+
+    /* ─── Buttons ─── */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #00D4FF 0%, #7B61FF 100%);
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition: all 0.3s ease;
+    }
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 0 20px rgba(0,212,255,0.4);
+        transform: translateY(-1px);
+    }
+    .stButton > button[kind="secondary"] {
+        background: rgba(17,24,39,0.8);
+        border: 1px solid rgba(0,212,255,0.3);
+        border-radius: 8px;
+        color: #00D4FF;
+        font-weight: 600;
+    }
+
+    /* ─── Dividers ─── */
+    hr {
+        border-color: rgba(0,212,255,0.1) !important;
+        margin: 1.5rem 0 !important;
+    }
+
+    /* ─── Alerts ─── */
+    [data-testid="stAlert"] {
+        background: rgba(17,24,39,0.6);
+        border: 1px solid rgba(0,212,255,0.15);
         border-radius: 8px;
     }
+
+    /* ─── Headings ─── */
+    h1, h2, h3 {
+        color: #F1F5F9 !important;
+        letter-spacing: -0.01em;
+    }
+    h2 { font-size: 1.3rem !important; font-weight: 700 !important; }
+    h3 { font-size: 1.1rem !important; font-weight: 600 !important; }
+
+    /* ─── Similarity cards (content analysis) ─── */
+    .sim-card {
+        background: rgba(17,24,39,0.7);
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin: 6px 0;
+        border-left: 4px solid;
+        color: #E2E8F0;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0A0E1A; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
 </style>
 """, unsafe_allow_html=True)
 
 # Apply shared sidebar hide CSS
 st.markdown(SIDEBAR_HIDE_CSS, unsafe_allow_html=True)
+
+
+# ─── Plotly Dark Theme ───
+CHART_COLORS = ['#00D4FF', '#7B61FF', '#FF6B9D', '#22D3EE', '#A78BFA', '#FB7185', '#34D399', '#FBBF24']
+CHART_LAYOUT = dict(
+    paper_bgcolor='rgba(0,0,0,0)',
+    plot_bgcolor='rgba(0,0,0,0)',
+    font=dict(family='Inter, sans-serif', color='#94A3B8', size=12),
+    xaxis=dict(gridcolor='rgba(0,212,255,0.06)', zerolinecolor='rgba(0,212,255,0.1)'),
+    yaxis=dict(gridcolor='rgba(0,212,255,0.06)', zerolinecolor='rgba(0,212,255,0.1)'),
+    legend=dict(font=dict(color='#94A3B8')),
+    margin=dict(l=20, r=20, t=40, b=20),
+    hoverlabel=dict(bgcolor='#1E293B', bordercolor='rgba(0,212,255,0.3)', font=dict(color='#E2E8F0')),
+)
+
+def apply_chart_theme(fig, height=350):
+    """Apply cyberpunk theme to any Plotly figure"""
+    fig.update_layout(**CHART_LAYOUT, height=height)
+    return fig
 
 
 def load_sample_data():
@@ -583,21 +745,24 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
                 x=daily_agg['date_only'],
                 y=daily_agg['register'],
                 name='Register',
-                marker_color='#3498db',
+                marker_color='#00D4FF',
+                marker_line=dict(width=0),
                 text=daily_agg['register'].astype(int),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
             fig.add_trace(go.Bar(
                 x=daily_agg['date_only'],
                 y=daily_agg['ftd'],
                 name='FTD',
-                marker_color='#2ecc71',
+                marker_color='#7B61FF',
+                marker_line=dict(width=0),
                 text=daily_agg['ftd'].astype(int),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
+            apply_chart_theme(fig)
             fig.update_layout(
-                height=350,
-                margin=dict(l=20, r=20, t=40, b=20),
                 xaxis_tickformat='%Y-%m-%d',
                 barmode='group',
                 legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
@@ -623,21 +788,24 @@ def render_overview(running_ads_df, creative_df, sms_df, content_df, ptab_daily=
                 x=agent_results['agent'],
                 y=agent_results['register'],
                 name='Register',
-                marker_color='#3498db',
+                marker_color='#00D4FF',
+                marker_line=dict(width=0),
                 text=agent_results['register'].astype(int),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
             fig.add_trace(go.Bar(
                 x=agent_results['agent'],
                 y=agent_results['ftd'],
                 name='FTD',
-                marker_color='#2ecc71',
+                marker_color='#7B61FF',
+                marker_line=dict(width=0),
                 text=agent_results['ftd'].astype(int),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
+            apply_chart_theme(fig)
             fig.update_layout(
-                height=350,
-                margin=dict(l=20, r=20, t=40, b=20),
                 barmode='group',
                 legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5)
             )
@@ -769,16 +937,13 @@ def render_facebook_ads(ptab_daily):
             fig_cost.add_trace(go.Bar(
                 x=agent_compare['agent'],
                 y=agent_compare['cost'],
-                marker_color='#e74c3c',
+                marker=dict(color=agent_compare['cost'], colorscale=[[0,'#7B61FF'],[1,'#FF6B9D']], line=dict(width=0)),
                 text=agent_compare['cost'].apply(lambda x: f'${x:,.0f}'),
                 textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
-            fig_cost.update_layout(
-                title='Total Cost ($)',
-                height=400,
-                yaxis_title='Cost ($)',
-                margin=dict(l=20, r=20, t=40, b=20),
-            )
+            apply_chart_theme(fig_cost, 400)
+            fig_cost.update_layout(title=dict(text='Total Cost ($)', font=dict(color='#E2E8F0', size=14)), yaxis_title='Cost ($)')
             st.plotly_chart(fig_cost, use_container_width=True)
 
         with chart_col2:
@@ -786,16 +951,13 @@ def render_facebook_ads(ptab_daily):
             fig_ftd.add_trace(go.Bar(
                 x=agent_compare['agent'],
                 y=agent_compare['ftd'],
-                marker_color='#2ecc71',
+                marker=dict(color=agent_compare['ftd'], colorscale=[[0,'#00D4FF'],[1,'#34D399']], line=dict(width=0)),
                 text=agent_compare['ftd'].apply(lambda x: f'{int(x)}'),
                 textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
-            fig_ftd.update_layout(
-                title='Total FTD',
-                height=400,
-                yaxis_title='FTD',
-                margin=dict(l=20, r=20, t=40, b=20),
-            )
+            apply_chart_theme(fig_ftd, 400)
+            fig_ftd.update_layout(title=dict(text='Total FTD', font=dict(color='#E2E8F0', size=14)), yaxis_title='FTD')
             st.plotly_chart(fig_ftd, use_container_width=True)
 
         # Cost Efficiency Chart
@@ -805,7 +967,7 @@ def render_facebook_ads(ptab_daily):
             st.subheader("Cost per FTD by Agent")
             agent_sorted_cpr = agent_compare.sort_values('cost_per_ftd', ascending=True)
 
-            colors = ['#2ecc71' if x < agent_compare['cost_per_ftd'].median() else '#e74c3c'
+            colors = ['#34D399' if x < agent_compare['cost_per_ftd'].median() else '#FF6B9D'
                       for x in agent_sorted_cpr['cost_per_ftd']]
 
             fig_cpr = go.Figure()
@@ -813,14 +975,13 @@ def render_facebook_ads(ptab_daily):
                 x=agent_sorted_cpr['agent'],
                 y=agent_sorted_cpr['cost_per_ftd'],
                 marker_color=colors,
+                marker_line=dict(width=0),
                 text=agent_sorted_cpr['cost_per_ftd'].apply(lambda x: f'${x:,.2f}'),
-                textposition='outside'
+                textposition='outside',
+                textfont=dict(color='#94A3B8', size=10),
             ))
-            fig_cpr.update_layout(
-                height=350,
-                margin=dict(l=20, r=20, t=20, b=20),
-                yaxis_title='Cost per FTD ($)'
-            )
+            apply_chart_theme(fig_cpr)
+            fig_cpr.update_layout(yaxis_title='Cost per FTD ($)')
             st.plotly_chart(fig_cpr, use_container_width=True)
 
         with col2:
@@ -832,20 +993,18 @@ def render_facebook_ads(ptab_daily):
                 mode='markers+text',
                 text=agent_compare['agent'],
                 textposition='top center',
+                textfont=dict(color='#E2E8F0', size=11),
                 marker=dict(
                     size=agent_compare['ftd'] / agent_compare['ftd'].max() * 40 + 15,
                     color=agent_compare['cost_per_ftd'],
-                    colorscale='RdYlGn_r',
+                    colorscale=[[0,'#34D399'],[0.5,'#FBBF24'],[1,'#FF6B9D']],
                     showscale=True,
-                    colorbar=dict(title='Cost/FTD')
+                    colorbar=dict(title='Cost/FTD', tickfont=dict(color='#94A3B8'), titlefont=dict(color='#94A3B8')),
+                    line=dict(width=1, color='rgba(0,212,255,0.3)'),
                 )
             ))
-            fig_scatter.update_layout(
-                height=350,
-                margin=dict(l=20, r=20, t=20, b=20),
-                xaxis_title='Total Cost ($)',
-                yaxis_title='Total FTD'
-            )
+            apply_chart_theme(fig_scatter)
+            fig_scatter.update_layout(xaxis_title='Total Cost ($)', yaxis_title='Total FTD')
             st.plotly_chart(fig_scatter, use_container_width=True)
     else:
         st.info("No agent data available for comparison")
@@ -868,8 +1027,10 @@ def render_facebook_ads(ptab_daily):
             markers=True,
             line_shape='spline'
         )
-        fig.update_traces(line_color='#667eea', line_width=3)
-        fig.update_layout(height=350, xaxis_tickformat='%Y-%m-%d')
+        fig.update_traces(line_color='#00D4FF', line_width=3, marker=dict(size=5, color='#00D4FF'))
+        fig.update_traces(fill='tozeroy', fillcolor='rgba(0,212,255,0.08)')
+        apply_chart_theme(fig)
+        fig.update_layout(xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -885,19 +1046,18 @@ def render_facebook_ads(ptab_daily):
             x=daily_reg['date_only'],
             y=daily_reg['register'],
             name='Register',
-            marker_color='#2ecc71'
+            marker_color='#00D4FF',
+            marker_line=dict(width=0),
         ))
         fig.add_trace(go.Bar(
             x=daily_reg['date_only'],
             y=daily_reg['ftd'],
             name='FTD',
-            marker_color='#e74c3c'
+            marker_color='#FF6B9D',
+            marker_line=dict(width=0),
         ))
-        fig.update_layout(
-            height=350,
-            barmode='group',
-            xaxis_tickformat='%Y-%m-%d'
-        )
+        apply_chart_theme(fig)
+        fig.update_layout(barmode='group', xaxis_tickformat='%Y-%m-%d')
         st.plotly_chart(fig, use_container_width=True)
 
     # Detailed table
@@ -986,9 +1146,10 @@ def render_creative_work(creative_df, selected_agent):
             values=type_counts.values,
             names=type_counts.index,
             hole=0.4,
-            color_discrete_sequence=px.colors.qualitative.Set2
+            color_discrete_sequence=CHART_COLORS
         )
-        fig.update_layout(height=350)
+        apply_chart_theme(fig)
+        fig.update_traces(textfont=dict(color='#E2E8F0'), marker=dict(line=dict(color='#0A0E1A', width=2)))
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -1003,10 +1164,11 @@ def render_creative_work(creative_df, selected_agent):
             x='date',
             y='total',
             color='total',
-            color_continuous_scale='Purples'
+            color_continuous_scale=[[0,'#7B61FF'],[1,'#00D4FF']]
         )
-        fig.update_layout(height=350, xaxis_tickformat='%Y-%m-%d')
-        fig.update_xaxes(type='category')  # Prevent duplicate dates
+        apply_chart_theme(fig)
+        fig.update_layout(xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')
         st.plotly_chart(fig, use_container_width=True)
 
     # Creative content table
@@ -1074,9 +1236,10 @@ def render_sms(sms_df, selected_agent):
             y='sms_type',
             orientation='h',
             color='sms_total',
-            color_continuous_scale='Oranges'
+            color_continuous_scale=[[0,'#FBBF24'],[1,'#FF6B9D']]
         )
-        fig.update_layout(height=400, yaxis={'categoryorder': 'total ascending'})
+        apply_chart_theme(fig, 400)
+        fig.update_layout(yaxis={'categoryorder': 'total ascending'})
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -1092,9 +1255,11 @@ def render_sms(sms_df, selected_agent):
             markers=True,
             line_shape='spline'
         )
-        fig.update_traces(line_color='#ff7f0e', line_width=3)
-        fig.update_layout(height=400, xaxis_tickformat='%Y-%m-%d')
-        fig.update_xaxes(type='category')  # Prevent duplicate dates
+        fig.update_traces(line_color='#FBBF24', line_width=3, marker=dict(size=5, color='#FBBF24'))
+        fig.update_traces(fill='tozeroy', fillcolor='rgba(251,191,36,0.08)')
+        apply_chart_theme(fig, 400)
+        fig.update_layout(xaxis_tickformat='%Y-%m-%d')
+        fig.update_xaxes(type='category')
         st.plotly_chart(fig, use_container_width=True)
 
     # SMS detail table
@@ -1162,9 +1327,10 @@ def render_content_analysis(content_df, selected_agent):
             values=type_counts.values,
             names=type_counts.index,
             hole=0.4,
-            color_discrete_sequence=['#667eea', '#764ba2']
+            color_discrete_sequence=['#00D4FF', '#7B61FF']
         )
-        fig.update_layout(height=300)
+        apply_chart_theme(fig, 300)
+        fig.update_traces(textfont=dict(color='#E2E8F0'), marker=dict(line=dict(color='#0A0E1A', width=2)))
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
@@ -1179,10 +1345,11 @@ def render_content_analysis(content_df, selected_agent):
                 x='date_only',
                 y='posts',
                 color='posts',
-                color_continuous_scale='Blues'
+                color_continuous_scale=[[0,'#00D4FF'],[1,'#7B61FF']]
             )
-            fig.update_layout(height=300, xaxis_tickformat='%Y-%m-%d')
-            fig.update_xaxes(type='category')  # Prevent duplicate dates
+            apply_chart_theme(fig, 300)
+            fig.update_layout(xaxis_tickformat='%Y-%m-%d')
+            fig.update_xaxes(type='category')
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No Primary Text data available")
@@ -1221,11 +1388,11 @@ def render_content_analysis(content_df, selected_agent):
                 st.warning(f"Found {len(similar_items)} similar content items")
                 for item in similar_items[:5]:
                     score = item['similarity']
-                    color = '#e74c3c' if score >= 0.85 else '#f39c12' if score >= 0.7 else '#27ae60'
+                    color = '#FF6B9D' if score >= 0.85 else '#FBBF24' if score >= 0.7 else '#34D399'
                     st.markdown(f"""
-                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 5px 0; border-left: 4px solid {color};">
-                        <strong>Similarity: {score:.1%}</strong><br>
-                        {item['content'][:80]}...
+                    <div class="sim-card" style="border-left-color: {color};">
+                        <strong style="color: {color};">Similarity: {score:.1%}</strong><br>
+                        <span style="color: #94A3B8;">{item['content'][:80]}...</span>
                     </div>
                     """, unsafe_allow_html=True)
             else:
