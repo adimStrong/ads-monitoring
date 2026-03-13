@@ -32,9 +32,16 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
-    /* ─── Base ─── */
-    .stApp { background: #0A0E1A; }
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+    /* ─── Base ─── Force dark theme regardless of config.toml cache */
+    .stApp, .main, [data-testid="stAppViewContainer"], [data-testid="stHeader"],
+    section[data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background-color: #0A0E1A !important;
+        color: #E2E8F0 !important;
+    }
+    [data-testid="stSidebar"], [data-testid="stSidebarContent"] {
+        background: linear-gradient(180deg, #0D1321 0%, #111827 100%) !important;
+    }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E2E8F0; }
 
     .main-header {
         font-size: 2.2rem;
