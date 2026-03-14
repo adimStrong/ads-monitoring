@@ -225,21 +225,21 @@ def render_content(key_prefix="tc"):
 
         with cols[idx % 2]:
             st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.5rem; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 1rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <h3 style="margin: 0; color: #333;">{team}</h3>
-                    <span style="background: {perf_color}; color: white; padding: 4px 10px; border-radius: 15px; font-size: 0.75rem;">{perf_badge}</span>
+            <div style="background:#0f172a; padding:1.5rem; border-radius:12px; border-left:5px solid {color}; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color:{color}; font-size:1.2rem;">{team}</h3>
+                    <span style="background:{perf_color}; color:white; padding:4px 12px; border-radius:15px; font-size:0.75rem; font-weight:600;">{perf_badge}</span>
                 </div>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #666;">Channels: {r['channel_source']}</p>
-                <hr style="margin: 10px 0; border-color: #dee2e6;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem;">
-                    <div><strong>Cost:</strong> ${r['cost']:,.2f}</div>
-                    <div><strong>1st Recharge:</strong> {int(r['first_recharge']):,}</div>
-                    <div><strong>Registrations:</strong> {int(r['registrations']):,}</div>
-                    <div><strong>Amount:</strong> ₱{r['total_amount']:,.0f}</div>
-                    <div><strong>CPFD:</strong> ${r['cpfd']:.2f}</div>
-                    <div><strong>ARPPU:</strong> ₱{r['arppu']:.2f}</div>
-                    <div><strong>ROAS:</strong> {r['roas']:.2f}</div>
+                <p style="margin:4px 0 0 0; font-size:0.8rem; color:#94a3b8;">Channels: {r['channel_source']}</p>
+                <hr style="margin:10px 0; border-color:#334155;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:0.85rem; color:#e2e8f0;">
+                    <div><span style="color:#94a3b8;">Cost:</span> <strong>${r['cost']:,.2f}</strong></div>
+                    <div><span style="color:#94a3b8;">1st Recharge:</span> <strong>{int(r['first_recharge']):,}</strong></div>
+                    <div><span style="color:#94a3b8;">Registrations:</span> <strong>{int(r['registrations']):,}</strong></div>
+                    <div><span style="color:#94a3b8;">Amount:</span> <strong>₱{r['total_amount']:,.0f}</strong></div>
+                    <div><span style="color:#94a3b8;">CPFD:</span> <strong>${r['cpfd']:.2f}</strong></div>
+                    <div><span style="color:#94a3b8;">ARPPU:</span> <strong>₱{r['arppu']:.2f}</strong></div>
+                    <div><span style="color:#94a3b8;">ROAS:</span> <strong style="color:{'#22c55e' if r['roas'] >= 1 else '#eab308' if r['roas'] >= 0.4 else '#ef4444'}">{r['roas']:.2f}</strong></div>
                 </div>
             </div>
             """, unsafe_allow_html=True)

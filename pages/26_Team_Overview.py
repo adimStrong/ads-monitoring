@@ -149,22 +149,22 @@ def render_content(key_prefix="to"):
 
             with cols[idx % 3]:
                 st.markdown(f"""
-                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 1.2rem; border-radius: 12px; border-left: 5px solid {color}; margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <h4 style="margin: 0; color: #333;">{short_name}</h4>
-                        <span style="background: {perf_color}; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.7rem;">{perf_badge}</span>
+                <div style="background:#0f172a; padding:1.2rem; border-radius:12px; border-left:5px solid {color}; margin-bottom:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.3);">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h4 style="margin:0; color:#f1f5f9; font-size:1rem;">{short_name}</h4>
+                        <span style="background:{perf_color}; color:white; padding:3px 8px; border-radius:12px; font-size:0.7rem; font-weight:600;">{perf_badge}</span>
                     </div>
-                    <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: {color}; font-weight: bold;">{team}</p>
-                    <hr style="margin: 8px 0; border-color: #dee2e6;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.82rem;">
-                        <div><strong>Cost:</strong> ${r['cost']:,.2f}</div>
-                        <div><strong>1st Rech:</strong> {int(r['first_recharge']):,}</div>
-                        <div><strong>Reg:</strong> {int(r['registrations']):,}</div>
-                        <div><strong>Amount:</strong> ₱{r['total_amount']:,.0f}</div>
-                        <div><strong>CPR:</strong> ${cpr:.2f}</div>
-                        <div><strong>CPFD:</strong> ${cpfd:.2f}</div>
-                        <div><strong>ARPPU:</strong> ₱{r['arppu']:.0f}</div>
-                        <div><strong>ROAS:</strong> {roas:.2f}</div>
+                    <p style="margin:2px 0 0 0; font-size:0.75rem; color:{color}; font-weight:bold;">{team}</p>
+                    <hr style="margin:8px 0; border-color:#334155;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.82rem; color:#e2e8f0;">
+                        <div><span style="color:#94a3b8;">Cost:</span> <strong>${r['cost']:,.2f}</strong></div>
+                        <div><span style="color:#94a3b8;">1st Rech:</span> <strong>{int(r['first_recharge']):,}</strong></div>
+                        <div><span style="color:#94a3b8;">Reg:</span> <strong>{int(r['registrations']):,}</strong></div>
+                        <div><span style="color:#94a3b8;">Amount:</span> <strong>₱{r['total_amount']:,.0f}</strong></div>
+                        <div><span style="color:#94a3b8;">CPR:</span> <strong>${cpr:.2f}</strong></div>
+                        <div><span style="color:#94a3b8;">CPFD:</span> <strong>${cpfd:.2f}</strong></div>
+                        <div><span style="color:#94a3b8;">ARPPU:</span> <strong>₱{r['arppu']:.0f}</strong></div>
+                        <div><span style="color:#94a3b8;">ROAS:</span> <strong style="color:{'#22c55e' if roas >= 1 else '#eab308' if roas >= 0.4 else '#ef4444'}">{roas:.2f}</strong></div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
