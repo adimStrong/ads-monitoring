@@ -1872,10 +1872,27 @@ def load_agent_performance_data():
         if not daily_df.empty:
             daily_df['date'] = pd.to_datetime(daily_df['date'])
 
+            # Aggregate duplicate rows per agent per date (some P-tabs have multiple sections)
+            raw_count = len(daily_df)
+            sum_cols = ['cost', 'register', 'ftd', 'impressions', 'clicks']
+            # For derived metrics, recalculate after summing
+            agg_dict = {c: 'sum' for c in sum_cols}
+            agg_dict['arppu'] = lambda x: x[x > 0].iloc[-1] if (x > 0).any() else 0
+            agg_dict['channel'] = 'first'
+            daily_df = daily_df.groupby(['agent', 'date'], as_index=False).agg(agg_dict)
+            # Recalculate derived metrics
+            daily_df['cpr'] = daily_df.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+            daily_df['cpd'] = daily_df.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+            daily_df['conv_rate'] = daily_df.apply(lambda r: r['ftd'] / r['register'] * 100 if r['register'] > 0 else 0, axis=1)
+            daily_df['ctr'] = daily_df.apply(lambda r: r['clicks'] / r['impressions'] * 100 if r['impressions'] > 0 else 0, axis=1)
+            daily_df['roas'] = 0  # will be recalculated downstream where needed
+            if raw_count != len(daily_df):
+                print(f"[OK] Aggregated {raw_count} raw rows -> {len(daily_df)} unique agent-date rows")
+
         if not ad_accounts_df.empty:
             ad_accounts_df['date'] = pd.to_datetime(ad_accounts_df['date'])
 
-        print(f"[OK] Agent Performance totals: {len(monthly_records)} monthly, {len(daily_records)} daily, {len(ad_account_records)} ad-account rows")
+        print(f"[OK] Agent Performance totals: {len(monthly_records)} monthly, {len(daily_df) if not daily_df.empty else 0} daily, {len(ad_account_records)} ad-account rows")
         return {'monthly': monthly_df, 'daily': daily_df, 'ad_accounts': ad_accounts_df, 'errors': errors}
 
     except Exception as e:
