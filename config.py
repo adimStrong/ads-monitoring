@@ -236,7 +236,7 @@ SCREENSHOT_DIR = "reports/screenshots"
 LAST_REPORT_DATA_FILE = "last_report_data.json"
 
 # Facebook Ads persons for reports
-FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "MIKA", "DER", "JOHNPAUL"]
+FACEBOOK_ADS_PERSONS = ["JASON", "RON", "SHILA", "ADRIAN", "JOMAR", "MIKA", "JP"]
 
 # Telegram mentions for alerts (username without @)
 TELEGRAM_MENTIONS = {
@@ -527,7 +527,7 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P11-Jason2", "gid": 30378048, "agent": "Jason"},
     {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
     {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
-    {"name": "P9-Der", "gid": 1922385711, "agent": "Der"},
+    {"name": "P9-Jp", "gid": 1922385711, "agent": "Jp"},
 ]
 
 # Overall/monthly columns (0-indexed, col A is empty so data starts at index 1)
@@ -694,7 +694,7 @@ REPORT_CAMPAIGN_INDICATORS = [
 ]
 
 # Agents excluded from reporting accuracy (boss/non-reporters)
-EXCLUDED_FROM_REPORTING = ["DER"]
+EXCLUDED_FROM_REPORTING = []
 
 # ============================================================
 # SHARED SIDEBAR HIDE CSS

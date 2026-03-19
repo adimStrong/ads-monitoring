@@ -19,7 +19,7 @@ TEAM_COLORS = {
     'JASON / SHILA': '#3b82f6',
     'RON / ADRIAN': '#22c55e',
     'MIKA / JOMAR': '#a855f7',
-    'DER': '#f59e0b',
+    'JP': '#f59e0b',
 }
 
 

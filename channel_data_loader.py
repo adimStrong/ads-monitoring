@@ -958,12 +958,12 @@ def load_team_channel_data():
             'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
             'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
             'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO09': 'DER',
+            'FB-FB-FB-DEERPROMO09': 'JP',
             'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
             'FB-FB-FB-DEERPROMO11': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO14': 'DER',
+            'FB-FB-FB-DEERPROMO14': 'JP',
             'FB-FB-FB-DEERPROMO15': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO16': 'JASON / SHILA',
             'FB-FB-FB-DEERPROMO17': 'MIKA / JOMAR',
@@ -982,7 +982,7 @@ def load_team_channel_data():
             'Jason + Shila': 'JASON / SHILA',
             'Ron + Adrian': 'RON / ADRIAN',
             'Mika + Jomar': 'MIKA / JOMAR',
-            'DER': 'DER',
+            'JP': 'JP',
         }
         def remap_team(name):
             return TEAM_NAME_MAP.get(name, name)
