@@ -524,6 +524,7 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P7-Adrian", "gid": 1573312887, "agent": "Adrian"},
     {"name": "P8-Jomar", "gid": 1484269300, "agent": "Jomar"},
     {"name": "P10-Ron", "gid": 39183526, "agent": "Ron"},
+    {"name": "P11-Jason2", "gid": 30378048, "agent": "Jason"},
     {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
     {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
     {"name": "P9-Der", "gid": 1922385711, "agent": "Der"},
@@ -693,7 +694,7 @@ REPORT_CAMPAIGN_INDICATORS = [
 ]
 
 # Agents excluded from reporting accuracy (boss/non-reporters)
-EXCLUDED_FROM_REPORTING = []
+EXCLUDED_FROM_REPORTING = ["DER"]
 
 # ============================================================
 # SHARED SIDEBAR HIDE CSS

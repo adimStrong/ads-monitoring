@@ -73,9 +73,14 @@ if is_all_agents:
         agent_ptab_daily = agent_ptab_daily.groupby('date').agg({
             'cost': 'sum', 'register': 'sum', 'ftd': 'sum',
             'impressions': 'sum', 'clicks': 'sum',
-            'cpr': 'mean', 'cpd': 'mean', 'conv_rate': 'mean',
-            'arppu': 'mean', 'roas': 'mean', 'ctr': 'mean',
+            'arppu': lambda x: x[x > 0].mean() if (x > 0).any() else 0,
         }).reset_index()
+        # Recalculate derived metrics from summed values
+        agent_ptab_daily['cpr'] = agent_ptab_daily.apply(lambda r: r['cost'] / r['register'] if r['register'] > 0 else 0, axis=1)
+        agent_ptab_daily['cpd'] = agent_ptab_daily.apply(lambda r: r['cost'] / r['ftd'] if r['ftd'] > 0 else 0, axis=1)
+        agent_ptab_daily['conv_rate'] = agent_ptab_daily.apply(lambda r: r['ftd'] / r['register'] * 100 if r['register'] > 0 else 0, axis=1)
+        agent_ptab_daily['ctr'] = agent_ptab_daily.apply(lambda r: r['clicks'] / r['impressions'] * 100 if r['impressions'] > 0 else 0, axis=1)
+        agent_ptab_daily['roas'] = 0
 else:
     ptab_agent = PTAB_AGENT_MAP.get(selected_agent)
     has_ptab = ptab_agent and not ptab_daily.empty and ptab_agent in ptab_daily['agent'].values
