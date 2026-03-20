@@ -241,12 +241,12 @@ with tab1:
                         agent_name = row.get('agent_name', 'Unknown')
 
                         st.markdown(f"""
-                        <div style="background: {'#fff3cd' if is_recycled else '#d4edda'}; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {'#ffc107' if is_recycled else '#28a745'};">
+                        <div style="background:#0f172a; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {'#ffc107' if is_recycled else '#28a745'};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span><strong>{status_icon} {status_text}</strong> | {content_type}</span>
-                                <span style="font-size: 0.8em; color: #666;">{agent_name}</span>
+                                <span style="color:#e2e8f0;"><strong>{status_icon} {status_text}</strong> | {content_type}</span>
+                                <span style="font-size: 0.8em; color: #94a3b8;">{agent_name}</span>
                             </div>
-                            <p style="margin: 8px 0 0 0; font-size: 0.95em;">{content[:120]}{'...' if len(content) > 120 else ''}</p>
+                            <p style="margin: 8px 0 0 0; font-size: 0.95em; color:#cbd5e1;">{content[:120]}{'...' if len(content) > 120 else ''}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
@@ -395,12 +395,12 @@ with tab2:
                         content_preview = str(item['content'])[:100]
 
                         st.markdown(f"""
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {color};">
+                        <div style="background:#0f172a; padding: 12px; border-radius: 8px; margin: 8px 0; border-left: 4px solid {color};">
                             <div style="display: flex; justify-content: space-between;">
-                                <span><strong>{badge}</strong> - {score:.1%} match</span>
-                                <span style="font-size: 0.8em;">Used {item['times_used']}x by {agents_str}</span>
+                                <span style="color:#e2e8f0;"><strong>{badge}</strong> - {score:.1%} match</span>
+                                <span style="font-size: 0.8em; color:#94a3b8;">Used {item['times_used']}x by {agents_str}</span>
                             </div>
-                            <p style="margin: 8px 0 0 0;">{content_preview}...</p>
+                            <p style="margin: 8px 0 0 0; color:#cbd5e1;">{content_preview}...</p>
                         </div>
                         """, unsafe_allow_html=True)
                 else:
