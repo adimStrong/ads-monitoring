@@ -203,8 +203,13 @@ def render_content(key_prefix="km"):
     if ss_manual not in st.session_state:
         st.session_state[ss_manual] = {}
 
-    # Filter agents excluded from reporting
-    KPI_AGENTS = [t for t in AGENT_PERFORMANCE_TABS if t['agent'].upper() not in EXCLUDED_FROM_REPORTING]
+    # Filter agents excluded from reporting (deduplicate agents with multiple P-tabs like Jason)
+    _seen = set()
+    KPI_AGENTS = []
+    for t in AGENT_PERFORMANCE_TABS:
+        if t['agent'].upper() not in EXCLUDED_FROM_REPORTING and t['agent'] not in _seen:
+            KPI_AGENTS.append(t)
+            _seen.add(t['agent'])
     agent_names = ["All Agents"] + [t['agent'] for t in KPI_AGENTS]
 
     # Controls row (moved from sidebar)
@@ -291,7 +296,7 @@ def render_content(key_prefix="km"):
 
     # Calculate live auto scores from P-tab + Created Assets + AB Testing + Reporting
     live_scores = {}
-    for tab_info in AGENT_PERFORMANCE_TABS:
+    for tab_info in KPI_AGENTS:
         agent = tab_info['agent']
         if use_date_range and date_from and date_to:
             live_scores[agent] = calculate_kpi_from_daily(
