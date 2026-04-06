@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel_data_loader import (
     load_created_assets_data, refresh_created_assets_data,
     count_created_assets, count_assets_by_condition,
+    load_country_plan_data,
 )
 from config import SIDEBAR_HIDE_CSS
 
@@ -64,7 +65,7 @@ def render_content(key_prefix="ca"):
     assets_df['date_parsed'] = pd.to_datetime(assets_df['date'], errors='coerce')
 
     # ── Filters ──
-    fc1, fc2, fc3, fc4 = st.columns([1.5, 1.5, 2, 2])
+    fc1, fc2, fc3, fc4, fc5 = st.columns([1.5, 1.5, 1.5, 2, 2])
 
     has_dates = assets_df['date_parsed'].notna().any()
     if has_dates:
@@ -81,13 +82,23 @@ def render_content(key_prefix="ca"):
         end_date = None
 
     with fc3:
+        # Country filter — collect unique countries from both fb_country and bm_country
+        all_countries = set()
+        for col in ['fb_country', 'bm_country']:
+            if col in assets_df.columns:
+                vals = assets_df[col].dropna().str.strip()
+                all_countries.update(v for v in vals.unique() if v)
+        country_options = sorted(all_countries) if all_countries else []
+        selected_countries = st.multiselect("Country", country_options, default=country_options, key=f"{key_prefix}_country")
+
+    with fc4:
         ca_creators = set(assets_df['creator'].str.strip().unique())
         creators = sorted(ca_creators)
         selected = st.multiselect("Creator", creators, default=creators, key=f"{key_prefix}_creator")
 
     ALL_ASSET_TYPES = ['Gmail/Outlook', 'FB Accounts', 'FB Pages', 'Business Managers']
     ASSET_TYPE_MAP = {'Gmail/Outlook': 'gmail', 'FB Accounts': 'fb_accounts', 'FB Pages': 'fb_pages', 'Business Managers': 'bms'}
-    with fc4:
+    with fc5:
         selected_types = st.multiselect("Asset Type", ALL_ASSET_TYPES, default=ALL_ASSET_TYPES, key=f"{key_prefix}_types")
     active_type_keys = {ASSET_TYPE_MAP[t] for t in selected_types}
 
@@ -106,6 +117,19 @@ def render_content(key_prefix="ca"):
     else:
         st.warning("No creators selected.")
         return
+
+    # Apply country filter
+    if selected_countries and country_options:
+        country_mask = pd.Series(False, index=filtered.index)
+        for col in ['fb_country', 'bm_country']:
+            if col in filtered.columns:
+                country_mask = country_mask | filtered[col].str.strip().isin(selected_countries)
+        # Also keep rows with no country specified (legacy data)
+        no_country = pd.Series(True, index=filtered.index)
+        for col in ['fb_country', 'bm_country']:
+            if col in filtered.columns:
+                no_country = no_country & (filtered[col].str.strip() == '')
+        filtered = filtered[country_mask | no_country]
 
     # ── Count active assets per creator (exclude disabled/inactive) ──
     def count_active_per_creator(df):
@@ -323,9 +347,18 @@ def render_content(key_prefix="ca"):
     st.divider()
     st.markdown('<div class="section-header"><h3>ALL RECORDS</h3></div>', unsafe_allow_html=True)
 
-    display_cols = ['date', 'creator', 'gmail', 'fb_username', 'fb_condition', 'fb_page', 'page_condition', 'bm_name', 'bm_condition']
+    display_cols = ['date', 'creator', 'gmail', 'fb_username', 'fb_condition', 'fb_page', 'page_condition', 'fb_country', 'bm_name', 'bm_country', 'bm_condition']
+    # Only include columns that exist
+    display_cols = [c for c in display_cols if c in filtered.columns]
     display_df = filtered[display_cols].copy()
-    display_df.columns = ['Date', 'Creator', 'Gmail/Outlook', 'FB Username', 'FB Condition', 'FB Page', 'Page Condition', 'BM Name', 'BM Condition']
+    col_rename = {
+        'date': 'Date', 'creator': 'Creator', 'gmail': 'Gmail/Outlook',
+        'fb_username': 'FB Username', 'fb_condition': 'FB Condition',
+        'fb_page': 'FB Page', 'page_condition': 'Page Condition',
+        'fb_country': 'Country (FB)', 'bm_name': 'BM Name',
+        'bm_country': 'Country (BM)', 'bm_condition': 'BM Condition',
+    }
+    display_df.columns = [col_rename.get(c, c) for c in display_cols]
     display_df['Date'] = pd.to_datetime(display_df['Date'], errors='coerce').dt.strftime('%m/%d/%Y')
 
     search = st.text_input("Search", placeholder="Type to search across all columns...", key=f"{key_prefix}_search")
@@ -334,6 +367,120 @@ def render_content(key_prefix="ca"):
 
     st.dataframe(display_df, use_container_width=True, hide_index=True, height=500, key=f"{key_prefix}_tbl_records")
     st.caption(f"Showing {len(display_df)} of {len(filtered)} records")
+
+    # ── Country Breakdown ──
+    st.divider()
+    st.markdown('<div class="section-header"><h3>COUNTRY BREAKDOWN</h3><p style="margin:0;font-size:13px;opacity:0.8">Asset distribution by country</p></div>', unsafe_allow_html=True)
+
+    # Collect country stats from filtered data
+    country_stats = {}
+    for _, row in filtered.iterrows():
+        fb_c = str(row.get('fb_country', '')).strip()
+        bm_c = str(row.get('bm_country', '')).strip()
+
+        for country, asset_type in [(fb_c, 'FB Pages'), (bm_c, 'BMs')]:
+            if not country:
+                country = 'Unspecified'
+            if country not in country_stats:
+                country_stats[country] = {'FB Pages': 0, 'BMs': 0, 'FB Accounts': 0}
+
+            if asset_type == 'FB Pages' and str(row.get('fb_page', '')).strip():
+                country_stats[country]['FB Pages'] += 1
+            if asset_type == 'BMs' and str(row.get('bm_name', '')).strip():
+                country_stats[country]['BMs'] += 1
+
+        # FB accounts don't have a dedicated country col — group with FB page country
+        fb_val = str(row.get('fb_username', '')).strip()
+        if fb_val and fb_val != '----':
+            c = fb_c if fb_c else 'Unspecified'
+            if c not in country_stats:
+                country_stats[c] = {'FB Pages': 0, 'BMs': 0, 'FB Accounts': 0}
+            country_stats[c]['FB Accounts'] += 1
+
+    if country_stats:
+        cc1, cc2 = st.columns(2)
+
+        # Pie chart
+        with cc1:
+            pie_rows = []
+            for country, counts in country_stats.items():
+                total = sum(counts.values())
+                if total > 0:
+                    pie_rows.append({'Country': country, 'Assets': total})
+            if pie_rows:
+                pie_df = pd.DataFrame(pie_rows)
+                fig_pie = px.pie(pie_df, names='Country', values='Assets', title='Assets by Country')
+                st.plotly_chart(fig_pie, use_container_width=True, key=f"{key_prefix}_pie_country")
+
+        # Stacked bar
+        with cc2:
+            bar_rows = []
+            for country, counts in country_stats.items():
+                for atype, cnt in counts.items():
+                    if cnt > 0:
+                        bar_rows.append({'Country': country, 'Type': atype, 'Count': cnt})
+            if bar_rows:
+                bar_df = pd.DataFrame(bar_rows)
+                fig_bar = px.bar(bar_df, x='Country', y='Count', color='Type', barmode='stack',
+                                 title='Asset Types by Country',
+                                 color_discrete_map={'FB Accounts': '#22c55e', 'FB Pages': '#f59e0b', 'BMs': '#a855f7'})
+                fig_bar.update_layout(height=400)
+                st.plotly_chart(fig_bar, use_container_width=True, key=f"{key_prefix}_bar_country")
+
+        # Summary table
+        country_rows = []
+        for country in sorted(country_stats.keys()):
+            counts = country_stats[country]
+            country_rows.append({
+                'Country': country,
+                'FB Accounts': counts['FB Accounts'],
+                'FB Pages': counts['FB Pages'],
+                'BMs': counts['BMs'],
+                'Total': sum(counts.values()),
+            })
+        st.dataframe(pd.DataFrame(country_rows), use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_country")
+
+    # ── Agent Country Plan (right section) ──
+    st.divider()
+    st.markdown('<div class="section-header"><h3>AGENT COUNTRY PLAN</h3><p style="margin:0;font-size:13px;opacity:0.8">Daily creation targets per agent</p></div>', unsafe_allow_html=True)
+
+    plan_df = load_country_plan_data()
+    if plan_df.empty:
+        st.info("No agent country plan data available.")
+    else:
+        plan_df['date_parsed'] = pd.to_datetime(plan_df['date'], errors='coerce')
+
+        # Filter by same date range
+        if has_dates and start_date and end_date:
+            plan_filtered = plan_df[
+                (plan_df['date_parsed'].notna()) &
+                (plan_df['date_parsed'].dt.date >= start_date) &
+                (plan_df['date_parsed'].dt.date <= end_date)
+            ]
+        else:
+            plan_filtered = plan_df
+
+        if plan_filtered.empty:
+            st.info("No plan data for the selected period.")
+        else:
+            # Summary per agent
+            plan_summary = plan_filtered.groupby('agent').agg(
+                fb_account=('fb_account', lambda x: pd.to_numeric(x, errors='coerce').sum()),
+                page=('page', lambda x: pd.to_numeric(x, errors='coerce').sum()),
+                bm=('bm', lambda x: pd.to_numeric(x, errors='coerce').sum()),
+            ).reset_index()
+            plan_summary.columns = ['Agent', 'FB Accounts', 'Pages', 'BMs']
+            plan_summary['Total'] = plan_summary[['FB Accounts', 'Pages', 'BMs']].sum(axis=1)
+            plan_summary = plan_summary.sort_values('Total', ascending=False)
+
+            st.dataframe(plan_summary, use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_plan")
+
+            # Detail table
+            with st.expander("View Daily Plan Details"):
+                plan_display = plan_filtered[['date', 'agent', 'fb_account', 'page', 'bm', 'remarks']].copy()
+                plan_display.columns = ['Date', 'Agent', 'FB Account', 'Page', 'BM', 'Remarks']
+                plan_display['Date'] = pd.to_datetime(plan_display['Date'], errors='coerce').dt.strftime('%m/%d/%Y')
+                st.dataframe(plan_display, use_container_width=True, hide_index=True, key=f"{key_prefix}_tbl_plan_detail")
 
 
 def main():

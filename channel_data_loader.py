@@ -1255,7 +1255,9 @@ def load_created_assets_data():
                 'fb_condition': safe_get(cols['fb_condition']),
                 'fb_page': page_val,
                 'page_condition': safe_get(cols['page_condition']),
+                'fb_country': safe_get(cols.get('fb_country', 999)),
                 'bm_name': bm_val,
+                'bm_country': safe_get(cols.get('bm_country', 999)),
                 'bm_condition': safe_get(cols['bm_condition']),
             })
 
@@ -1277,6 +1279,76 @@ def load_created_assets_data():
 def refresh_created_assets_data():
     """Clear Created Assets data cache."""
     load_created_assets_data.clear()
+    load_country_plan_data.clear()
+
+
+@st.cache_data(ttl=600)
+def load_country_plan_data():
+    """Load per-agent country plan from right section of Created Assets tab.
+
+    Returns DataFrame with columns: date, agent, fb_account, page, bm, remarks
+    """
+    try:
+        from config import CREATED_ASSETS_AGENTS, CREATED_ASSETS_DATA_START
+
+        client = get_google_client()
+        if client is None:
+            return pd.DataFrame()
+
+        spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
+        worksheet = spreadsheet.get_worksheet_by_id(CREATED_ASSETS_TAB['gid'])
+        all_data = worksheet.get_all_values()
+
+        records = []
+        last_date = None
+
+        for row_idx in range(CREATED_ASSETS_DATA_START, len(all_data)):
+            row = all_data[row_idx]
+
+            # Track date from col B (index 1)
+            raw_date = str(row[1]).strip() if len(row) > 1 else ''
+            if raw_date:
+                date_val = parse_date(raw_date)
+                if date_val is None and '/' in raw_date:
+                    try:
+                        date_val = datetime.strptime(f"{raw_date}/{datetime.now().year}", '%m/%d/%Y')
+                    except (ValueError, TypeError):
+                        date_val = None
+                if date_val is not None:
+                    last_date = date_val
+
+            effective_date = last_date
+
+            for agent_name, col_map in CREATED_ASSETS_AGENTS.items():
+                if len(row) <= col_map['remarks']:
+                    continue
+                fb_acc = str(row[col_map['fb_account']]).strip()
+                page = str(row[col_map['page']]).strip()
+                bm = str(row[col_map['bm']]).strip()
+                remarks = str(row[col_map['remarks']]).strip()
+
+                if not any([fb_acc, page, bm]):
+                    continue
+
+                records.append({
+                    'date': effective_date,
+                    'agent': agent_name,
+                    'fb_account': fb_acc,
+                    'page': page,
+                    'bm': bm,
+                    'remarks': remarks,
+                })
+
+        if not records:
+            return pd.DataFrame()
+
+        df = pd.DataFrame(records)
+        print(f"[OK] Country Plan: {len(df)} rows loaded")
+        return df
+
+    except Exception as e:
+        print(f"[ERROR] Failed to load Country Plan: {e}")
+        return pd.DataFrame()
 
 
 def count_created_assets(assets_df, date_range=None):

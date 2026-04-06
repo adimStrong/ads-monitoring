@@ -442,7 +442,7 @@ CREATED_ASSETS_TAB = {"name": "Created Assets", "gid": 820171568}
 CREATED_ASSETS_HEADER_ROW = 2   # 0-indexed row with column headers
 CREATED_ASSETS_DATA_START = 3   # 0-indexed first data row
 
-# Column mapping for left section (cols B-O, index 1-14)
+# Column mapping for left section (cols B-Q, index 1-16)
 CREATED_ASSETS_COLUMNS = {
     'date': 1,           # B - DATE
     'creator': 2,        # C - CREATOR
@@ -453,11 +453,23 @@ CREATED_ASSETS_COLUMNS = {
     'fb_condition': 7,   # H - CONDITION (for FB account)
     'fb_page': 8,        # I - FB PAGE
     'page_condition': 9, # J - CONDITION (for page)
-    'bm_name': 10,       # K - BM NAME
-    'bm_condition': 11,  # L - CONDITION (for BM)
-    'bm_id': 12,         # M - BM ID
-    'pixel': 13,         # N - PIXEL
-    'pixel_condition': 14, # O - CONDITION (for pixel)
+    'fb_country': 10,    # K - COUNTRY (for FB page)
+    'bm_name': 11,       # L - BM NAME
+    'bm_country': 12,    # M - COUNTRY (for BM)
+    'bm_condition': 13,  # N - CONDITION (for BM)
+    'bm_id': 14,         # O - BM ID
+    'pixel': 15,         # P - PIXEL
+    'pixel_condition': 16, # Q - CONDITION (for pixel)
+}
+
+# Per-agent plan section (right side of Created Assets tab)
+# Row 0 has agent names at these indices; data starts at row 3
+CREATED_ASSETS_AGENTS = {
+    'SHILA': {'fb_account': 29, 'page': 30, 'bm': 31, 'remarks': 32},
+    'JOMAR': {'fb_account': 33, 'page': 34, 'bm': 35, 'remarks': 36},
+    'MIKA':  {'fb_account': 37, 'page': 38, 'bm': 39, 'remarks': 40},
+    'KRISSA':{'fb_account': 41, 'page': 42, 'bm': 43, 'remarks': 44},
+    'ADRIAN':{'fb_account': 45, 'page': 46, 'bm': 47, 'remarks': 48},
 }
 
 # Row in KPI sheet for Account Dev write-back (0-indexed)
