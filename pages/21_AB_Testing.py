@@ -13,7 +13,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from channel_data_loader import load_ab_testing_data, refresh_ab_testing_data, count_ab_testing
-from config import SIDEBAR_HIDE_CSS
+from config import SIDEBAR_HIDE_CSS, FACEBOOK_ADS_PERSONS
 
 _PAGE_CSS = """
 <style>
@@ -67,12 +67,18 @@ def render_content(key_prefix="ab"):
     # Count per agent with date filter
     ab_counts = count_ab_testing(ab_data, date_range=date_range)
 
+    # Ensure every tracked agent appears, even with zero activity in the
+    # selected window (otherwise silent drop makes them look invisible).
+    for agent in FACEBOOK_ADS_PERSONS:
+        ab_counts.setdefault(agent, {'primary_text': 0, 'published_ad': 0, 'total_published': 0})
+
     # Overall KPI cards
     st.markdown('<div class="section-header"><h3>📊 A/B TESTING OVERVIEW</h3></div>', unsafe_allow_html=True)
 
     total_texts = sum(v.get('primary_text', 0) for v in ab_counts.values())
     total_published = sum(v.get('published_ad', 0) for v in ab_counts.values())
-    total_agents = len(ab_counts)
+    # Active agents = those with any activity in the window (not just in FACEBOOK_ADS_PERSONS roster)
+    total_agents = sum(1 for v in ab_counts.values() if v.get('primary_text', 0) or v.get('published_ad', 0) or v.get('total_published', 0))
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Primary Texts", f"{total_texts:,}")
