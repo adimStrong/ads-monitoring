@@ -781,7 +781,83 @@ def load_counterpart_data():
                 'fb_overall': pd.DataFrame(), 'google_overall': pd.DataFrame()}
 
 
-@st.cache_data(ttl=600)  # Cache for 10 minutes
+# Normalize raw team names from sheet col D (e.g. "Mika + Jomar") to the
+# 4-team display names used across the dashboard.
+_TEAM_NAME_MAP = {
+    'Mika + Jomar': 'MIKA / JOMAR',
+    'Ron + Adrian': 'RON / ADRIAN',
+    'Jason + Shila': 'JASON / SHILA',
+    'JP': 'JP',
+    'DER': 'JP',  # DER role replaced by JP
+}
+
+# For owner (col C) → team fallback when col D is ambiguous ("Jason + Shila+JP").
+_OWNER_TO_TEAM = {
+    'MIKA': 'MIKA / JOMAR', 'JOMAR': 'MIKA / JOMAR',
+    'MIKA 2': 'MIKA / JOMAR', 'JOMAR 2': 'MIKA / JOMAR',
+    'RON': 'RON / ADRIAN', 'ADRIAN': 'RON / ADRIAN',
+    'RON 2': 'RON / ADRIAN', 'ADRIAN 2': 'RON / ADRIAN',
+    'JASON': 'JASON / SHILA', 'SHILA': 'JASON / SHILA',
+    'JASON 2': 'JASON / SHILA', 'SHILA 2': 'JASON / SHILA',
+    'JP': 'JP', 'DER': 'JP', 'DER 2': 'JP',
+}
+
+
+def _normalize_team_name(raw_team, owner=''):
+    """Map a sheet team name (col D) to a 4-team display name.
+    Falls back to owner (col C) for combined teams like 'Jason + Shila+JP'."""
+    if not raw_team:
+        if owner:
+            return _OWNER_TO_TEAM.get(owner.strip().upper())
+        return None
+    t = raw_team.strip()
+    if t in _TEAM_NAME_MAP:
+        return _TEAM_NAME_MAP[t]
+    # Combined teams like "Jason + Shila+JP" — defer to owner
+    if owner:
+        owner_team = _OWNER_TO_TEAM.get(owner.strip().upper())
+        if owner_team:
+            return owner_team
+    # Last resort: try fuzzy match on substrings
+    t_lower = t.lower()
+    if 'mika' in t_lower or 'jomar' in t_lower:
+        return 'MIKA / JOMAR'
+    if 'ron' in t_lower or 'adrian' in t_lower:
+        return 'RON / ADRIAN'
+    if 'jp' in t_lower or 'der' in t_lower:
+        return 'JP'
+    if 'jason' in t_lower or 'shila' in t_lower:
+        return 'JASON / SHILA'
+    return None
+
+
+def _build_channel_team_map_from_overall(all_rows):
+    """
+    Parse the OVERALL CHANNEL STATISTICS REPORT section at the top of the
+    Team Channel sheet to build {channel: team}.
+
+    Sheet layout (row 2 headers, data from row 3 onward until 'DAILY SUMMARY'):
+        col C (idx 2) = Channel Owner (MIKA, JASON, JP, etc.)
+        col D (idx 3) = Team name (Mika + Jomar, Jason + Shila+JP, ...)
+        col E (idx 4) = Channel Source (FB-FB-FB-DEERPROMO01, ...)
+    """
+    channel_to_team = {}
+    for row in all_rows[:60]:  # OVERALL section is near the top
+        e = str(row[4]).strip() if len(row) > 4 else ''
+        # Stop at next section marker
+        if 'DAILY SUMMARY' in e.upper() or 'WEEKLY SUMMARY' in e.upper():
+            break
+        if not e.startswith('FB-FB-FB-'):
+            continue
+        raw_team = str(row[3]).strip() if len(row) > 3 else ''
+        owner = str(row[2]).strip() if len(row) > 2 else ''
+        team = _normalize_team_name(raw_team, owner)
+        if team:
+            channel_to_team[e] = team
+    return channel_to_team
+
+
+@st.cache_data(ttl=120)  # Cache for 2 minutes (was 600 — caused stale Apr data)
 def load_team_channel_data():
     """
     Load Team Channel data from Google Sheets.
@@ -803,7 +879,8 @@ def load_team_channel_data():
     try:
         client = get_google_client()
         if client is None:
-            return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(), 'team_actual': pd.DataFrame()}
+            return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(),
+                    'team_actual': pd.DataFrame(), 'channel_to_team': {}}
 
         spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
         worksheet = spreadsheet.get_worksheet_by_id(TEAM_CHANNEL_SHEET['gid'])
@@ -869,8 +946,10 @@ def load_team_channel_data():
             if not channel_cell:
                 continue
 
-            # Skip if channel source doesn't look like a DEERPROMO channel
-            if not channel_cell.startswith('FB-FB-FB-DEERPROMO'):
+            # Skip if channel source doesn't look like a tracked referral channel
+            # (was DEERPROMO-only; now allows DEERCOMP and other new prefixes
+            #  because sheet adds them without code changes)
+            if not channel_cell.startswith('FB-FB-FB-'):
                 continue
 
             # Parse data
@@ -945,37 +1024,20 @@ def load_team_channel_data():
         daily_df = pd.DataFrame(daily_records)
         team_actual_df = pd.DataFrame(team_actual_records)
 
-        # All 17 active channels (DEERPROMO01-17)
-        ACTIVE_CHANNELS = {
-            f'FB-FB-FB-DEERPROMO{str(i).zfill(2)}' for i in range(1, 18)
-        }
-        ACTIVE_CHANNEL_TEAM = {
-            'FB-FB-FB-DEERPROMO01': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO02': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO03': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO04': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO05': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
-            'FB-FB-FB-DEERPROMO09': 'JP',
-            'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
-            'FB-FB-FB-DEERPROMO11': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO14': 'JP',
-            'FB-FB-FB-DEERPROMO15': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO16': 'JASON / SHILA',
-            'FB-FB-FB-DEERPROMO17': 'MIKA / JOMAR',
-        }
+        # Build channel -> team map dynamically from the sheet's OVERALL section
+        # (cols C=owner, D=team, E=channel). Any new channel added to the sheet
+        # auto-appears on the dashboard with the correct team, no code changes.
+        dynamic_channel_to_team = _build_channel_team_map_from_overall(all_data)
+        active_channels = set(dynamic_channel_to_team.keys())
+        print(f"[OK] Dynamic channel->team map: {len(active_channels)} channels")
 
-        # Filter overall and daily to active channels only, assign correct team
+        # Filter overall and daily to known channels, assign team from sheet
         if not overall_df.empty and 'channel' in overall_df.columns:
-            overall_df = overall_df[overall_df['channel'].isin(ACTIVE_CHANNELS)].copy()
-            overall_df['team'] = overall_df['channel'].map(ACTIVE_CHANNEL_TEAM)
+            overall_df = overall_df[overall_df['channel'].isin(active_channels)].copy()
+            overall_df['team'] = overall_df['channel'].map(dynamic_channel_to_team)
         if not daily_df.empty and 'channel' in daily_df.columns:
-            daily_df = daily_df[daily_df['channel'].isin(ACTIVE_CHANNELS)].copy()
-            daily_df['team'] = daily_df['channel'].map(ACTIVE_CHANNEL_TEAM)
+            daily_df = daily_df[daily_df['channel'].isin(active_channels)].copy()
+            daily_df['team'] = daily_df['channel'].map(dynamic_channel_to_team)
 
         # Filter team_actual to active teams only
         TEAM_NAME_MAP = {
@@ -1011,14 +1073,23 @@ def load_team_channel_data():
         print(f"[OK] Loaded {len(overall_records)} Team Channel overall records")
         print(f"[OK] Loaded {len(daily_records)} Team Channel daily records")
         print(f"[OK] Loaded {len(team_actual_records)} Team Channel team actual records")
+        if not daily_df.empty:
+            latest = daily_df['date'].max().date()
+            print(f"[OK] Team Channel daily latest date: {latest}")
 
-        return {'overall': overall_df, 'daily': daily_df, 'team_actual': team_actual_df}
+        return {
+            'overall': overall_df,
+            'daily': daily_df,
+            'team_actual': team_actual_df,
+            'channel_to_team': dynamic_channel_to_team,
+        }
 
     except Exception as e:
         print(f"[ERROR] Failed to load Team Channel data: {e}")
         import traceback
         traceback.print_exc()
-        return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(), 'team_actual': pd.DataFrame()}
+        return {'overall': pd.DataFrame(), 'daily': pd.DataFrame(),
+                'team_actual': pd.DataFrame(), 'channel_to_team': {}}
 
 
 def refresh_team_channel_data():

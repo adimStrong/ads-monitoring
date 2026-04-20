@@ -15,26 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from channel_data_loader import load_team_channel_data, refresh_team_channel_data
 from config import CHANNEL_ROI_ENABLED, SIDEBAR_HIDE_CSS, KPI_PHP_USD_RATE
 
-CHANNEL_TO_TEAM = {
-    'FB-FB-FB-DEERPROMO01': 'MIKA / JOMAR',
-    'FB-FB-FB-DEERPROMO02': 'RON / ADRIAN',
-    'FB-FB-FB-DEERPROMO03': 'MIKA / JOMAR',
-    'FB-FB-FB-DEERPROMO04': 'RON / ADRIAN',
-    'FB-FB-FB-DEERPROMO05': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO06': 'MIKA / JOMAR',
-    'FB-FB-FB-DEERPROMO07': 'RON / ADRIAN',
-    'FB-FB-FB-DEERPROMO08': 'MIKA / JOMAR',
-    'FB-FB-FB-DEERPROMO09': 'JP',
-    'FB-FB-FB-DEERPROMO10': 'RON / ADRIAN',
-    'FB-FB-FB-DEERPROMO11': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO12': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO13': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO14': 'JP',
-    'FB-FB-FB-DEERPROMO15': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO16': 'JASON / SHILA',
-    'FB-FB-FB-DEERPROMO17': 'MIKA / JOMAR',
-}
-
 TEAM_COLORS = {
     'JASON / SHILA': '#3b82f6',
     'RON / ADRIAN': '#22c55e',
@@ -63,14 +43,19 @@ def render_content(key_prefix="tc"):
         team_actual_df = data.get('team_actual', pd.DataFrame())
         overall_df = data.get('overall', pd.DataFrame())
         daily_df = data.get('daily', pd.DataFrame())
+        # channel->team map is built dynamically from the sheet's OVERALL section
+        # (see _build_channel_team_map_from_overall in channel_data_loader.py).
+        channel_to_team = data.get('channel_to_team', {}) or {}
 
-    if team_actual_df.empty:
-        st.error("No PER TEAM ACTUAL data available. Check the sheet.")
+    if overall_df.empty and daily_df.empty:
+        st.error("No Team Channel data available. Check the sheet.")
         return
 
-    # Assign teams to daily data
+    # daily_df already has 'team' column set by loader; alias to promo_team for
+    # legacy code below that groups/filters on that name.
     if not daily_df.empty:
-        daily_df['promo_team'] = daily_df['channel'].map(CHANNEL_TO_TEAM)
+        daily_df = daily_df.copy()
+        daily_df['promo_team'] = daily_df['team']
         daily_df = daily_df[daily_df['promo_team'].notna()]
 
     # Inline controls
@@ -135,26 +120,25 @@ def render_content(key_prefix="tc"):
         filtered_team_df['roas'] = filtered_team_df.apply(
             lambda x: x['total_amount'] / x['cost'] if x['cost'] > 0 else 0, axis=1)
 
-        # Build channel labels from CHANNEL_TO_TEAM mapping
+        # Build channel labels from the dynamic channel->team mapping
         team_ch_labels = {}
-        for ch, t in sorted(CHANNEL_TO_TEAM.items()):
-            num = ch.replace('FB-FB-FB-DEERPROMO', '')
+        for ch, t in sorted(channel_to_team.items()):
+            num = ch.replace('FB-FB-FB-', '')
             team_ch_labels.setdefault(t, []).append(num)
-        ch_map = {t: 'Promo ' + ' - '.join(nums) for t, nums in team_ch_labels.items()}
+        ch_map = {t: ' / '.join(nums) for t, nums in team_ch_labels.items()}
         filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
 
         filtered_overall = filtered_daily.groupby('channel').agg({
             'cost': 'sum', 'registrations': 'sum', 'first_recharge': 'sum', 'total_amount': 'sum',
         }).reset_index()
-        filtered_overall['team'] = filtered_overall['channel'].map(CHANNEL_TO_TEAM)
+        filtered_overall['team'] = filtered_overall['channel'].map(channel_to_team)
     else:
-        filtered_team_df = team_actual_df.copy()
-        # Override channel_source with our mapping
+        filtered_team_df = team_actual_df.copy() if not team_actual_df.empty else pd.DataFrame(columns=['team', 'cost', 'registrations', 'first_recharge', 'total_amount', 'cpfd', 'arppu', 'roas'])
         team_ch_labels = {}
-        for ch, t in sorted(CHANNEL_TO_TEAM.items()):
-            num = ch.replace('FB-FB-FB-DEERPROMO', '')
+        for ch, t in sorted(channel_to_team.items()):
+            num = ch.replace('FB-FB-FB-', '')
             team_ch_labels.setdefault(t, []).append(num)
-        ch_map = {t: 'Promo ' + ' - '.join(nums) for t, nums in team_ch_labels.items()}
+        ch_map = {t: ' / '.join(nums) for t, nums in team_ch_labels.items()}
         if 'team' in filtered_team_df.columns:
             filtered_team_df['channel_source'] = filtered_team_df['team'].map(ch_map).fillna('')
         filtered_overall = overall_df.copy()
@@ -254,7 +238,7 @@ def render_content(key_prefix="tc"):
         if 'team' in filtered_overall.columns:
             team_ch = filtered_overall[filtered_overall['team'] == team].copy()
         else:
-            team_channels = [ch for ch, t in CHANNEL_TO_TEAM.items() if t == team]
+            team_channels = [ch for ch, t in channel_to_team.items() if t == team]
             team_ch = filtered_overall[filtered_overall['channel'].isin(team_channels)].copy()
         if team_ch.empty:
             continue
