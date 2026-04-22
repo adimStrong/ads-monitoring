@@ -109,8 +109,11 @@ def build_daily_data(daily_df):
         lambda r: r['arppu'] / KPI_PHP_USD_RATE / (r['cost'] / r['ftd']) if r['ftd'] > 0 and r['cost'] > 0 else 0, axis=1)
 
     # Ensure ALL agents appear for every date (fill missing with zeros)
-    all_agents = [t['agent'] for t in AGENT_PERFORMANCE_TABS
-                  if t['agent'].upper() not in EXCLUDED_FROM_REPORTING]
+    # dedupe — multiple P-tabs can map to the same agent (e.g. P11-Jason2 + P12-Jason both → "Jason")
+    all_agents = list(dict.fromkeys(
+        t['agent'] for t in AGENT_PERFORMANCE_TABS
+        if t['agent'].upper() not in EXCLUDED_FROM_REPORTING
+    ))
     all_dates = agg['date'].unique()
     full_idx = pd.MultiIndex.from_product([all_agents, all_dates], names=['agent', 'date'])
     agg = agg.set_index(['agent', 'date']).reindex(full_idx, fill_value=0).reset_index()
@@ -348,21 +351,39 @@ def render_teams(daily, sel_date, prev_date):
     html += '</table>'
     st.markdown(html, unsafe_allow_html=True)
 
-    # Team member breakdown
+    # Team member breakdown — HTML table prevents value truncation from st.metric in narrow columns
     st.markdown("#### Team Members")
+    member_metrics = ['cost', 'ftd', 'cpa', 'conv_rate', 'roas']
     for team in TEAM_NAMES:
         team_agents = date_data[date_data['team'] == team]
         if team_agents.empty:
             continue
+        prev_team = prev_data[prev_data['team'] == team] if not prev_data.empty else pd.DataFrame()
+
         with st.expander(f"{team} ({len(team_agents)} agents)", expanded=True):
+            html = '<table style="width:100%;border-collapse:collapse;margin:4px 0">'
+            html += f'<tr style="background:#f1f5f9;color:#1e293b"><th style="{TH};text-align:left">Agent</th>'
+            for m in member_metrics:
+                html += f'<th style="{TH}">{METRIC_CONFIG[m]["label"]}</th>'
+            html += '</tr>'
+
             for _, row in team_agents.sort_values('ftd', ascending=False).iterrows():
-                cols = st.columns([2, 1, 1, 1, 1, 1])
-                cols[0].markdown(f"**{row['agent']}**")
-                cols[1].metric("Cost", fmt_cost(row['cost']))
-                cols[2].metric("FTD", fmt_num(row['ftd']))
-                cols[3].metric("CPA", fmt_cost(row['cpa']))
-                cols[4].metric("Conv", fmt_pct(row['conv_rate']))
-                cols[5].metric("ROAS", fmt_roas(row['roas']))
+                prev_row = prev_team[prev_team['agent'] == row['agent']] if not prev_team.empty else pd.DataFrame()
+                prev = prev_row.iloc[0] if not prev_row.empty else None
+
+                html += '<tr style="background:#ffffff;color:#1e293b">'
+                html += f'<td style="{TD};font-weight:600;text-align:left">{row["agent"]}</td>'
+                for m in member_metrics:
+                    mc = METRIC_CONFIG[m]
+                    val = row[m]
+                    dod = ""
+                    if prev is not None:
+                        dod = " " + delta_html(val, prev[m], mc['hib'])
+                    html += f'<td style="{TD}">{mc["fmt"](val)}{dod}</td>'
+                html += '</tr>'
+
+            html += '</table>'
+            st.markdown(html, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════

@@ -45,13 +45,20 @@ LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.daily_rep
 CHAT_API_URL = os.getenv("CHAT_API_URL", "https://humble-illumination-production-713f.up.railway.app")
 CHAT_API_KEY = os.getenv("CHAT_API_KEY", "juan365chat")
 
+# Force UTF-8 on stdout/stderr so emojis and arrows don't break cp1252 console on Windows
+try:
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+except (AttributeError, Exception):
+    pass
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'daily_report.log'))
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'daily_report.log'), encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -172,6 +179,18 @@ def build_album_caption(daily_df, target_date):
     t1 = df[df['date_only'] == target_date]
 
     if t1.empty:
+        # Show latest available date so team knows data is stale
+        available = sorted(df['date_only'].dropna().unique())
+        latest = available[-1] if available else None
+        logger.warning(f"No P-tab data for {target_date}. Latest available: {latest}")
+        if latest:
+            return (
+                f"<b>Advertiser Daily Analysis — {target_date.strftime('%b %d, %Y')}</b>\n\n"
+                f"⚠️ No data for {target_date.strftime('%b %d')}.\n"
+                f"Latest data: {latest.strftime('%b %d, %Y')}\n\n"
+                f"Please update your P-tab sheets.\n\n"
+                f"@xxxadsron @Zzzzz103 @Adsbasty"
+            )
         return f"<b>Advertiser Daily Analysis</b> — {target_date.strftime('%b %d, %Y')}"
 
     prev_date = target_date - timedelta(days=1)
@@ -356,7 +375,7 @@ def send_report():
                     except OSError:
                         pass
 
-        logger.info("Daily report complete! (album only, 4 photos)")
+        logger.info("Daily report complete! (album with caption)")
         return True
     except Exception as e:
         logger.error(f"Failed to send report: {e}")
@@ -404,7 +423,7 @@ def setup_scheduler():
             name=f'Reminder: {label} before report',
             replace_existing=True
         )
-        logger.info(f"Scheduled reminder: {label} before → {r_hour:02d}:{r_minute:02d}")
+        logger.info(f"Scheduled reminder: {label} before -> {r_hour:02d}:{r_minute:02d}")
 
     # Schedule the actual report
     scheduler.add_job(
