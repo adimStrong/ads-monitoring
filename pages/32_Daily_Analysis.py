@@ -177,20 +177,26 @@ def render_overview(daily, dates, sel_date, prev_date):
     prev_label = prev_date.strftime('%b %d (%a)') if prev_date else None
     st.markdown(f"**{sel_label}**" + (f" vs {prev_label}" if prev_label else ""))
 
-    # Summary cards
+    # Summary cards — HTML grid prevents st.metric truncation (e.g. "$3,155...") in narrow columns
     card_metrics = ['cost', 'ftd', 'cpa', 'roas', 'ctr', 'conv_rate']
-    cols = st.columns(len(card_metrics))
-    for i, m in enumerate(card_metrics):
+    cards_html = '<div style="display:flex;flex-wrap:wrap;gap:12px;margin:8px 0 16px 0">'
+    for m in card_metrics:
         mc = METRIC_CONFIG[m]
-        with cols[i]:
-            val = curr.get(m, 0)
-            prev_val = prev.get(m, 0)
-            delta = None
-            delta_color = "inverse" if not mc['hib'] else "normal"
-            if prev_val and prev_val != 0:
-                pct = (val - prev_val) / abs(prev_val) * 100
-                delta = f"{pct:+.1f}% DoD"
-            st.metric(mc['label'], mc['fmt'](val), delta, delta_color=delta_color)
+        val = curr.get(m, 0)
+        prev_val = prev.get(m, 0)
+        dod = ""
+        if prev_val and prev_val != 0:
+            dod = f'<div style="font-size:12px;margin-top:6px">{delta_html(val, prev_val, mc["hib"])} <span style="color:#94a3b8">DoD</span></div>'
+        cards_html += (
+            '<div style="flex:1 1 160px;background:#0f172a;border:1px solid #1e293b;'
+            'border-radius:8px;padding:14px 16px">'
+            f'<div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">{mc["label"]}</div>'
+            f'<div style="font-size:22px;font-weight:700;color:#f8fafc;white-space:nowrap;margin-top:4px">{mc["fmt"](val)}</div>'
+            f'{dod}'
+            '</div>'
+        )
+    cards_html += '</div>'
+    st.markdown(cards_html, unsafe_allow_html=True)
 
     # DoD comparison table
     st.markdown("#### Day-over-Day Comparison")
