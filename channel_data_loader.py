@@ -802,15 +802,41 @@ _OWNER_TO_TEAM = {
     'JP': 'JP', 'DER': 'JP', 'DER 2': 'JP',
 }
 
+# Single-owner standalone teams used by the NEW Promo 26+ channels, where
+# col D holds ONE name (e.g. "Jason") instead of a pair ("Jason + Shila").
+# Each maps to that owner's own team — kept SEPARATE from the 4 legacy paired
+# teams above. "Derr"/"DER" resolve to the JP role explicitly (no fuzzy match).
+_SINGLE_OWNER_TEAMS = {
+    'JASON': 'JASON', 'RON': 'RON', 'SHILA': 'SHILA',
+    'JOMAR': 'JOMAR', 'MIKA': 'MIKA', 'ADRIAN': 'ADRIAN',
+    'JP': 'JP', 'DER': 'JP', 'DERR': 'JP',
+}
+
 
 def _normalize_team_name(raw_team, owner=''):
-    """Map a sheet team name (col D) to a 4-team display name.
-    Falls back to owner (col C) for combined teams like 'Jason + Shila+JP'."""
-    if not raw_team:
+    """Map a sheet team name (col D) to a display team.
+
+    - Single-owner team (col D is ONE name, no '+', e.g. "Jason" — used by the
+      new Promo 26+ channels) -> that owner's own standalone team. "Derr"/"DER"
+      resolve to JP explicitly.
+    - Paired team (col D contains '+', e.g. "Mika + Jomar") -> one of the 4
+      legacy paired display teams, deferring to owner (col C) when ambiguous.
+    """
+    t = (raw_team or '').strip()
+
+    # Single-owner (new) team: one name, no '+'. Map to its own standalone team.
+    if t and '+' not in t:
+        key = t.upper()
+        # strip a trailing " 2"/" 3" account suffix (e.g. "Jason 2")
+        base = key[:-2].strip() if key.endswith((' 2', ' 3')) else key
+        if base in _SINGLE_OWNER_TEAMS:
+            return _SINGLE_OWNER_TEAMS[base]
+
+    # Paired (legacy) team or empty col D: resolve to a 4-team display name.
+    if not t:
         if owner:
             return _OWNER_TO_TEAM.get(owner.strip().upper())
         return None
-    t = raw_team.strip()
     if t in _TEAM_NAME_MAP:
         return _TEAM_NAME_MAP[t]
     # Combined teams like "Jason + Shila+JP" — defer to owner
@@ -1887,8 +1913,16 @@ def load_agent_performance_data():
         if client is None:
             return empty
 
-        spreadsheet = client.open_by_key(CHANNEL_ROI_SHEET_ID)
         cols = AGENT_PERF_OVERALL_COLUMNS
+
+        # P-tabs may live in different workbooks (original Channel ROI sheet +
+        # the new JUAN365 NEW BM sheet). Resolve the spreadsheet per tab via the
+        # optional 'sheet_id' key, opening each unique workbook only once.
+        _ss_cache = {}
+        def _open_ss(sheet_id):
+            if sheet_id not in _ss_cache:
+                _ss_cache[sheet_id] = client.open_by_key(sheet_id)
+            return _ss_cache[sheet_id]
 
         monthly_records = []
         daily_records = []
@@ -1897,7 +1931,9 @@ def load_agent_performance_data():
 
         for tab_info in AGENT_PERFORMANCE_TABS:
             agent = tab_info['agent']
+            sheet_id = tab_info.get('sheet_id', CHANNEL_ROI_SHEET_ID)
             try:
+                spreadsheet = _open_ss(sheet_id)
                 worksheet = spreadsheet.get_worksheet_by_id(tab_info['gid'])
                 all_data = worksheet.get_all_values()
             except Exception as e:

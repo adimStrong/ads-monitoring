@@ -531,6 +531,13 @@ UPDATED_BM_COLUMNS = {
 # AGENT PERFORMANCE (P-TABS) CONFIGURATION
 # ============================================================
 # Each P-tab has one agent's FB advertising data (monthly + daily + ad accounts)
+# Tabs without a "sheet_id" default to CHANNEL_ROI_SHEET_ID (the original sheet).
+# Tabs with a "sheet_id" are loaded from that spreadsheet instead — this lets the
+# loader merge P-tabs that live in a different workbook.
+
+# "JUAN365 NEW BM" workbook — new Ron/Derr BM advertising P-tabs (P26-P37).
+NEW_BM_SHEET_ID = "1BBQvfKKISv_1kKiFn5vW19YedRymBBzCfoykPGc7wYI"
+
 AGENT_PERFORMANCE_TABS = [
     {"name": "P6-Mika", "gid": 1053167165, "agent": "Mika"},
     {"name": "P7-Adrian", "gid": 1573312887, "agent": "Adrian"},
@@ -540,6 +547,19 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
     {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
     {"name": "P9-Jp", "gid": 1922385711, "agent": "Jp"},
+    # --- NEW BM workbook (JUAN365 NEW BM) — merged in, agents per user mapping ---
+    {"name": "P26", "gid": 889485986, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P27-RON", "gid": 0, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P28", "gid": 40332730, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P29", "gid": 184499969, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P30", "gid": 339572283, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P31", "gid": 263862698, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P32-DERR", "gid": 56299844, "agent": "Derr", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P33", "gid": 1721772431, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P34", "gid": 1351254392, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P35", "gid": 192193086, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P36", "gid": 55495141, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P37-RON", "gid": 1878701742, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
 ]
 
 # Overall/monthly columns (0-indexed, col A is empty so data starts at index 1)
