@@ -547,19 +547,19 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P12-Jason", "gid": 1747171433, "agent": "Jason"},
     {"name": "P13-Shila", "gid": 874276337, "agent": "Shila"},
     {"name": "P9-Jp", "gid": 1922385711, "agent": "Jp"},
-    # --- NEW BM workbook (JUAN365 NEW BM) — merged in, agents per user mapping ---
-    {"name": "P26", "gid": 889485986, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P27-RON", "gid": 0, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P28", "gid": 40332730, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P29", "gid": 184499969, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P30", "gid": 339572283, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P31", "gid": 263862698, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P32-DERR", "gid": 56299844, "agent": "Derr", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P33", "gid": 1721772431, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P34", "gid": 1351254392, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P35", "gid": 192193086, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P36", "gid": 55495141, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P37-RON", "gid": 1878701742, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    # --- NEW BM workbook (JUAN365 NEW BM) — merged in, agent = actual owner from each tab title ---
+    {"name": "P26-Jason", "gid": 889485986, "agent": "Jason", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P27-Ron", "gid": 0, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P28-Shila", "gid": 40332730, "agent": "Shila", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P29-Jomar", "gid": 184499969, "agent": "Jomar", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P30-Jp", "gid": 339572283, "agent": "Jp", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P31-Adrian", "gid": 263862698, "agent": "Adrian", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P32-Derr", "gid": 56299844, "agent": "Derr", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P33-Jp", "gid": 1721772431, "agent": "Jp", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P34-Jomar", "gid": 1351254392, "agent": "Jomar", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P35-Derr", "gid": 192193086, "agent": "Derr", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P36-Shila", "gid": 55495141, "agent": "Shila", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P37-Ron", "gid": 1878701742, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
 ]
 
 # Overall/monthly columns (0-indexed, col A is empty so data starts at index 1)
