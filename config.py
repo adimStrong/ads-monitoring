@@ -554,10 +554,10 @@ AGENT_PERFORMANCE_TABS = [
     {"name": "P29-Jomar", "gid": 184499969, "agent": "Jomar", "sheet_id": NEW_BM_SHEET_ID},
     {"name": "P30-Jp", "gid": 339572283, "agent": "Jp", "sheet_id": NEW_BM_SHEET_ID},
     {"name": "P31-Adrian", "gid": 263862698, "agent": "Adrian", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P32-Ron", "gid": 56299844, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P33-Jason", "gid": 1721772431, "agent": "Jason", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P32-Adrian", "gid": 56299844, "agent": "Adrian", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P33-Jp", "gid": 1721772431, "agent": "Jp", "sheet_id": NEW_BM_SHEET_ID},
     {"name": "P34-Jomar", "gid": 1351254392, "agent": "Jomar", "sheet_id": NEW_BM_SHEET_ID},
-    {"name": "P35-Derr", "gid": 192193086, "agent": "Derr", "sheet_id": NEW_BM_SHEET_ID},
+    {"name": "P35-Jason", "gid": 192193086, "agent": "Jason", "sheet_id": NEW_BM_SHEET_ID},
     {"name": "P36-Shila", "gid": 55495141, "agent": "Shila", "sheet_id": NEW_BM_SHEET_ID},
     {"name": "P37-Ron", "gid": 1878701742, "agent": "Ron", "sheet_id": NEW_BM_SHEET_ID},
 ]
